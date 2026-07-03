@@ -1,0 +1,475 @@
+# Estrutura inicial esperada do repositório Lumen
+
+Data de referência: 2026-07-03
+
+Este documento descreve a organização inicial recomendada para o monorepo do Lumen. A estrutura foi pensada para facilitar trabalho incremental com Codex, separando backend, frontend, agente local, infra, documentação e scripts operacionais.
+
+## Árvore esperada
+
+```txt
+lumen/
+├─ .env.example
+├─ .gitignore
+├─ README.md
+├─ requirements.txt
+├─ ESTRUTURA_REPO.md
+├─ PLANO_DESENVOLVIMENTO.md
+│
+├─ backend/
+│  ├─ alembic.ini
+│  ├─ alembic/
+│  │  ├─ env.py
+│  │  ├─ script.py.mako
+│  │  └─ versions/
+│  │
+│  ├─ app/
+│  │  ├─ __init__.py
+│  │  ├─ main.py
+│  │  │
+│  │  ├─ api/
+│  │  │  ├─ __init__.py
+│  │  │  └─ v1/
+│  │  │     ├─ __init__.py
+│  │  │     ├─ api.py
+│  │  │     └─ endpoints/
+│  │  │        ├─ auth.py
+│  │  │        ├─ health.py
+│  │  │        ├─ worker.py
+│  │  │        ├─ companies.py
+│  │  │        ├─ periods.py
+│  │  │        ├─ dashboard.py
+│  │  │        ├─ cockpit.py
+│  │  │        ├─ deliveries.py
+│  │  │        ├─ evidences.py
+│  │  │        ├─ divergences.py
+│  │  │        ├─ installments.py
+│  │  │        ├─ integrations.py
+│  │  │        └─ webhooks/
+│  │  │           ├─ econtrole.py
+│  │  │           └─ acessorias.py
+│  │  │
+│  │  ├─ core/
+│  │  │  ├─ config.py
+│  │  │  ├─ security.py
+│  │  │  ├─ logging.py
+│  │  │  ├─ enums.py
+│  │  │  ├─ periods.py
+│  │  │  ├─ cnpj.py
+│  │  │  └─ paths.py
+│  │  │
+│  │  ├─ db/
+│  │  │  ├─ base.py
+│  │  │  ├─ session.py
+│  │  │  └─ seed.py
+│  │  │
+│  │  ├─ models/
+│  │  │  ├─ organization.py
+│  │  │  ├─ user.py
+│  │  │  ├─ external_company.py
+│  │  │  ├─ company_activity_type.py
+│  │  │  ├─ fiscal_period.py
+│  │  │  ├─ fiscal_obligation.py
+│  │  │  ├─ fiscal_obligation_rule.py
+│  │  │  ├─ fiscal_obligation_status.py
+│  │  │  ├─ fiscal_evidence.py
+│  │  │  ├─ fiscal_alert.py
+│  │  │  ├─ fiscal_installment.py
+│  │  │  ├─ integration_account.py
+│  │  │  ├─ integration_sync_run.py
+│  │  │  ├─ watcher_file_event.py
+│  │  │  ├─ econet_cnae_cache.py
+│  │  │  ├─ sittax_snapshots.py
+│  │  │  ├─ acessorias_snapshots.py
+│  │  │  ├─ dominio_payroll.py
+│  │  │  └─ audit_log.py
+│  │  │
+│  │  ├─ schemas/
+│  │  │  ├─ auth.py
+│  │  │  ├─ company.py
+│  │  │  ├─ period.py
+│  │  │  ├─ dashboard.py
+│  │  │  ├─ cockpit.py
+│  │  │  ├─ delivery.py
+│  │  │  ├─ evidence.py
+│  │  │  ├─ divergence.py
+│  │  │  ├─ installment.py
+│  │  │  ├─ integration.py
+│  │  │  └─ worker.py
+│  │  │
+│  │  ├─ services/
+│  │  │  ├─ audit.py
+│  │  │  ├─ auth.py
+│  │  │  ├─ periods.py
+│  │  │  ├─ companies.py
+│  │  │  ├─ obligations.py
+│  │  │  ├─ evidences.py
+│  │  │  ├─ reconciliation.py
+│  │  │  ├─ alerts.py
+│  │  │  ├─ dctfweb_origins.py
+│  │  │  ├─ factor_r.py
+│  │  │  ├─ installments.py
+│  │  │  ├─ pdf/
+│  │  │  │  ├─ text_extract.py
+│  │  │  │  ├─ classify_tax.py
+│  │  │  │  ├─ parse_das.py
+│  │  │  │  ├─ parse_darf.py
+│  │  │  │  ├─ parse_icms.py
+│  │  │  │  ├─ parse_iss.py
+│  │  │  │  ├─ parse_installment.py
+│  │  │  │  └─ parse_dominio_payroll.py
+│  │  │  └─ integrations/
+│  │  │     ├─ econtrole/
+│  │  │     │  ├─ client.py
+│  │  │     │  ├─ mapper.py
+│  │  │     │  └─ sync.py
+│  │  │     ├─ acessorias/
+│  │  │     │  ├─ client.py
+│  │  │     │  ├─ mapper.py
+│  │  │     │  └─ sync.py
+│  │  │     ├─ sittax/
+│  │  │     │  ├─ client.py
+│  │  │     │  ├─ session.py
+│  │  │     │  ├─ mapper.py
+│  │  │     │  └─ sync.py
+│  │  │     ├─ dominio/
+│  │  │     │  ├─ payroll_importer.py
+│  │  │     │  └─ mapper.py
+│  │  │     └─ econet/
+│  │  │        ├─ assisted_session.py
+│  │  │        ├─ client.py
+│  │  │        ├─ parser.py
+│  │  │        └─ cache.py
+│  │  │
+│  │  └─ worker/
+│  │     ├─ __init__.py
+│  │     ├─ queue.py
+│  │     ├─ runner.py
+│  │     ├─ jobs.py
+│  │     └─ tasks/
+│  │        ├─ sync_econtrole.py
+│  │        ├─ sync_acessorias.py
+│  │        ├─ sync_sittax.py
+│  │        ├─ scan_fiscal_files.py
+│  │        ├─ process_pdf_evidences.py
+│  │        ├─ import_dominio_payroll.py
+│  │        ├─ enrich_cnaes_econet.py
+│  │        ├─ reconcile_fiscal_period.py
+│  │        ├─ scan_dctfweb_origins.py
+│  │        ├─ scan_installment_risks.py
+│  │        └─ generate_fiscal_alerts.py
+│  │
+│  ├─ scripts/
+│  │  ├─ create_initial_admin.py
+│  │  ├─ seed_obligations.py
+│  │  ├─ seed_periods.py
+│  │  ├─ run_reconciliation_once.py
+│  │  └─ run_file_scan_once.py
+│  │
+│  └─ tests/
+│     ├─ conftest.py
+│     ├─ test_health.py
+│     ├─ test_auth.py
+│     ├─ test_companies_sync.py
+│     ├─ test_acessorias_sync.py
+│     ├─ test_reconciliation.py
+│     ├─ test_pdf_parsers.py
+│     ├─ test_dctfweb_origins.py
+│     ├─ test_installments.py
+│     └─ test_worker.py
+│
+├─ frontend/
+│  ├─ package.json
+│  ├─ package-lock.json
+│  ├─ vite.config.ts
+│  ├─ tsconfig.json
+│  ├─ index.html
+│  ├─ playwright.config.ts
+│  ├─ src/
+│  │  ├─ main.tsx
+│  │  ├─ app/
+│  │  │  ├─ LumenShell.tsx
+│  │  │  ├─ lumenRoutes.tsx
+│  │  │  └─ queryClient.ts
+│  │  │
+│  │  ├─ components/
+│  │  │  ├─ layout/
+│  │  │  │  ├─ Sidebar.tsx
+│  │  │  │  ├─ Topbar.tsx
+│  │  │  │  └─ ContextStrip.tsx
+│  │  │  ├─ selectors/
+│  │  │  │  ├─ CompanyDropdown.tsx
+│  │  │  │  └─ PeriodDropdown.tsx
+│  │  │  └─ ui/
+│  │  │     ├─ Badge.tsx
+│  │  │     ├─ Button.tsx
+│  │  │     ├─ Card.tsx
+│  │  │     ├─ EmptyState.tsx
+│  │  │     ├─ Hero.tsx
+│  │  │     ├─ KpiCard.tsx
+│  │  │     ├─ Progress.tsx
+│  │  │     └─ Table.tsx
+│  │  │
+│  │  ├─ features/
+│  │  │  ├─ dashboard/
+│  │  │  │  ├─ DashboardPage.tsx
+│  │  │  │  ├─ DashboardKpis.tsx
+│  │  │  │  └─ UrgentActions.tsx
+│  │  │  ├─ cockpit/
+│  │  │  │  ├─ CockpitPage.tsx
+│  │  │  │  ├─ CockpitFilters.tsx
+│  │  │  │  └─ CompanyCockpitTable.tsx
+│  │  │  ├─ company/
+│  │  │  │  ├─ CompanyPage.tsx
+│  │  │  │  ├─ CompanyHero.tsx
+│  │  │  │  ├─ CompanyRegistrationCard.tsx
+│  │  │  │  ├─ CompanyObligationsTable.tsx
+│  │  │  │  ├─ DctfwebOriginCard.tsx
+│  │  │  │  ├─ EvidenceTimeline.tsx
+│  │  │  │  └─ FactorRCard.tsx
+│  │  │  ├─ deliveries/
+│  │  │  │  ├─ DeliveriesPage.tsx
+│  │  │  │  ├─ DeliverySummary.tsx
+│  │  │  │  └─ DeliveryTable.tsx
+│  │  │  ├─ evidences/
+│  │  │  │  ├─ EvidencesPage.tsx
+│  │  │  │  └─ EvidenceCard.tsx
+│  │  │  ├─ divergences/
+│  │  │  │  ├─ DivergencesPage.tsx
+│  │  │  │  └─ DivergenceCard.tsx
+│  │  │  ├─ installments/
+│  │  │  │  ├─ InstallmentsPage.tsx
+│  │  │  │  └─ InstallmentsTable.tsx
+│  │  │  └─ integrations/
+│  │  │     ├─ IntegrationsPage.tsx
+│  │  │     ├─ IntegrationHealthCard.tsx
+│  │  │     └─ JobsGrid.tsx
+│  │  │
+│  │  ├─ services/
+│  │  │  ├─ apiClient.ts
+│  │  │  ├─ authService.ts
+│  │  │  ├─ companiesService.ts
+│  │  │  ├─ dashboardService.ts
+│  │  │  ├─ deliveriesService.ts
+│  │  │  ├─ evidencesService.ts
+│  │  │  ├─ divergencesService.ts
+│  │  │  ├─ installmentsService.ts
+│  │  │  └─ integrationsService.ts
+│  │  │
+│  │  ├─ stores/
+│  │  │  ├─ lumenUiStore.ts
+│  │  │  └─ authStore.ts
+│  │  │
+│  │  ├─ styles/
+│  │  │  ├─ tokens.css
+│  │  │  ├─ global.css
+│  │  │  └─ components.css
+│  │  │
+│  │  └─ types/
+│  │     ├─ company.ts
+│  │     ├─ fiscal.ts
+│  │     └─ integration.ts
+│  │
+│  └─ tests_e2e/
+│     ├─ auth.spec.ts
+│     ├─ shell.spec.ts
+│     ├─ dashboard.spec.ts
+│     ├─ cockpit.spec.ts
+│     ├─ deliveries.spec.ts
+│     └─ company.spec.ts
+│
+├─ agent/
+│  ├─ README.md
+│  ├─ watcher/
+│  │  ├─ __init__.py
+│  │  ├─ config.py
+│  │  ├─ main.py
+│  │  ├─ file_detector.py
+│  │  ├─ company_resolver.py
+│  │  ├─ period_resolver.py
+│  │  ├─ hash.py
+│  │  └─ client.py
+│  └─ parsers/
+│     ├─ __init__.py
+│     ├─ file_name_classifier.py
+│     └─ pdf_text_probe.py
+│
+├─ infra/
+│  ├─ docker-compose.yml
+│  ├─ postgres/
+│  │  └─ init/
+│  └─ redis/
+│
+├─ scripts/
+│  ├─ dev/
+│  │  ├─ run_backend.ps1
+│  │  ├─ run_frontend.ps1
+│  │  └─ run_worker.ps1
+│  └─ ops/
+│     ├─ run_reconciliation_period.ps1
+│     ├─ run_file_scan.ps1
+│     ├─ run_acessorias_sync.ps1
+│     └─ run_econtrole_reconcile.ps1
+│
+├─ docs/
+│  ├─ BASELINE_LUMEN.md
+│  ├─ DECISOES.md
+│  ├─ RISCOS.md
+│  ├─ INTEGRATION_CONTRACTS.md
+│  ├─ API_CONTRACTS.md
+│  ├─ DATA_MODEL.md
+│  ├─ FRONTEND_STYLE_GUIDE.md
+│  ├─ WATCHER_GUIDE.md
+│  ├─ PDF_PARSERS.md
+│  ├─ RECONCILIATION_RULES.md
+│  ├─ DCTFWEB_RULES.md
+│  ├─ FATOR_R_RULES.md
+│  ├─ SECURITY.md
+│  ├─ RUNBOOK_LOCAL.md
+│  └─ examples/
+│     ├─ README.md
+│     ├─ sample_acessorias_delivery.json
+│     ├─ sample_sittax_apuracao.json
+│     ├─ sample_econtrole_company.json
+│     └─ sample_watcher_event.json
+│
+├─ schemas/
+│  ├─ econtrole_company.schema.json
+│  ├─ acessorias_delivery.schema.json
+│  ├─ sittax_apuracao.schema.json
+│  ├─ watcher_event.schema.json
+│  └─ fiscal_evidence.schema.json
+│
+└─ data/
+   ├─ .gitkeep
+   └─ examples/
+      └─ README.md
+```
+
+## Responsabilidades por pasta
+
+### `backend/`
+
+Contém API FastAPI, modelos, schemas, migrations, serviços de domínio, conectores de integração, regras fiscais, jobs e testes.
+
+O backend deve ser a fonte de verdade para:
+
+- status fiscal por empresa/competência;
+- regras de conciliação;
+- vínculo entre obrigação e evidência;
+- origem da DCTFWeb;
+- risco de parcelamento;
+- cache de integrações;
+- auditoria e rastreabilidade.
+
+### `frontend/`
+
+Contém o portal React/Vite. Deve seguir o guia visual do Lumen, mantendo tokens, estrutura de app shell, rotas e componentes reutilizáveis.
+
+Rotas previstas:
+
+```txt
+/lumen/painel
+/lumen/cockpit
+/lumen/empresa/:companyId
+/lumen/envios
+/lumen/evidencias
+/lumen/divergencias
+/lumen/parcelamentos
+/lumen/integracoes
+```
+
+Estado global mínimo:
+
+```ts
+type LumenUIState = {
+  selectedCompany: CompanySummary | null;
+  selectedPeriod: string;
+  currentView: string;
+  focusMode: boolean;
+  filters: Record<string, unknown>;
+};
+```
+
+### `agent/`
+
+Contém o watcher/agent local responsável por monitorar pastas fiscais, detectar arquivos novos, extrair metadados básicos, calcular hash e enviar eventos para a API.
+
+O agente não deve decidir sozinho uma conciliação final. Ele gera evidências e sinais. A conciliação pertence ao backend.
+
+### `infra/`
+
+Contém infraestrutura local e de desenvolvimento. Inicialmente deve incluir Docker Compose com PostgreSQL e Redis.
+
+Não versionar volumes locais.
+
+### `scripts/`
+
+Contém scripts de desenvolvimento e operação, especialmente PowerShell para Windows.
+
+Scripts com credenciais locais devem usar `.env` ou arquivo `.local.*` ignorado pelo Git.
+
+### `docs/`
+
+Contém documentação viva do projeto. Toda decisão relevante tomada durante desenvolvimento deve entrar em `docs/DECISOES.md`.
+
+### `schemas/`
+
+Contém contratos JSON para payloads de integração, eventos do watcher e datasets de teste.
+
+### `data/`
+
+Pasta reservada para exemplos anonimizados. Arquivos fiscais reais devem ficar fora do Git.
+
+## Convenções de nomes
+
+### Backend
+
+- Models SQLAlchemy no singular: `FiscalEvidence`, `FiscalObligationStatus`.
+- Tabelas no plural snake_case: `fiscal_evidences`, `fiscal_obligation_statuses`.
+- Services em snake_case por domínio: `reconciliation.py`, `dctfweb_origins.py`.
+- Jobs em formato de verbo: `sync_acessorias_deliveries`, `scan_fiscal_files`.
+
+### Frontend
+
+- Componentes em PascalCase.
+- Services com sufixo `Service` ou arquivo `*Service.ts`.
+- Tipos em `src/types`.
+- CSS global apenas para tokens, reset e componentes base; estilos específicos devem ficar junto da feature quando possível.
+
+### Competência
+
+- Backend/API: `YYYY-MM`, exemplo `2026-06`.
+- Frontend: exibir `MM/YYYY`, exemplo `06/2026`.
+
+### Inscrição Estadual
+
+- Persistir valor bruto quando disponível.
+- Exibir `ISENTO` quando vazio ou nulo.
+
+## Arquivos que devem existir logo no Stage S1
+
+```txt
+.gitignore
+README.md
+requirements.txt
+ESTRUTURA_REPO.md
+PLANO_DESENVOLVIMENTO.md
+.env.example
+infra/docker-compose.yml
+backend/app/main.py
+backend/app/api/v1/endpoints/health.py
+frontend/package.json
+frontend/src/app/LumenShell.tsx
+frontend/src/styles/tokens.css
+```
+
+## Arquivos que não devem ser versionados
+
+- `.env` e variações locais.
+- Tokens, cookies, sessões assistidas e credenciais.
+- Certificados `.pfx`, `.p12`, `.pem`, `.key`.
+- PDFs fiscais reais.
+- XMLs de notas reais.
+- Relatórios reais da Domínio.
+- Pastas monitoradas do `G:\EMPRESAS`.
+- Resultados Playwright, coverage, logs e dumps.
