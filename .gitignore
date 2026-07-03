@@ -1,0 +1,189 @@
+# Lumen - arquivos ignorados pelo Git
+# Objetivo: manter o repositório limpo e impedir commit de segredos, caches,
+# guias fiscais, PDFs operacionais, sessões assistidas e artefatos locais.
+
+# ---------------------------------------------------------------------------
+# Sistema operacional / editores
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+.idea/
+.cursor/
+
+# ---------------------------------------------------------------------------
+# Variáveis de ambiente, segredos e credenciais
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+!.env.test.example
+.secrets/
+secrets/
+*.pem
+*.key
+*.crt
+*.cer
+*.pfx
+*.p12
+*.jks
+*.keystore
+*.token
+*.cookie
+*.cookies
+
+# Sessões assistidas de integrações como Econet/Sittax
+agent/sessions/
+agent/.sessions/
+agent/cache/sessions/
+backend/storage/sessions/
+
+# ---------------------------------------------------------------------------
+# Python / FastAPI
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+pythonenv*
+.venv/
+venv/
+env/
+ENV/
+site/
+
+pip-wheel-metadata/
+*.egg-info/
+.eggs/
+build/
+dist/
+wheels/
+
+.pytest_cache/
+.mypy_cache/
+.pyre/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.cache/
+.tox/
+.nox/
+
+# ---------------------------------------------------------------------------
+# Node / React / Vite
+# ---------------------------------------------------------------------------
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/.cache/
+frontend/coverage/
+frontend/.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Playwright / E2E
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/.playwright/
+frontend/tests_e2e/.auth/
+playwright-report/
+test-results/
+
+# ---------------------------------------------------------------------------
+# Banco local / volumes / infra
+# ---------------------------------------------------------------------------
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+infra/postgres_data/
+infra/redis_data/
+infra/.volumes/
+pgdata/
+redis-data/
+
+# ---------------------------------------------------------------------------
+# Logs, dumps e artefatos temporários
+# ---------------------------------------------------------------------------
+logs/
+*.log
+*.log.*
+tmp/
+temp/
+.tmp/
+reports/
+artifacts/
+*.dump
+*.bak
+*.backup
+*.zip
+*.7z
+*.rar
+
+# ---------------------------------------------------------------------------
+# Arquivos fiscais operacionais e armazenamento local
+# ---------------------------------------------------------------------------
+# Não versionar guias, recibos, relatórios reais, PDFs de folha, XMLs fiscais
+# ou cópias de pastas monitoradas. Usar docs/examples para amostras anonimizadas.
+data/local/
+data/raw/
+data/processed/
+data/uploads/
+data/downloads/
+data/watched/
+backend/storage/
+backend/uploads/
+backend/downloads/
+agent/cache/
+agent/spool/
+agent/processed/
+agent/failed/
+
+!data/.gitkeep
+!data/examples/
+!data/examples/**
+!backend/storage/.gitkeep
+!agent/.gitkeep
+
+*.xml
+*.pdf
+*.ofd
+*.csv.tmp
+*.tmp
+
+# Permitir PDFs/CSVs explicitamente anonimizados em docs/examples
+!docs/**/*.pdf
+!docs/**/*.csv
+!docs/examples/**
+
+# ---------------------------------------------------------------------------
+# Patches locais e saídas de Codex
+# ---------------------------------------------------------------------------
+patch.diff
+*.patch
+*.orig
+*.rej
+.codex/
+.codex-cache/
+
+# ---------------------------------------------------------------------------
+# Windows / PowerShell operacional
+# ---------------------------------------------------------------------------
+scripts/ops/logs/
+scripts/ops/*.local.ps1
+scripts/ops/*.local.cmd
