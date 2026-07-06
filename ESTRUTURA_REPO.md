@@ -497,3 +497,24 @@ frontend/src/styles/tokens.css
 - Relatórios reais da Domínio.
 - Pastas monitoradas do `G:\EMPRESAS`.
 - Resultados Playwright, coverage, logs e dumps.
+
+## Atualizacao S2 em 2026-07-06
+
+No estado real atual, alem do subconjunto minimo do S1, ja foram materializados os blocos tecnicos do S2:
+
+- `backend/app/core/config.py`
+- `backend/app/core/logging.py`
+- `backend/app/core/security.py`
+- `backend/app/db/base.py`
+- `backend/app/db/session.py`
+- `backend/app/models/audit_log.py`
+- `backend/app/services/audit.py`
+- `backend/alembic.ini`
+- `backend/alembic/`
+- `backend/tests/`
+
+Ainda permanecem fora de escopo neste ponto:
+
+- autenticacao, JWT, usuarios, organizacoes e RBAC
+- modelos fiscais do S4
+- integracoes externas

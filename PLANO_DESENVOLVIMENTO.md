@@ -176,7 +176,7 @@ Aceite:
 
 ## S2 - Core backend: config, DB, migrations, auditoria e testes
 
-Status: pendente
+Status: concluÃ­do em 2026-07-06
 
 Objetivo:
 - Criar a base técnica do backend para suportar domínio, integrações e jobs.
@@ -211,6 +211,43 @@ Aceite:
 - Testes passam em ambiente limpo.
 - Logs estruturados funcionam.
 - Auditoria consegue registrar evento simples.
+
+Entregues:
+- `backend/app/core/config.py`
+- `backend/app/core/logging.py`
+- `backend/app/core/security.py` com utilitÃ¡rios mÃ­nimos sem JWT/RBAC
+- `backend/app/db/base.py`
+- `backend/app/db/session.py`
+- `backend/app/models/__init__.py`
+- `backend/app/models/audit_log.py`
+- `backend/app/services/audit.py`
+- `backend/alembic.ini`
+- `backend/alembic/env.py`
+- `backend/alembic/script.py.mako`
+- migration inicial `20260706_0001_create_audit_log.py`
+- `backend/tests/conftest.py`
+- `backend/tests/test_health.py`
+- `backend/tests/test_config.py`
+- `backend/tests/test_db.py`
+- `backend/tests/test_audit.py`
+
+ValidaÃ§Ã£o executada:
+- `alembic -c backend/alembic.ini upgrade head`
+- `pytest backend/tests/test_health.py backend/tests/test_config.py backend/tests/test_db.py backend/tests/test_audit.py`
+- `ruff check backend`
+- `Invoke-RestMethod http://localhost:8000/healthz`
+- `Invoke-RestMethod http://localhost:8000/api/v1/worker/health`
+- `cd frontend && npm run typecheck && npm run test:e2e`
+- `alembic -c backend/alembic.ini downgrade base`
+- `alembic -c backend/alembic.ini upgrade head`
+
+PendÃªncias:
+- warning de deprecaÃ§Ã£o do `fastapi.testclient` na stack atual; nÃ£o bloqueia o stage
+
+DecisÃµes novas:
+- healthchecks do S1 permanecem independentes de conexÃ£o obrigatÃ³ria com banco
+- banco de teste padrÃ£o do backend: `postgresql+psycopg://lumen:lumen@localhost:5435/lumen_test`
+- `audit_log` usa coluna fÃ­sica `metadata` mapeada para atributo Python `event_metadata`
 
 ---
 

@@ -1,12 +1,12 @@
 # Lumen - Fiscal Cockpit
 
-Data de referencia: 2026-07-03
+Data de referencia: 2026-07-06
 
-O repositorio concluiu o Stage S1. Nesta etapa foi entregue a base tecnica minima para desenvolvimento local: infraestrutura Docker, API FastAPI com healthchecks, worker stub, frontend React/Vite e scripts PowerShell.
+O repositorio concluiu os Stages S1 e S2. Nesta etapa, alem da base tecnica minima do S1, foi entregue o core backend do S2 com configuracao por ambiente, logging estruturado basico, sessao DB SQLAlchemy, Alembic funcional, modelo `audit_log`, servico de auditoria e harness de testes com banco isolado.
 
-## Escopo real do S1
+## Escopo real atual
 
-O S1 entrega somente:
+S1 entrega:
 
 - Docker Compose com PostgreSQL e Redis
 - Backend FastAPI minimo
@@ -16,13 +16,23 @@ O S1 entrega somente:
 - Smoke E2E minimo
 - Scripts PowerShell de desenvolvimento
 
-O Stage S2 ainda nao comecou. Ainda nao existem:
+S2 entrega:
 
-- Alembic funcional
-- DB session
+- `backend/app/core/config.py`
+- `backend/app/core/logging.py`
+- `backend/app/core/security.py` com utilitarios minimos
+- `backend/app/db/base.py`
+- `backend/app/db/session.py`
+- `backend/alembic.ini` e `backend/alembic/`
+- modelo `audit_log`
+- servico `backend/app/services/audit.py`
+- testes backend de config, health, DB e auditoria
+
+Ainda nao existem:
+
 - autenticacao ou RBAC real
-- modelos fiscais
-- dominio fiscal
+- modelos fiscais do S4
+- dominio fiscal de negocio
 - integracoes reais
 
 ## Portas locais do Lumen
@@ -42,6 +52,7 @@ O Docker Compose do Lumen usa project name fixo `lumen` para evitar ambiguidade 
 - Plano por stages: `PLANO_DESENVOLVIMENTO.md`
 
 No S1, apenas o subconjunto minimo foi materializado em disco. A arvore completa continua sendo objetivo de stages futuros.
+No S2, foram materializados apenas os blocos tecnicos de core, DB, migration, auditoria e testes, sem avancar para autenticacao, RBAC ou modelos fiscais.
 
 ## Setup local no Windows PowerShell
 
@@ -81,6 +92,7 @@ Resultado esperado:
 
 ```powershell
 .\scripts\dev\run_backend.ps1
+alembic -c .\backend\alembic.ini upgrade head
 ```
 
 Em outro terminal:
@@ -115,6 +127,13 @@ Invoke-WebRequest http://localhost:5175/lumen/painel -UseBasicParsing | Select-O
 cd .\frontend
 npm run typecheck
 npm run test:e2e
+```
+
+### 8. Validacao minima do backend S2
+
+```powershell
+pytest .\backend\tests\test_health.py .\backend\tests\test_config.py .\backend\tests\test_db.py .\backend\tests\test_audit.py
+ruff check .\backend
 ```
 
 ## Healthchecks do S1
@@ -157,3 +176,16 @@ Respostas esperadas:
 - `scripts/dev/run_backend.ps1`
 - `scripts/dev/run_frontend.ps1`
 - `scripts/dev/run_worker.ps1`
+
+## Arquivos-base adicionados no S2
+
+- `backend/app/core/config.py`
+- `backend/app/core/logging.py`
+- `backend/app/core/security.py`
+- `backend/app/db/base.py`
+- `backend/app/db/session.py`
+- `backend/app/models/audit_log.py`
+- `backend/app/services/audit.py`
+- `backend/alembic.ini`
+- `backend/alembic/`
+- `backend/tests/`
