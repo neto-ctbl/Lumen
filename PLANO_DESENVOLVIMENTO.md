@@ -93,7 +93,7 @@ Aceite:
 
 ## S1 - Estrutura do repo, infra local e healthchecks
 
-Status: pendente
+Status: concluído
 
 Objetivo:
 - Criar monorepo limpo, reproduzível e pronto para desenvolvimento incremental.
@@ -115,6 +115,29 @@ Entregáveis:
 - `frontend/package.json`, `vite.config.ts`, `src/main.tsx`.
 - Scripts dev em `scripts/dev/`.
 
+Entregues:
+- `.env.example`.
+- `infra/docker-compose.yml` com `name: lumen`.
+- PostgreSQL em host `5435`.
+- Redis em host `6382`.
+- backend FastAPI mínimo.
+- `GET /healthz`.
+- `GET /api/v1/worker/health`.
+- worker stub.
+- frontend React/Vite em `5175`.
+- smoke E2E Playwright.
+- scripts PowerShell em `scripts/dev`.
+- `README.md` e `ESTRUTURA_REPO.md` alinhados ao S1.
+
+Portas locais reservadas para evitar conflito com eControle, CertHub e Scribere:
+- API Lumen: `8000`
+- Frontend Lumen: `5175`
+- PostgreSQL host: `5435`
+- Redis host: `6382`
+
+Decisão técnica registrada:
+- Docker Compose com project name fixo `lumen` para evitar conflito com CertHub, eControle e Scribere.
+
 Validação:
 ```bash
 docker compose -f infra/docker-compose.yml up -d
@@ -124,6 +147,24 @@ curl http://localhost:8000/healthz
 curl http://localhost:8000/api/v1/worker/health
 cd frontend && npm install && npm run dev
 ```
+
+Checklist de aceite validado localmente:
+- Docker Compose sobe Postgres e Redis.
+- Postgres responde.
+- Redis responde `PONG`.
+- API sobe.
+- `/healthz` responde.
+- `/api/v1/worker/health` responde.
+- worker stub executa.
+- frontend sobe em `5175`.
+- `/lumen/painel` abre.
+- `npm run typecheck` passa.
+- `npm run test:e2e` passa.
+
+Pendências técnicas não bloqueantes:
+- normalizar encoding dos arquivos Markdown em tarefa separada;
+- manter uso obrigatório de `.venv` local para evitar Python global;
+- CertHub deve ser subido pelo compose próprio quando necessário, pois um container antigo `certhub-redis` foi removido manualmente durante a limpeza.
 
 Aceite:
 - API responde healthcheck.

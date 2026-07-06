@@ -6,6 +6,30 @@ Este documento descreve a organização inicial recomendada para o monorepo do L
 
 ## Árvore esperada
 
+## ObservaÃ§Ã£o sobre o Stage S1
+
+A Ã¡rvore completa abaixo Ã© o alvo evolutivo do monorepo, nÃ£o a exigÃªncia fÃ­sica imediata do primeiro patch.
+
+No Stage S1 existe apenas o subconjunto mÃ­nimo para:
+
+- infraestrutura local com PostgreSQL e Redis;
+- backend FastAPI mÃ­nimo;
+- worker stub;
+- frontend React/Vite mÃ­nimo;
+- scripts PowerShell de desenvolvimento;
+- smoke E2E inicial.
+
+Os demais diretÃ³rios e arquivos da Ã¡rvore completa devem surgir nos stages posteriores, conforme `PLANO_DESENVOLVIMENTO.md`.
+
+## Portas locais reservadas do Lumen no S1
+
+- API FastAPI: `8000`
+- Frontend Vite: `5175`
+- PostgreSQL host: `5435`
+- Redis host: `6382`
+
+O `infra/docker-compose.yml` do Lumen deve definir `name: lumen` para evitar conflito de project name com outros projetos locais.
+
 ```txt
 lumen/
 ├─ .env.example

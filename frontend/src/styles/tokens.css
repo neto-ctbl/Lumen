@@ -1,0 +1,131 @@
+:root {
+  color-scheme: light;
+  --lumen-bg: #07111f;
+  --lumen-surface: rgba(11, 23, 41, 0.84);
+  --lumen-surface-border: rgba(125, 168, 255, 0.18);
+  --lumen-text: #e8f1ff;
+  --lumen-muted: #aebdd8;
+  --lumen-accent: #2f7cff;
+  --lumen-accent-strong: #76a8ff;
+  --lumen-shadow: 0 24px 80px rgba(4, 10, 24, 0.42);
+  --lumen-radius: 28px;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background:
+    radial-gradient(circle at top, rgba(47, 124, 255, 0.3), transparent 28%),
+    linear-gradient(180deg, #08111e 0%, #0e1a2f 100%);
+  color: var(--lumen-text);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(118, 168, 255, 0.08), transparent 35%),
+    radial-gradient(circle at bottom right, rgba(55, 108, 255, 0.18), transparent 30%);
+  pointer-events: none;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+}
+
+.hero-card {
+  position: relative;
+  width: min(920px, 100%);
+  padding: 40px;
+  border: 1px solid var(--lumen-surface-border);
+  border-radius: var(--lumen-radius);
+  background: var(--lumen-surface);
+  box-shadow: var(--lumen-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.eyebrow {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: var(--lumen-accent-strong);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.hero-card h1 {
+  margin: 0;
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  line-height: 0.95;
+}
+
+.hero-card p {
+  max-width: 640px;
+  margin: 20px 0 28px;
+  color: var(--lumen-muted);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.status-grid article {
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(7, 17, 31, 0.68);
+  border: 1px solid rgba(125, 168, 255, 0.12);
+}
+
+.status-grid strong,
+.status-grid span {
+  display: block;
+}
+
+.status-grid strong {
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+
+.status-grid span {
+  color: var(--lumen-muted);
+  font-size: 0.95rem;
+}
+
+.route-pill {
+  display: inline-block;
+  margin-top: 24px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(47, 124, 255, 0.14);
+  color: var(--lumen-accent-strong);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    padding: 20px;
+  }
+
+  .hero-card {
+    padding: 28px;
+  }
+}

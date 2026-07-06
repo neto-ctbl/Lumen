@@ -1,277 +1,159 @@
-# Lumen — Fiscal Cockpit
+# Lumen - Fiscal Cockpit
 
-Data de referência: 2026-07-03
+Data de referencia: 2026-07-03
 
-O **Lumen** é um portal fiscal independente da Neto Contabilidade, criado para ser uma central de visualização, conciliação, evidências e alertas fiscais por empresa e competência.
+O repositorio concluiu o Stage S1. Nesta etapa foi entregue a base tecnica minima para desenvolvimento local: infraestrutura Docker, API FastAPI com healthchecks, worker stub, frontend React/Vite e scripts PowerShell.
 
-A proposta não é criar mais um sistema para ser alimentado manualmente. O Lumen deve cruzar fontes já usadas pelo escritório e exigir intervenção humana apenas quando houver divergência, baixa confiança, ausência de evidência, exceção fiscal ou risco de obrigação não observada.
+## Escopo real do S1
 
-## Objetivo do produto
+O S1 entrega somente:
 
-Responder, de forma visual e confiável:
+- Docker Compose com PostgreSQL e Redis
+- Backend FastAPI minimo
+- Healthchecks da API e do worker
+- Worker stub executavel
+- Frontend React/Vite minimo
+- Smoke E2E minimo
+- Scripts PowerShell de desenvolvimento
 
-> Qual é a situação fiscal de cada empresa nesta competência?
+O Stage S2 ainda nao comecou. Ainda nao existem:
 
-O Lumen deve consolidar:
+- Alembic funcional
+- DB session
+- autenticacao ou RBAC real
+- modelos fiscais
+- dominio fiscal
+- integracoes reais
 
-- obrigações exigíveis, entregues, pendentes, dispensadas ou não aplicáveis;
-- guias, recibos, comprovantes e arquivos encontrados;
-- divergências entre Acessórias, Sittax, pastas, Domínio, Econet e eControle;
-- parcelamentos ativos e risco de inadimplência;
-- fator gerador e responsabilidade da DCTFWeb;
-- alertas por empresa, competência, obrigação, fonte e departamento.
+## Portas locais do Lumen
 
-## Princípios obrigatórios
+- API FastAPI: `8000`
+- Frontend Vite: `5175`
+- PostgreSQL host: `5435`
+- Redis host: `6382`
 
-1. **Não ser mais um sistema para alimentar.** Entrada manual deve ficar limitada a revisões, justificativas, confirmações e exceções.
-2. **Trabalhar por evidências.** O status fiscal deve nascer do cruzamento entre APIs, arquivos, PDFs, relatórios e snapshots.
-3. **Projeto separado do eControle.** O eControle é fonte cadastral; o Lumen tem banco próprio e integração por API, webhook e reconciliação periódica.
-4. **Evitar robôs frágeis.** Priorizar API, endpoint autorizado, exportação, watcher, parser de PDF e OCR apenas como fallback. Não burlar CAPTCHA e não transmitir obrigação automaticamente.
-5. **Segurança primeiro.** Tokens, cookies, sessões assistidas, senhas, certificados e arquivos fiscais reais nunca devem ser versionados.
+Essas portas foram ajustadas para nao conflitar com outros projetos locais.
 
-## Stack inicial
+O Docker Compose do Lumen usa project name fixo `lumen` para evitar ambiguidade com outros repositorios locais.
 
-### Backend
+## Estrutura e plano
 
-- FastAPI
-- SQLAlchemy
-- Alembic
-- PostgreSQL
-- Redis
-- RQ Worker
-- Pytest
+- Estrutura alvo do monorepo: `ESTRUTURA_REPO.md`
+- Plano por stages: `PLANO_DESENVOLVIMENTO.md`
 
-### Frontend
+No S1, apenas o subconjunto minimo foi materializado em disco. A arvore completa continua sendo objetivo de stages futuros.
 
-- React
-- Vite
-- TypeScript
-- CSS Modules ou SCSS com tokens visuais próprios
-- App shell SaaS com sidebar azul escuro, header sticky translúcido, dropdown global de empresa/competência e telas operacionais
+## Setup local no Windows PowerShell
 
-### Agente local / automações
+### 1. Ambiente Python
 
-- Watcher de diretórios do `G:\EMPRESAS`
-- Processamento de PDFs com texto extraível
-- OCR somente como fallback
-- Scripts PowerShell operacionais
-- Jobs agendados externamente quando fizer sentido
-
-### Infra
-
-- Docker Compose para PostgreSQL e Redis
-- `.env.example` para configuração local
-- Healthchecks de API, worker e integrações
-- Logs de auditoria e runs de sincronização
-
-## Fontes e integrações
-
-| Fonte | Papel no Lumen | Regra principal |
-|---|---|---|
-| eControle | Dados cadastrais gerais das empresas | Sincronizar para `external_companies`; exclusão vira soft delete |
-| Acessórias | Regime tributário e status formal de obrigações | Fonte oficial para regime e entregas |
-| Sittax | Simples Nacional, DAS, DIFAL, documentos fiscais e tarefas | Somente leitura; cuidado com contexto de sessão por empresa/período |
-| Domínio | Folha/DP por relatórios e arquivos exportados | Sem robô de tela; importar PDF do Resumo Mensal da Folha |
-| Econet | CNAE, atividade, Fator R, anexos e obrigações indicativas | Login assistido; cache por CNAE; não burlar CAPTCHA |
-| Watcher G: | Guias, recibos, parcelamentos e evidências salvas em pasta | Parser de caminho, nome, texto do PDF e hash do arquivo |
-
-## Regras críticas do domínio fiscal
-
-### Regime tributário
-
-O regime usado na lógica fiscal do Lumen deve vir do **Acessórias**. Se divergir do eControle, o Lumen usa Acessórias para regra fiscal e gera alerta cadastral.
-
-### Inscrição Estadual
-
-A Inscrição Estadual deve ser mantida no cadastro espelhado da empresa. Quando vazia, o frontend deve exibir:
-
-```txt
-ISENTO
+```powershell
+py -3.10 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r .\requirements.txt
 ```
 
-### DCTFWeb
+### 2. Variaveis locais
 
-A DCTFWeb deve ser analisada por origem/fator gerador:
-
-| Origem | Responsabilidade |
-|---|---|
-| eSocial/Folha | DP |
-| REINF | Fiscal |
-| MIT/tributos federais | Fiscal |
-| Folha + REINF/MIT | Compartilhado |
-
-Se houve DCTFWeb com movimento em uma competência, a competência seguinte deve gerar alerta para verificar envio, ainda que zerado/sem movimento.
-
-### Fator R
-
-A Econet será a fonte principal de enriquecimento por CNAE. O Lumen deve sinalizar empresas sujeitas ao Fator R e cruzar com folha/pró-labore, DAS, Sittax e regime Simples Nacional.
-
-## Estrutura inicial do repositório
-
-Consultar [`ESTRUTURA_REPO.md`](./ESTRUTURA_REPO.md).
-
-## Plano de desenvolvimento
-
-Consultar [`PLANO_DESENVOLVIMENTO.md`](./PLANO_DESENVOLVIMENTO.md).
-
-O plano está dividido em stages com objetivo, escopo, entregáveis e critérios de validação. A recomendação para trabalhar com Codex é executar um stage por vez, sempre fechando testes e documentação antes de avançar.
-
-## Setup local previsto
-
-### 1. Clonar o repositório
-
-```bash
-git clone <repo-lumen>
-cd lumen
+```powershell
+Copy-Item .\.env.example .\.env
 ```
 
-### 2. Configurar variáveis de ambiente
+`.env` real continua fora do Git.
 
-```bash
-cp .env.example .env
+### 3. Infra local
+
+```powershell
+docker compose -f .\infra\docker-compose.yml up -d
+docker compose -f .\infra\docker-compose.yml ps
+docker compose -f .\infra\docker-compose.yml exec postgres psql -U lumen -d lumen -c "select current_database(), current_user;"
+docker compose -f .\infra\docker-compose.yml exec redis redis-cli ping
 ```
 
-Nunca versionar `.env`, cookies, tokens, arquivos `.pfx`, sessões assistidas ou PDFs fiscais reais.
+Resultado esperado:
 
-### 3. Subir infraestrutura local
-
-```bash
-docker compose -f infra/docker-compose.yml up -d
-```
-
-Serviços previstos:
-
-- PostgreSQL
-- Redis
+- containers `lumen-postgres-1` e `lumen-redis-1`
+- PostgreSQL ouvindo em `localhost:5435`
+- Redis ouvindo em `localhost:6382`
+- comando `redis-cli ping` retornando `PONG`
 
 ### 4. Backend
 
-```bash
-python -m venv .venv
-source .venv/bin/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-alembic -c backend/alembic.ini upgrade head
-uvicorn backend.app.main:app --reload --port 8000
+```powershell
+.\scripts\dev\run_backend.ps1
 ```
 
-Healthcheck esperado:
+Em outro terminal:
 
-```bash
-curl http://localhost:8000/healthz
+```powershell
+Invoke-RestMethod http://localhost:8000/healthz
+Invoke-RestMethod http://localhost:8000/api/v1/worker/health
 ```
 
-### 5. Worker
+### 5. Worker stub
 
-```bash
-python -m backend.app.worker.runner
+```powershell
+.\scripts\dev\run_worker.ps1
 ```
 
-Healthcheck esperado:
+Resultado esperado:
 
-```bash
-curl http://localhost:8000/api/v1/worker/health
+```txt
+Lumen worker stub OK - Stage S1
 ```
 
 ### 6. Frontend
 
-```bash
-cd frontend
-npm install
-npm run dev
+```powershell
+.\scripts\dev\run_frontend.ps1
+Invoke-WebRequest http://localhost:5175/lumen/painel -UseBasicParsing | Select-Object StatusCode
 ```
 
-URL esperada:
+### 7. Validacao do frontend
 
-```txt
-http://localhost:5173/lumen/painel
-```
-
-## Comandos de validação previstos
-
-```bash
-# backend
-pytest backend/tests
-ruff check backend agent
-mypy backend/app
-
-# migrations
-alembic -c backend/alembic.ini upgrade head
-alembic -c backend/alembic.ini downgrade -1
-alembic -c backend/alembic.ini upgrade head
-
-# frontend
-cd frontend
-npm run lint
+```powershell
+cd .\frontend
 npm run typecheck
-npm run test
 npm run test:e2e
 ```
 
-## Convenções de API
+## Healthchecks do S1
 
-Prefixo sugerido:
+- `GET /healthz`
+- `GET /api/v1/worker/health`
 
-```txt
-/api/v1
+Respostas esperadas:
+
+```json
+{
+  "status": "ok",
+  "service": "lumen-api",
+  "stage": "S1"
+}
 ```
 
-Rotas de produto sugeridas:
-
-```txt
-GET /api/v1/lumen/companies?search=
-GET /api/v1/lumen/periods
-GET /api/v1/lumen/dashboard?period=2026-06
-GET /api/v1/lumen/cockpit?period=2026-06&companyId=&status=&department=&source=
-GET /api/v1/lumen/companies/{id}/summary?period=2026-06
-GET /api/v1/lumen/deliveries?period=2026-06&companyId=
-GET /api/v1/lumen/evidences?period=2026-06&companyId=
-GET /api/v1/lumen/divergences?period=2026-06&companyId=
-GET /api/v1/lumen/installments?period=2026-06&companyId=
-GET /api/v1/lumen/integrations/health
+```json
+{
+  "status": "ok",
+  "service": "lumen-worker",
+  "mode": "stub",
+  "stage": "S1"
+}
 ```
 
-Formato interno de competência:
+## Arquivos-base do stage
 
-```txt
-YYYY-MM
-```
-
-Formato exibido no frontend:
-
-```txt
-MM/YYYY
-```
-
-## Convenções visuais obrigatórias
-
-- Tema azul escuro SaaS, com apoio azul vivo e roxo.
-- Fonte Inter.
-- Sidebar desktop com 288px.
-- Header sticky translúcido com blur.
-- Dropdown global de empresa e competência.
-- Context strip com empresa, CNPJ/IE, competência e regime.
-- Cards com raio grande, sombras suaves e badges por status.
-- Tabelas limpas com cabeçalho uppercase e hover azul claro.
-- Não usar Bootstrap/Material UI padrão nem Tailwind sem mapear tokens.
-
-## Como trabalhar com Codex
-
-Para cada stage:
-
-1. Abrir o stage no `PLANO_DESENVOLVIMENTO.md`.
-2. Pedir ao Codex para implementar apenas aquele escopo.
-3. Exigir testes automatizados e documentação mínima junto com o código.
-4. Rodar validações locais.
-5. Corrigir falhas antes de avançar.
-6. Atualizar status do stage e registrar decisões em `docs/DECISOES.md`.
-
-Modelo de pedido recomendado ao Codex:
-
-```txt
-Implemente somente o Stage S<n> do PLANO_DESENVOLVIMENTO.md.
-Não avance para stages seguintes.
-Mantenha compatibilidade com ESTRUTURA_REPO.md.
-Adicione ou atualize testes.
-Não crie automação de transmissão fiscal, não burle CAPTCHA e não versionar segredos.
-Ao final, liste arquivos alterados, comandos de validação executados e pendências.
-```
+- `.env.example`
+- `infra/docker-compose.yml`
+- `backend/app/main.py`
+- `backend/app/api/v1/endpoints/health.py`
+- `backend/app/api/v1/endpoints/worker.py`
+- `backend/app/worker/runner.py`
+- `frontend/package.json`
+- `frontend/vite.config.ts`
+- `frontend/src/main.tsx`
+- `frontend/src/app/LumenShell.tsx`
+- `frontend/tests_e2e/smoke.spec.ts`
+- `scripts/dev/run_backend.ps1`
+- `scripts/dev/run_frontend.ps1`
+- `scripts/dev/run_worker.ps1`
