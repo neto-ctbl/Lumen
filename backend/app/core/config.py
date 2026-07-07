@@ -35,12 +35,27 @@ class Settings(BaseSettings):
     redis_url: str = Field(default="redis://localhost:6382/0", alias="REDIS_URL")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     log_json: bool = Field(default=True, alias="LOG_JSON")
+    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
+    access_token_expire_minutes: int = Field(default=15, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
+    refresh_token_expire_days: int = Field(default=7, alias="REFRESH_TOKEN_EXPIRE_DAYS")
+    initial_admin_email: str | None = Field(default=None, alias="INITIAL_ADMIN_EMAIL")
+    initial_admin_password: str | None = Field(default=None, alias="INITIAL_ADMIN_PASSWORD")
+    initial_admin_full_name: str | None = Field(default="Initial Admin", alias="INITIAL_ADMIN_FULL_NAME")
+    initial_org_name: str | None = Field(default="Lumen", alias="INITIAL_ORG_NAME")
+    initial_org_slug: str | None = Field(default="lumen", alias="INITIAL_ORG_SLUG")
 
     @field_validator("database_url", "test_database_url")
     @classmethod
     def validate_postgres_url(cls, value: str) -> str:
         if not value.startswith("postgresql+psycopg://"):
             raise ValueError("Only postgresql+psycopg URLs are supported.")
+        return value
+
+    @field_validator("access_token_expire_minutes", "refresh_token_expire_days")
+    @classmethod
+    def validate_positive_expiration(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("Token expiration values must be positive integers.")
         return value
 
 

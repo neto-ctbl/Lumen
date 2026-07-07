@@ -55,7 +55,7 @@ Todo stage deve terminar com:
 
 ## S0 - Kickoff, baseline e decisões congeladas
 
-Status: pendente
+Status: concluido em 2026-07-07
 
 Objetivo:
 - Travar o baseline funcional, arquitetural e visual do Lumen antes de escrever código estrutural.
@@ -148,6 +148,7 @@ curl http://localhost:8000/api/v1/worker/health
 cd frontend && npm install && npm run dev
 ```
 
+
 Checklist de aceite validado localmente:
 - Docker Compose sobe Postgres e Redis.
 - Postgres responde.
@@ -176,7 +177,7 @@ Aceite:
 
 ## S2 - Core backend: config, DB, migrations, auditoria e testes
 
-Status: concluÃ­do em 2026-07-06
+Status: concluído em 2026-07-06
 
 Objetivo:
 - Criar a base técnica do backend para suportar domínio, integrações e jobs.
@@ -215,7 +216,7 @@ Aceite:
 Entregues:
 - `backend/app/core/config.py`
 - `backend/app/core/logging.py`
-- `backend/app/core/security.py` com utilitÃ¡rios mÃ­nimos sem JWT/RBAC
+- `backend/app/core/security.py` com utilitários mínimos sem JWT/RBAC
 - `backend/app/db/base.py`
 - `backend/app/db/session.py`
 - `backend/app/models/__init__.py`
@@ -231,7 +232,7 @@ Entregues:
 - `backend/tests/test_db.py`
 - `backend/tests/test_audit.py`
 
-ValidaÃ§Ã£o executada:
+Validação executada:
 - `alembic -c backend/alembic.ini upgrade head`
 - `pytest backend/tests/test_health.py backend/tests/test_config.py backend/tests/test_db.py backend/tests/test_audit.py`
 - `ruff check backend`
@@ -241,19 +242,32 @@ ValidaÃ§Ã£o executada:
 - `alembic -c backend/alembic.ini downgrade base`
 - `alembic -c backend/alembic.ini upgrade head`
 
-PendÃªncias:
-- warning de deprecaÃ§Ã£o do `fastapi.testclient` na stack atual; nÃ£o bloqueia o stage
+Pendências:
+- warning de deprecação do `fastapi.testclient` na stack atual; não bloqueia o stage
 
-DecisÃµes novas:
-- healthchecks do S1 permanecem independentes de conexÃ£o obrigatÃ³ria com banco
-- banco de teste padrÃ£o do backend: `postgresql+psycopg://lumen:lumen@localhost:5435/lumen_test`
-- `audit_log` usa coluna fÃ­sica `metadata` mapeada para atributo Python `event_metadata`
+Decisões novas:
+- healthchecks do S1 permanecem independentes de conexão obrigatória com banco
+- banco de teste padrão do backend: `postgresql+psycopg://lumen:lumen@localhost:5435/lumen_test`
+- `audit_log` usa coluna física `metadata` mapeada para atributo Python `event_metadata`
+
+## Fechamento tecnico S2 em 2026-07-06
+
+Registro complementar de fechamento do Stage S2:
+
+- status confirmado como concluido em `2026-07-06`
+- entregaveis confirmados: config backend, logging basico, security minimo sem JWT/RBAC, DB session, SQLAlchemy Base, Alembic, migration `20260706_0001_create_audit_log`, model `audit_log`, service de auditoria, testes backend e `pytest.ini`
+- validacoes registradas: `docker compose -f .\infra\docker-compose.yml ps`, `docker compose -f .\infra\docker-compose.yml exec postgres psql -U lumen -d lumen -c "select * from alembic_version;"`, `docker compose -f .\infra\docker-compose.yml exec postgres psql -U lumen -d lumen -c "\dt"`, `pytest .\backend\tests\test_health.py .\backend\tests\test_config.py .\backend\tests\test_db.py .\backend\tests\test_audit.py`, `ruff check .\backend`
+- resultado dos testes backend S2: `8 passed, 1 warning`
+- banco principal confirmado em Alembic head `20260706_0001`
+- tabelas confirmadas no banco principal: `alembic_version`, `audit_log`
+- pendencia nao bloqueante registrada explicitamente: warning de deprecacao do `fastapi.testclient` / Starlette-httpx
+- decisoes novas confirmadas: healthchecks S1 independentes de conexao obrigatoria com banco, banco principal padrao `lumen`, banco de teste padrao `lumen_test`, `pytest.ini` com `pythonpath = .`, testes backend usando `LUMEN_TEST_DATABASE_URL`
 
 ---
 
 ## S3 - Autenticação, RBAC e multi-tenant
 
-Status: pendente
+Status: concluido em 2026-07-06
 
 Objetivo:
 - Proteger o Lumen e preparar isolamento por organização.
@@ -285,11 +299,188 @@ Aceite:
 - `VIEW` não executa mutações administrativas.
 - Dados são filtrados por `org_id`.
 
+Entregues:
+- `backend/app/models/organization.py`
+- `backend/app/models/user.py`
+- `backend/app/models/user_organization.py`
+- `backend/app/schemas/auth.py`
+- `backend/app/services/auth.py`
+- `backend/app/api/deps.py`
+- `backend/app/api/v1/endpoints/auth.py`
+- `backend/scripts/create_initial_admin.py`
+- migration `backend/alembic/versions/20260706_0002_auth_rbac_multitenant.py`
+- `backend/tests/test_auth.py`
+- `backend/tests/test_rbac.py`
+- correção do harness de testes em `backend/tests/conftest.py` para voltar a respeitar `LUMEN_TEST_DATABASE_URL`
+
+Validação executada:
+- `docker compose -f .\infra\docker-compose.yml up -d`
+- `alembic -c .\backend\alembic.ini upgrade head`
+- `alembic -c .\backend\alembic.ini downgrade -1`
+- `alembic -c .\backend\alembic.ini upgrade head`
+- `pytest .\backend\tests\test_config.py .\backend\tests\test_health.py .\backend\tests\test_db.py .\backend\tests\test_audit.py .\backend\tests\test_auth.py .\backend\tests\test_rbac.py`
+- `ruff check .\backend`
+- `cd frontend && npm run typecheck && npm run test:e2e`
+
+Pendências:
+- warning de deprecação do `fastapi.testclient` / Starlette-httpx continua na stack atual
+- o frontend ainda não possui login visual nem proteção de rotas; isso permanece para stage futuro
+- por incompatibilidade prática de `passlib+bcrypt` nesta stack Windows, `backend/app/core/security.py` mantém `CryptContext` como caminho principal e usa fallback direto de `bcrypt` quando o backend do `passlib` falha no autoteste interno
+
+Decisões novas:
+- login oficial do S3 por email
+- JWT com claims `sub`, `org_id`, `role`, `type`, `exp`, `iat`, `jti`, `ver`
+- access token padrão de 15 minutos e refresh token padrão de 7 dias
+- logout MVP por incremento de `token_version` e `last_logout_at`
+- RBAC global no usuário com `ADMIN`, `DEV`, `VIEW`
+- multi-tenant inicial por `organizations` e `user_organizations`
+- organização ativa do MVP vinda de `users.default_organization_id`
+- `audit_log` permaneceu sem `org_id` ou `user_id` dedicados no S3
+- `GET /healthz` e `GET /api/v1/worker/health` permanecem públicos
+- o smoke E2E atual do frontend em `/lumen/painel` permanece sem autenticação para não quebrar o fluxo vigente
+
+## Fechamento tecnico S3 em 2026-07-06
+
+Registro complementar de fechamento do Stage S3:
+
+- status confirmado como concluido em `2026-07-06`
+- entregaveis confirmados: auth JWT, RBAC global, multi-tenant inicial, deps FastAPI de auth, seed admin local idempotente, migration `20260706_0002_auth_rbac_multitenant`, testes de auth e RBAC
+- correcao obrigatoria aplicada antes do fechamento: inconsistência entre `TEST_DATABASE_URL` e `LUMEN_TEST_DATABASE_URL` no harness de testes
+- validações registradas: `docker compose -f .\infra\docker-compose.yml ps`, `alembic -c .\backend\alembic.ini upgrade head`, `alembic -c .\backend\alembic.ini downgrade -1`, `alembic -c .\backend\alembic.ini upgrade head`, `pytest .\backend\tests\test_config.py .\backend\tests\test_health.py .\backend\tests\test_db.py .\backend\tests\test_audit.py .\backend\tests\test_auth.py .\backend\tests\test_rbac.py`, `ruff check .\backend`, `cd frontend && npm run typecheck && npm run test:e2e`
+- resultado dos testes backend S3: `22 passed, 1 warning`
+- head confirmado no banco principal: `20260706_0002`
+- tabelas confirmadas no S3: `organizations`, `users`, `user_organizations` e `audit_log`
+- frontend smoke E2E mantido sem proteção de login para preservar `/lumen/painel`
+
+---
+
+## S3.1 - Frontend auth bridge
+
+Status: concluido em 2026-07-06
+
+Objetivo:
+- Criar uma ponte minima entre o frontend e a autenticacao do S3 backend, deixando de expor o portal inteiro como publico.
+
+Escopo:
+- rota `/login`
+- protecao de `/lumen/painel`
+- login/logout/me no frontend
+- store simples de autenticacao
+- shell exibindo usuario, role global e organizacao ativa
+- redirecionamento para `/login` em respostas `401`
+- E2E cobrindo login e logout
+
+Entregaveis:
+- `frontend/src/services/apiClient.ts`
+- `frontend/src/services/authService.ts`
+- `frontend/src/stores/authStore.tsx`
+- `frontend/src/features/auth/LoginPage.tsx`
+- `frontend/src/features/auth/ProtectedRoute.tsx`
+- ajuste de `frontend/src/main.tsx`
+- ajuste de `frontend/src/app/LumenShell.tsx`
+- ajuste de `frontend/tests_e2e/smoke.spec.ts`
+- `frontend/scripts/run_e2e_stack.ps1`
+
+Validacao:
+```bash
+cd frontend && npm run typecheck
+cd frontend && npm run test:e2e
+pytest backend/tests/test_auth.py backend/tests/test_rbac.py
+ruff check backend
+```
+
+Aceite:
+- `/login` abre sem token
+- `/lumen/painel` exige autenticacao
+- usuario autenticado ve email ou nome e organizacao ativa
+- logout retorna para `/login`
+- S4 nao e iniciado
+
+Entregues:
+- `frontend/src/services/apiClient.ts`
+- `frontend/src/services/authService.ts`
+- `frontend/src/stores/authStore.tsx`
+- `frontend/src/features/auth/LoginPage.tsx`
+- `frontend/src/features/auth/ProtectedRoute.tsx`
+- `frontend/scripts/run_e2e_stack.ps1`
+- `frontend/tests_e2e/smoke.spec.ts` atualizado para login e logout
+- CORS local do backend ajustado para o frontend manual em `5175` e para o frontend isolado de E2E em `4176`
+
+Validacao executada:
+- `cd frontend && npm run typecheck`
+- `cd frontend && npm run test:e2e`
+- `pytest .\backend\tests\test_auth.py .\backend\tests\test_rbac.py`
+- `ruff check .\backend`
+
+Pendencias:
+- tokens seguem em `localStorage` no MVP; hardening futuro deve revisar armazenamento
+- refresh automatico complexo continua fora de escopo
+- warning do backend ligado a `passlib+bcrypt` continua aparecendo no boot do ambiente de teste, sem quebrar a autenticacao
+
+Decisoes novas:
+- `VITE_API_BASE_URL` passa a ser a variavel principal do frontend
+- `VITE_LUMEN_API_BASE_URL` permanece apenas como fallback de compatibilidade
+- o E2E usa stack dedicada em portas isoladas para nao depender de backend/frontend manuais
+- S4 nao foi iniciado
+
+## Fechamento tecnico S3.1 em 2026-07-06
+
+Registro complementar de fechamento do Stage S3.1:
+
+- status confirmado como concluido em `2026-07-06`
+- entregaveis confirmados: login page, protected route, auth store simples, shell autenticado, logout, smoke E2E autenticado e script local de stack E2E
+- validacoes registradas: `cd frontend && npm run typecheck`, `cd frontend && npm run test:e2e`, `pytest .\backend\tests\test_auth.py .\backend\tests\test_rbac.py`, `ruff check .\backend`
+- resultado dos testes frontend S3.1: `1 passed`
+- resultado dos testes backend reaproveitados para S3.1: `14 passed, 1 warning`
+- confirmacao explicita: S4 nao foi iniciado neste complemento
+
+---
+
+## S3.2 - Microajuste tecnico passlib/bcrypt
+
+Status: concluido em 2026-07-06
+
+Objetivo:
+- remover o warning de compatibilidade do passlib/bcrypt no Windows sem alterar o fluxo funcional de autenticacao.
+
+Entregues:
+- pin de compatibilidade em `requirements.txt`: `bcrypt>=4.1.3,<5.0.0`
+- shim minimo em `backend/app/core/security.py` para expor `bcrypt.__about__.__version__` antes do `CryptContext`
+- remocao do warning `(trapped) error reading bcrypt version` no fluxo real do Lumen
+
+Validacao executada:
+- `python -m backend.scripts.create_initial_admin`
+- `pytest .\backend\tests\test_auth.py .\backend\tests\test_rbac.py`
+- `ruff check .\backend`
+- `cd frontend && npm run test:e2e`
+
+Resultado:
+- seed admin executou sem warning do bcrypt
+- auth/RBAC: `14 passed, 1 warning` conhecido de Starlette/httpx
+- ruff: `All checks passed`
+- E2E: `1 passed`
+
+Pendencias:
+- warning de deprecacao do `fastapi.testclient` / Starlette-httpx permanece como pendencia nao bloqueante
+- revisar estrategia de hash/senha no S18/hardening; o shim atual e solucao pragmatica de compatibilidade para MVP
+
+Decisoes novas:
+- manter `passlib` `1.7.4` no MVP
+- fixar `bcrypt` em faixa `<5.0.0`
+- aplicar shim local em `security.py` antes do `CryptContext` para evitar warning no Windows
+- nao migrar estrategia de hash agora para evitar mudanca estrutural desnecessaria
+
+Confirmacao:
+- S4 nao foi iniciado
+- nenhum modelo fiscal foi criado
+- nenhum endpoint foi alterado
+- nenhuma migration foi adicionada
+
 ---
 
 ## S4 - Modelo fiscal core e seeds iniciais
 
-Status: pendente
+Status: concluido em 2026-07-07
 
 Objetivo:
 - Modelar o núcleo fiscal do Lumen antes das integrações externas.
@@ -357,6 +548,40 @@ Aceite:
 - Exclusão futura de empresa suportada por soft delete.
 
 ---
+
+## Fechamento tecnico S4 em 2026-07-07
+
+Registro complementar de fechamento do Stage S4:
+
+- status confirmado como concluido em `2026-07-07`
+- entregues: `backend/app/core/enums.py`, os 12 models fiscais do S4, migration `backend/alembic/versions/20260706_0003_create_fiscal_core.py`, seed `backend/scripts/seed_obligations.py`, testes `backend/tests/test_models.py` e `backend/tests/test_obligation_seed.py`, alem da atualizacao de `backend/app/models/__init__.py`
+- banco principal confirmado em Alembic head `20260706_0003`
+- tabelas confirmadas no S4: `external_companies`, `company_activity_types`, `fiscal_periods`, `fiscal_obligations`, `fiscal_obligation_rules`, `fiscal_obligation_statuses`, `fiscal_evidences`, `fiscal_alerts`, `fiscal_installments`, `integration_accounts`, `integration_sync_runs` e `watcher_file_events`
+- validacoes registradas: `docker compose -f .\infra\docker-compose.yml up -d`, `docker compose -f .\infra\docker-compose.yml ps`, `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head`, `.\.venv\Scripts\python.exe -m backend.scripts.seed_obligations`, `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_models.py .\backend\tests\test_obligation_seed.py -q`, `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_config.py .\backend\tests\test_health.py .\backend\tests\test_db.py .\backend\tests\test_audit.py .\backend\tests\test_auth.py .\backend\tests\test_rbac.py -q`, `ruff check .\backend`, `cd .\frontend && npm run typecheck`, `cd .\frontend && npm run test:e2e`, `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini downgrade -1`, `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head`
+- seed validado com exatamente `13` obrigacoes principais e segunda execucao idempotente com `created=0 updated=0 total=13`
+- rollback validado para `20260706_0002` removendo apenas as tabelas do S4, seguido de novo upgrade para `20260706_0003`
+- pendencia nao bloqueante: warning conhecido de deprecacao do `fastapi.testclient` / Starlette-httpx
+- decisoes novas: enums Python + colunas `String` sem PostgreSQL ENUM nativo neste stage; `fiscal_obligations` global com `code` unico; `fiscal_obligation_rules.organization_id` nullable para regras globais do produto e futuros overrides por tenant
+- confirmacao explicita: nenhum endpoint fiscal operacional novo, nenhuma integracao externa real, nenhum bypass de CAPTCHA e nenhuma alteracao de fluxo visual do frontend
+
+## Fechamento tecnico S4.1 em 2026-07-07
+
+Registro complementar de fechamento do micro-stage S4.1:
+
+- observacao documental: o S4.1 foi tratado como micro-stage complementar de fechamento tecnico e nao como stage originalmente enumerado na sequencia macro do plano
+- status confirmado como concluido em `2026-07-07`
+- entregues: `backend/scripts/seed_obligation_rules.py`, `backend/scripts/seed_periods.py`, complemento seguro em `backend/scripts/seed_obligations.py`, `backend/tests/test_obligation_rules_seed.py` e `backend/tests/test_period_seed.py`
+- nenhuma migration adicional foi criada porque as tabelas do S4 ja suportam o catalogo logico e os periodos
+- validacoes registradas: `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head`, `.\.venv\Scripts\python.exe -m backend.scripts.seed_obligations`, `.\.venv\Scripts\python.exe -m backend.scripts.seed_obligation_rules`, `.\.venv\Scripts\python.exe -m backend.scripts.seed_periods --year 2026`, `docker compose -f .\infra\docker-compose.yml exec postgres psql -U lumen -d lumen -c "select count(*) from fiscal_obligations;"`, `docker compose -f .\infra\docker-compose.yml exec postgres psql -U lumen -d lumen -c "select count(*) from fiscal_obligation_rules;"`, `docker compose -f .\infra\docker-compose.yml exec postgres psql -U lumen -d lumen -c "select competencia from fiscal_periods order by competencia;"`, `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_obligation_seed.py .\backend\tests\test_obligation_rules_seed.py .\backend\tests\test_period_seed.py -q`, `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_models.py .\backend\tests\test_auth.py .\backend\tests\test_rbac.py -q`, `ruff check .\backend`, `cd .\frontend && npm run typecheck`, `cd .\frontend && npm run test:e2e`
+- catalogo principal preservado com `13` codigos em `fiscal_obligations`
+- regras-base sem duplicidade em `fiscal_obligation_rules`, incluindo separacao de `PIS`, `COFINS` e `EFD_CONTRIBUICOES` entre `LUCRO_PRESUMIDO` e `LUCRO_REAL`
+- competencias 2026 sem duplicidade em `fiscal_periods`
+- cada `condition_payload` passou a registrar `authority`, `jurisdiction_scope`, `normative_source_key`, `applicability_is_indicative = true` e `final_applicability_source`
+- complemento registrado: regime fiscal canonico `IMUNE_ISENTA` adicionado ao catalogo tecnico, com label futuro `Imune/Isenta`
+- nenhuma migration nova foi criada neste complemento, nenhuma obrigacao nova foi criada e nenhuma aplicabilidade real por empresa foi inferida para imunes/isentas
+- pendencia futura registrada: avaliar inclusao de `DESTDA` no catalogo estadual para cenarios de Simples Nacional com ST, antecipacao ou DIFAL
+- pendencia tecnica registrada: avaliar constraint unica futura para `fiscal_obligation_rules` considerando campos nullable `organization_id`, `obligation_id`, `regime`, `activity_type` e `rule_type`; motivo: o seed e idempotente por aplicacao, mas execucao paralela pode gerar duplicidade transitoria sem trava/constraint no banco
+- confirmacao explicita: o micro-stage nao gera `fiscal_obligation_statuses` por empresa/competencia, nao cria integracoes externas, nao inicia eControle nem Acessorias e nao adiciona endpoints fiscais operacionais
 
 ## S5 - Integração eControle: espelho cadastral
 

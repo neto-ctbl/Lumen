@@ -50,9 +50,9 @@ def drop_test_database_objects(database_url: str) -> None:
 
 @pytest.fixture(scope="session")
 def test_settings() -> Settings:
-    os.environ["TEST_DATABASE_URL"] = DEFAULT_TEST_DATABASE_URL
+    os.environ.pop("TEST_DATABASE_URL", None)
+    os.environ["LUMEN_TEST_DATABASE_URL"] = DEFAULT_TEST_DATABASE_URL
     os.environ["DATABASE_URL"] = DEFAULT_TEST_DATABASE_URL
-    os.environ.pop("LUMEN_TEST_DATABASE_URL", None)
     get_settings.cache_clear()
     return Settings()
 
@@ -85,5 +85,6 @@ def db_session(test_settings: Settings, prepared_test_database: None) -> Generat
             yield session
         finally:
             session.close()
-            transaction.rollback()
+            if transaction.is_active:
+                transaction.rollback()
     engine.dispose()

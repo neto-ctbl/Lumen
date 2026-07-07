@@ -28,6 +28,7 @@ body {
     radial-gradient(circle at top, rgba(47, 124, 255, 0.3), transparent 28%),
     linear-gradient(180deg, #08111e 0%, #0e1a2f 100%);
   color: var(--lumen-text);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body::before {
@@ -56,6 +57,19 @@ body::before {
   background: var(--lumen-surface);
   box-shadow: var(--lumen-shadow);
   backdrop-filter: blur(18px);
+}
+
+.auth-card,
+.portal-card {
+  display: grid;
+  gap: 24px;
+}
+
+.portal-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
 }
 
 .eyebrow {
@@ -110,6 +124,76 @@ body::before {
   font-size: 0.95rem;
 }
 
+.identity-grid article {
+  min-height: 92px;
+}
+
+.auth-form {
+  display: grid;
+  gap: 18px;
+  max-width: 420px;
+}
+
+.auth-field {
+  display: grid;
+  gap: 8px;
+}
+
+.auth-field span {
+  color: var(--lumen-accent-strong);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.auth-field input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid rgba(125, 168, 255, 0.2);
+  border-radius: 16px;
+  background: rgba(7, 17, 31, 0.68);
+  color: var(--lumen-text);
+  font: inherit;
+}
+
+.auth-field input:focus {
+  outline: 2px solid rgba(118, 168, 255, 0.55);
+  outline-offset: 2px;
+}
+
+.auth-error {
+  margin: 0;
+  color: #ffb4b4;
+  font-size: 0.95rem;
+}
+
+.primary-button,
+.secondary-button {
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.primary-button {
+  background: linear-gradient(135deg, #2f7cff 0%, #76a8ff 100%);
+  color: #04111f;
+}
+
+.secondary-button {
+  background: rgba(47, 124, 255, 0.12);
+  border-color: rgba(118, 168, 255, 0.24);
+  color: var(--lumen-accent-strong);
+}
+
+.primary-button:disabled,
+.secondary-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .route-pill {
   display: inline-block;
   margin-top: 24px;
@@ -127,5 +211,9 @@ body::before {
 
   .hero-card {
     padding: 28px;
+  }
+
+  .portal-topbar {
+    flex-direction: column;
   }
 }

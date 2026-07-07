@@ -6,20 +6,20 @@ Este documento descreve a organização inicial recomendada para o monorepo do L
 
 ## Árvore esperada
 
-## ObservaÃ§Ã£o sobre o Stage S1
+## Observação sobre o Stage S1
 
-A Ã¡rvore completa abaixo Ã© o alvo evolutivo do monorepo, nÃ£o a exigÃªncia fÃ­sica imediata do primeiro patch.
+A árvore completa abaixo é o alvo evolutivo do monorepo, não a exigência física imediata do primeiro patch.
 
-No Stage S1 existe apenas o subconjunto mÃ­nimo para:
+No Stage S1 existe apenas o subconjunto mínimo para:
 
 - infraestrutura local com PostgreSQL e Redis;
-- backend FastAPI mÃ­nimo;
+- backend FastAPI mínimo;
 - worker stub;
-- frontend React/Vite mÃ­nimo;
+- frontend React/Vite mínimo;
 - scripts PowerShell de desenvolvimento;
 - smoke E2E inicial.
 
-Os demais diretÃ³rios e arquivos da Ã¡rvore completa devem surgir nos stages posteriores, conforme `PLANO_DESENVOLVIMENTO.md`.
+Os demais diretórios e arquivos da árvore completa devem surgir nos stages posteriores, conforme `PLANO_DESENVOLVIMENTO.md`.
 
 ## Portas locais reservadas do Lumen no S1
 
@@ -512,9 +512,149 @@ No estado real atual, alem do subconjunto minimo do S1, ja foram materializados 
 - `backend/alembic.ini`
 - `backend/alembic/`
 - `backend/tests/`
+- `pytest.ini` na raiz com `pythonpath = .`
 
 Ainda permanecem fora de escopo neste ponto:
 
 - autenticacao, JWT, usuarios, organizacoes e RBAC
 - modelos fiscais do S4
 - integracoes externas
+
+## Atualizacao S3 em 2026-07-06
+
+No estado real atual, alem do subconjunto minimo do S1 e da base tecnica do S2, foram materializados os blocos do S3:
+
+- `backend/app/models/organization.py`
+- `backend/app/models/user.py`
+- `backend/app/models/user_organization.py`
+- `backend/app/schemas/auth.py`
+- `backend/app/services/auth.py`
+- `backend/app/api/deps.py`
+- `backend/app/api/v1/endpoints/auth.py`
+- `backend/scripts/create_initial_admin.py`
+- `backend/alembic/versions/20260706_0002_auth_rbac_multitenant.py`
+- `backend/tests/test_auth.py`
+- `backend/tests/test_rbac.py`
+
+Decisoes materializadas no S3:
+
+- login por email
+- RBAC global no usuario com `ADMIN`, `DEV`, `VIEW`
+- multi-tenant inicial por `organizations` + `user_organizations`
+- organizacao ativa do MVP vinda de `users.default_organization_id`
+- `audit_log` permaneceu sem `org_id` e sem `user_id` dedicados neste stage
+- healthchecks `GET /healthz` e `GET /api/v1/worker/health` permanecem publicos
+- o frontend ainda nao foi protegido para preservar o smoke E2E atual
+
+Ainda permanecem fora de escopo neste ponto:
+
+- modelos fiscais do S4
+- integracoes externas
+- login visual e protecao de rotas do frontend
+
+## Atualizacao S3.1 em 2026-07-06
+
+No estado real atual, alem dos blocos do S3 backend, foram materializados os arquivos do bridge de autenticacao no frontend:
+
+- `frontend/src/services/apiClient.ts`
+- `frontend/src/services/authService.ts`
+- `frontend/src/stores/authStore.tsx`
+- `frontend/src/features/auth/LoginPage.tsx`
+- `frontend/src/features/auth/ProtectedRoute.tsx`
+- `frontend/scripts/run_e2e_stack.ps1`
+- `frontend/tests_e2e/smoke.spec.ts` atualizado para login e logout
+
+Decisoes materializadas no S3.1:
+
+- `/login` publico
+- `/lumen/painel` protegido
+- frontend consumindo `POST /api/v1/auth/login`, `GET /api/v1/auth/me` e `POST /api/v1/auth/logout`
+- `VITE_API_BASE_URL` como variavel principal com fallback legado para `VITE_LUMEN_API_BASE_URL`
+- armazenamento MVP de tokens em `localStorage`, com hardening futuro pendente
+- sem refresh automatico complexo neste ponto
+
+Ainda permanecem fora de escopo neste ponto:
+
+- modelos fiscais do S4
+- telas fiscais reais do S7 e S8
+- integracoes externas
+
+## Atualizacao S4 em 2026-07-07
+
+No estado real atual, alem dos blocos entregues no S3.1 e do microajuste S3.2, foram materializados os arquivos centrais do S4:
+
+- `backend/app/core/enums.py`
+- `backend/app/models/external_company.py`
+- `backend/app/models/company_activity_type.py`
+- `backend/app/models/fiscal_period.py`
+- `backend/app/models/fiscal_obligation.py`
+- `backend/app/models/fiscal_obligation_rule.py`
+- `backend/app/models/fiscal_obligation_status.py`
+- `backend/app/models/fiscal_evidence.py`
+- `backend/app/models/fiscal_alert.py`
+- `backend/app/models/fiscal_installment.py`
+- `backend/app/models/integration_account.py`
+- `backend/app/models/integration_sync_run.py`
+- `backend/app/models/watcher_file_event.py`
+- `backend/alembic/versions/20260706_0003_create_fiscal_core.py`
+- `backend/scripts/seed_obligations.py`
+- `backend/tests/test_models.py`
+- `backend/tests/test_obligation_seed.py`
+
+Tabelas materializadas no banco pelo S4:
+
+- `external_companies`
+- `company_activity_types`
+- `fiscal_periods`
+- `fiscal_obligations`
+- `fiscal_obligation_rules`
+- `fiscal_obligation_statuses`
+- `fiscal_evidences`
+- `fiscal_alerts`
+- `fiscal_installments`
+- `integration_accounts`
+- `integration_sync_runs`
+- `watcher_file_events`
+
+Decisoes materializadas no S4:
+
+- `organization_id` foi adicionado nas tabelas operacionais do nucleo fiscal para preservar o isolamento multi-tenant iniciado no S3
+- `fiscal_obligations` permaneceu global com `code` unico para suportar seed padrao do produto
+- `fiscal_obligation_rules.organization_id` ficou nullable para permitir regras globais do produto e futuros overrides por tenant sem abrir S5+
+- `external_companies` suporta soft delete com `active = false` e `deleted_at_econtrole`
+- segredos reais de integracao continuam fora do banco; `integration_accounts.credentials_ref` e apenas referencia futura
+
+Ainda permanecem fora de escopo neste ponto:
+
+- integracoes externas reais
+- endpoints fiscais operacionais
+- alteracoes de fluxo visual do frontend
+
+## Atualizacao S4.1 em 2026-07-07
+
+No estado real atual, foram materializados os scripts e testes logicos do micro-stage S4.1:
+
+- `backend/scripts/seed_obligation_rules.py`
+- `backend/scripts/seed_periods.py`
+- `backend/tests/test_obligation_rules_seed.py`
+- `backend/tests/test_period_seed.py`
+
+Decisoes materializadas no S4.1:
+
+- o catalogo padrao continua com `13` codigos em `fiscal_obligations`
+- as regras-base ficam em `fiscal_obligation_rules` sem migration adicional, com idempotencia por chave logica no seed
+- `PIS`, `COFINS` e `EFD_CONTRIBUICOES` passaram a ter regras separadas para `LUCRO_PRESUMIDO` e `LUCRO_REAL`
+- as competencias fiscais sao criadas em `fiscal_periods` por organizacao e ano, com suporte a `--org-slug`
+- sem `--org-slug`, o seed so aceita o caso de exatamente uma organizacao ativa e emite aviso explicito
+- o S4.1 nao gera `fiscal_obligation_statuses` por empresa/competencia
+- cada `condition_payload` recebeu metadados minimos de rastreabilidade normativa e marcacao `applicability_is_indicative = true`
+- `backend/app/core/enums.py` passa a concentrar tambem o catalogo tecnico de regimes fiscais reconhecidos, incluindo `IMUNE_ISENTA`
+- pendencia futura registrada: avaliar inclusao de `DESTDA` no catalogo estadual
+- observacao documental: o S4.1 foi um micro-stage complementar de fechamento tecnico, nao um stage originalmente enumerado no plano macro
+- pendencia tecnica registrada: avaliar constraint unica futura para `fiscal_obligation_rules` considerando `organization_id`, `obligation_id`, `regime`, `activity_type` e `rule_type`, porque a idempotencia atual depende de lookup na aplicacao e pode sofrer duplicidade transitoria sob execucao paralela
+
+Ainda permanecem fora de escopo neste ponto:
+
+- sincronizacao de empresas por eControle
+- integracao Acessorias
+- status operacional por empresa/competencia
