@@ -658,3 +658,34 @@ Ainda permanecem fora de escopo neste ponto:
 - sincronizacao de empresas por eControle
 - integracao Acessorias
 - status operacional por empresa/competencia
+
+## Atualizacao S5 em 2026-07-07
+
+No estado real atual, foi materializado o espelho cadastral MVP do eControle com os seguintes arquivos:
+
+- `backend/app/services/integrations/econtrole/__init__.py`
+- `backend/app/services/integrations/econtrole/client.py`
+- `backend/app/services/integrations/econtrole/mapper.py`
+- `backend/app/services/integrations/econtrole/sync.py`
+- `backend/app/api/v1/endpoints/webhooks/__init__.py`
+- `backend/app/api/v1/endpoints/webhooks/econtrole.py`
+- `backend/scripts/sync_econtrole_companies.py`
+- `backend/tests/test_econtrole_mapper.py`
+- `backend/tests/test_econtrole_sync.py`
+- `backend/tests/test_econtrole_webhook.py`
+
+Decisoes materializadas no S5:
+
+- cliente HTTP simples e testavel para listagem de empresas do eControle sem acoplamento de banco
+- mapper defensivo com aliases comuns, CNPJ normalizado e preservacao de `raw_econtrole`
+- sync de upsert idempotente e soft delete sobre `external_companies`
+- webhooks `company-upsert` e `company-delete` protegidos por `X-Lumen-Webhook-Token`
+- script `backend/scripts/sync_econtrole_companies.py` com rastreio em `integration_sync_runs`
+- auditoria por `record_audit_event`
+- o frontend visual e o smoke E2E existente nao mudam neste stage
+
+Ainda permanecem fora de escopo neste ponto:
+
+- integracao Acessorias do S6
+- transmissao fiscal
+- telas novas de frontend

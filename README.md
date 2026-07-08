@@ -2,7 +2,7 @@
 
 Data de referencia: 2026-07-07
 
-O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4 e o micro-stage S4.1. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2 e da autenticacao backend/frontend do S3/S3.1, o projeto passou a ter o nucleo fiscal persistido no banco com migration incremental, seed idempotente das obrigacoes principais, regras-base logicas e competencias fiscais iniciais.
+O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1 e o Stage S5. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1 e do nucleo fiscal persistido no S4/S4.1, o projeto passou a ter o espelho cadastral MVP do eControle por HTTP, webhook e sincronizacao rastreavel.
 
 ## Escopo real atual
 
@@ -78,10 +78,24 @@ S4.1 entrega:
 - regras separadas para `LUCRO_PRESUMIDO` e `LUCRO_REAL` em `PIS`, `COFINS` e `EFD_CONTRIBUICOES`
 - regime fiscal tecnico `IMUNE_ISENTA` reconhecido para uso futuro, com label de interface `Imune/Isenta`
 
+S5 entrega:
+
+- `backend/app/services/integrations/econtrole/client.py`
+- `backend/app/services/integrations/econtrole/mapper.py`
+- `backend/app/services/integrations/econtrole/sync.py`
+- `backend/app/api/v1/endpoints/webhooks/econtrole.py`
+- `backend/scripts/sync_econtrole_companies.py`
+- testes backend de mapper, sync e webhook do eControle
+- espelho cadastral de empresas do eControle em `external_companies`
+- webhooks protegidos por `X-Lumen-Webhook-Token`
+- execucoes rastreadas em `integration_sync_runs`
+
 Ainda nao existem:
 
 - dominio fiscal de negocio
-- integracoes externas reais
+- integracao Acessorias do S6
+- transmissao fiscal
+- frontend fiscal novo
 
 ## Regimes fiscais reconhecidos
 
@@ -115,6 +129,7 @@ No S3, foram materializados autenticacao backend, RBAC global e multi-tenant ini
 No S4, foram materializados os modelos fiscais core, sem avancar para S5, S6 ou integracoes externas reais.
 No S4.1, foram materializados seeds logicos de regras-base e competencias, sem criar status por empresa/competencia e sem iniciar sincronizacao de empresas.
 O S4.1 foi tratado como micro-stage complementar de fechamento tecnico e nao como stage originalmente enumerado no `PLANO_DESENVOLVIMENTO.md`.
+No S5, foi materializada apenas a integracao cadastral MVP do eControle; o fluxo visual do frontend e o smoke E2E existente permanecem os mesmos.
 
 ## Setup local no Windows PowerShell
 
@@ -148,6 +163,22 @@ INITIAL_ORG_NAME=Lumen
 INITIAL_ORG_SLUG=lumen
 VITE_API_BASE_URL=http://localhost:8000
 ```
+
+Variaveis novas do S5:
+
+```powershell
+ECONTROLE_API_BASE_URL=http://localhost:8090/api
+ECONTROLE_API_TOKEN=
+ECONTROLE_WEBHOOK_TOKEN=
+ECONTROLE_TIMEOUT_SECONDS=15
+```
+
+Observacoes do S5:
+
+- `ECONTROLE_API_BASE_URL` e `ECONTROLE_API_TOKEN` so sao exigidos para o script de sync HTTP
+- `ECONTROLE_WEBHOOK_TOKEN` e obrigatorio para aceitar qualquer webhook do eControle
+- o endpoint de listagem usa path placeholder MVP isolada em codigo: `GET /companies`
+- nenhum token, cookie, sessao assistida ou payload real deve ser versionado
 
 Observacao S3.1:
 
@@ -252,6 +283,11 @@ $env:E2E_ADMIN_PASSWORD = "ChangeMe123!"
 
 Se essas variaveis nao forem definidas, o E2E usa o admin local padrao de desenvolvimento acima apenas para ambiente local.
 
+Observacao S5 para o frontend:
+
+- o smoke E2E existente deve continuar passando sem alteracao de fluxo visual
+- S5 nao adiciona tela nova nem altera `/login` ou `/lumen/painel`
+
 ### 8. Validacao minima do backend S2
 
 ```powershell
@@ -311,6 +347,96 @@ Observacao de escopo do S4:
 - nenhum endpoint fiscal operacional novo foi criado
 - `/login` e `/lumen/painel` permanecem funcionando como no S3.1
 - o frontend/E2E existente nao muda de fluxo e deve continuar passando
+
+### Integracao eControle do S5
+
+Sync manual MVP:
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head
+.\.venv\Scripts\python.exe -m backend.scripts.sync_econtrole_companies --org-slug neto-contabilidade
+```
+
+Fallback MVP sem `--org-slug`:
+
+```powershell
+.\.venv\Scripts\python.exe -m backend.scripts.sync_econtrole_companies
+```
+
+Esse fallback so e aceito quando existir exatamente uma organizacao ativa.
+
+Exemplo PowerShell de webhook de upsert:
+
+```powershell
+$headers = @{
+  "X-Lumen-Webhook-Token" = "trocar-localmente"
+  "Content-Type" = "application/json"
+}
+$body = @{
+  org_slug = "neto-contabilidade"
+  id = "123"
+  profile_id = "456"
+  cnpj = "19.163.109/0001-78"
+  razao_social = "AC SOARES LTDA"
+  nome_fantasia = "AC Soares"
+  updated_at = "2026-07-07T10:00:00-03:00"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/v1/webhooks/econtrole/company-upsert -Headers $headers -Body $body
+```
+
+Exemplo PowerShell de webhook de delete:
+
+```powershell
+$headers = @{
+  "X-Lumen-Webhook-Token" = "trocar-localmente"
+  "Content-Type" = "application/json"
+}
+$body = @{
+  org_slug = "neto-contabilidade"
+  cnpj = "19.163.109/0001-78"
+  deleted_at = "2026-07-07T11:00:00-03:00"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/v1/webhooks/econtrole/company-delete -Headers $headers -Body $body
+```
+
+Exemplo `curl` de webhook de upsert:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/webhooks/econtrole/company-upsert \
+  -H "Content-Type: application/json" \
+  -H "X-Lumen-Webhook-Token: trocar-localmente" \
+  -d '{"org_slug":"neto-contabilidade","id":"123","profile_id":"456","cnpj":"19.163.109/0001-78","razao_social":"AC SOARES LTDA","nome_fantasia":"AC Soares","updated_at":"2026-07-07T10:00:00-03:00"}'
+```
+
+Exemplo `curl` de webhook de delete:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/webhooks/econtrole/company-delete \
+  -H "Content-Type: application/json" \
+  -H "X-Lumen-Webhook-Token: trocar-localmente" \
+  -d '{"org_slug":"neto-contabilidade","cnpj":"19.163.109/0001-78","deleted_at":"2026-07-07T11:00:00-03:00"}'
+```
+
+Validacao backend do S5:
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head
+.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_econtrole_mapper.py .\backend\tests\test_econtrole_sync.py .\backend\tests\test_econtrole_webhook.py -q
+.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_auth.py .\backend\tests\test_rbac.py .\backend\tests\test_models.py .\backend\tests\test_obligation_seed.py .\backend\tests\test_obligation_rules_seed.py .\backend\tests\test_period_seed.py -q
+ruff check .\backend
+cd .\frontend
+npm run typecheck
+npm run test:e2e
+```
+
+Observacao de escopo do S5:
+
+- o sync cadastral nao usa banco direto do eControle
+- o S5 nao cria `fiscal_obligation_statuses`
+- o S5 nao inicia Acessorias nem transmissao fiscal
+- o frontend visual e o fluxo E2E existente continuam inalterados e devem seguir passando
 
 ### 11. Seed logico do S4.1
 
@@ -471,3 +597,16 @@ Respostas esperadas:
 - `backend/scripts/seed_periods.py`
 - `backend/tests/test_obligation_rules_seed.py`
 - `backend/tests/test_period_seed.py`
+
+## Arquivos-base adicionados no S5
+
+- `backend/app/services/integrations/econtrole/__init__.py`
+- `backend/app/services/integrations/econtrole/client.py`
+- `backend/app/services/integrations/econtrole/mapper.py`
+- `backend/app/services/integrations/econtrole/sync.py`
+- `backend/app/api/v1/endpoints/webhooks/__init__.py`
+- `backend/app/api/v1/endpoints/webhooks/econtrole.py`
+- `backend/scripts/sync_econtrole_companies.py`
+- `backend/tests/test_econtrole_mapper.py`
+- `backend/tests/test_econtrole_sync.py`
+- `backend/tests/test_econtrole_webhook.py`

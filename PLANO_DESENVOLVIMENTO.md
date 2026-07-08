@@ -585,7 +585,7 @@ Registro complementar de fechamento do micro-stage S4.1:
 
 ## S5 - Integração eControle: espelho cadastral
 
-Status: pendente
+Status: concluido
 
 Objetivo:
 - Sincronizar empresas do eControle para o Lumen sem acoplamento direto de banco.
@@ -619,6 +619,21 @@ Aceite:
 - Divergência cadastral pode gerar alerta/auditoria.
 
 ---
+
+## Fechamento tecnico S5 em 2026-07-07
+
+Registro complementar de fechamento do Stage S5:
+
+- status confirmado como concluido em `2026-07-07`
+- entregues: `backend/app/services/integrations/econtrole/__init__.py`, `backend/app/services/integrations/econtrole/client.py`, `backend/app/services/integrations/econtrole/mapper.py`, `backend/app/services/integrations/econtrole/sync.py`, `backend/app/api/v1/endpoints/webhooks/__init__.py`, `backend/app/api/v1/endpoints/webhooks/econtrole.py`, `backend/scripts/sync_econtrole_companies.py`, `backend/tests/test_econtrole_mapper.py`, `backend/tests/test_econtrole_sync.py` e `backend/tests/test_econtrole_webhook.py`, alem do wiring em `backend/app/api/v1/api.py` e `backend/app/core/config.py`
+- nenhuma migration adicional foi criada porque o schema existente de `external_companies`, `integration_sync_runs`, `audit_log` e `organizations` suportou o escopo do espelho cadastral
+- validacoes registradas: `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head`, `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_econtrole_mapper.py .\backend\tests\test_econtrole_sync.py .\backend\tests\test_econtrole_webhook.py -q`, `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_auth.py .\backend\tests\test_rbac.py .\backend\tests\test_models.py .\backend\tests\test_obligation_seed.py .\backend\tests\test_obligation_rules_seed.py .\backend\tests\test_period_seed.py -q`, `ruff check .\backend`, `cd .\frontend && npm run typecheck` e `cd .\frontend && npm run test:e2e`
+- webhook de upsert e soft delete confirmado em `POST /api/v1/webhooks/econtrole/company-upsert` e `POST /api/v1/webhooks/econtrole/company-delete`, ambos protegidos por `X-Lumen-Webhook-Token`
+- espelho cadastral confirmado em `external_companies` com upsert idempotente por `(organization_id, cnpj)`, reativacao apos soft delete e preservacao de `raw_econtrole`
+- rastreabilidade confirmada em `integration_sync_runs` para o job `sync_econtrole_companies`
+- decisoes novas: CNPJ normalizado para 14 digitos no espelho local; IE vazia/whitespace vira `NULL` e `ISENTO` so e preservado quando vier explicitamente do payload; webhooks nao usam JWT e falham com `401` se `ECONTROLE_WEBHOOK_TOKEN` estiver ausente ou invalido; organizacao e resolvida por `org_slug` ou fallback MVP de unica organizacao ativa; cliente HTTP usa timeout configuravel e path placeholder isolada `GET /companies`
+- pendencia nao bloqueante registrada na validacao: a primeira tentativa de regressao backend em paralelo competiu pelo mesmo banco `lumen_test`; em execucao serial a suite passou integralmente sem ajuste de codigo do S5
+- confirmacao explicita: o S5 nao cria `fiscal_obligation_statuses`, nao inicia Acessorias, nao cria frontend novo, nao usa banco direto do eControle e nao inicia S6
 
 ## S6 - Integração Acessórias: regime, obrigações e entregas
 

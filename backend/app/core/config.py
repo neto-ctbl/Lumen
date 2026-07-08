@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     initial_admin_full_name: str | None = Field(default="Initial Admin", alias="INITIAL_ADMIN_FULL_NAME")
     initial_org_name: str | None = Field(default="Lumen", alias="INITIAL_ORG_NAME")
     initial_org_slug: str | None = Field(default="lumen", alias="INITIAL_ORG_SLUG")
+    econtrole_api_base_url: str | None = Field(default=None, alias="ECONTROLE_API_BASE_URL")
+    econtrole_api_token: str | None = Field(default=None, alias="ECONTROLE_API_TOKEN")
+    econtrole_webhook_token: str | None = Field(default=None, alias="ECONTROLE_WEBHOOK_TOKEN")
+    econtrole_timeout_seconds: int = Field(default=15, alias="ECONTROLE_TIMEOUT_SECONDS")
 
     @field_validator("database_url", "test_database_url")
     @classmethod
@@ -56,6 +60,13 @@ class Settings(BaseSettings):
     def validate_positive_expiration(cls, value: int) -> int:
         if value <= 0:
             raise ValueError("Token expiration values must be positive integers.")
+        return value
+
+    @field_validator("econtrole_timeout_seconds")
+    @classmethod
+    def validate_positive_timeout(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("ECONTROLE_TIMEOUT_SECONDS must be a positive integer.")
         return value
 
 
