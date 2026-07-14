@@ -1,0 +1,35 @@
+[
+  {
+    "ID": "1",
+    "Identificador": "00.000.000/0001-91",
+    "Razao": "Empresa Exemplo LTDA",
+    "Fantasia": "Empresa Exemplo",
+    "Entregas": [
+      {
+        "Nome": "Guia da Previdencia Social",
+        "EntCompetencia": "2024-02-06",
+        "EntDtPrazo": "2024-02-06",
+        "EntDtAtraso": "2024-02-06",
+        "EntDtEntrega": "0000-00-00",
+        "EntDtFinalizacao": null,
+        "EntMulta": "S",
+        "Status": "Atrasada!",
+        "EntGuiaLida": "",
+        "EntLastDH": "2024-11-15 13:10:03",
+        "RespEntrega": null,
+        "Config": {
+          "EntID": "16370",
+          "Tipo": "O",
+          "ID": "240",
+          "DptoID": "3",
+          "DptoNome": "Contabil",
+          "CriadorID": null,
+          "RespPrazo": "Responsavel Prazo",
+          "RespPrazoID": "42",
+          "RespEntrega": null,
+          "RespEntregaID": null
+        }
+      }
+    ]
+  }
+]

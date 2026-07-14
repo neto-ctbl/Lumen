@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     econtrole_api_token: str | None = Field(default=None, alias="ECONTROLE_API_TOKEN")
     econtrole_webhook_token: str | None = Field(default=None, alias="ECONTROLE_WEBHOOK_TOKEN")
     econtrole_timeout_seconds: int = Field(default=15, alias="ECONTROLE_TIMEOUT_SECONDS")
+    acessorias_api_base_url: str = Field(default="https://api.acessorias.com", alias="ACESSORIAS_API_BASE_URL")
+    acessorias_api_token: str | None = Field(default=None, alias="ACESSORIAS_API_TOKEN")
+    acessorias_timeout_seconds: int = Field(default=15, alias="ACESSORIAS_TIMEOUT_SECONDS")
+    acessorias_requests_per_minute: int = Field(default=100, alias="ACESSORIAS_REQUESTS_PER_MINUTE")
 
     @field_validator("database_url", "test_database_url")
     @classmethod
@@ -62,11 +66,18 @@ class Settings(BaseSettings):
             raise ValueError("Token expiration values must be positive integers.")
         return value
 
-    @field_validator("econtrole_timeout_seconds")
+    @field_validator("econtrole_timeout_seconds", "acessorias_timeout_seconds")
     @classmethod
     def validate_positive_timeout(cls, value: int) -> int:
         if value <= 0:
-            raise ValueError("ECONTROLE_TIMEOUT_SECONDS must be a positive integer.")
+            raise ValueError("Timeout values must be positive integers.")
+        return value
+
+    @field_validator("acessorias_requests_per_minute")
+    @classmethod
+    def validate_acessorias_rate_limit(cls, value: int) -> int:
+        if value < 1 or value > 100:
+            raise ValueError("ACESSORIAS_REQUESTS_PER_MINUTE must be between 1 and 100.")
         return value
 
 

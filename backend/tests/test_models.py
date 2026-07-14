@@ -76,6 +76,8 @@ def test_s4_tables_exist(prepared_test_database: None, test_settings) -> None:
         "integration_accounts",
         "integration_sync_runs",
         "watcher_file_events",
+        "acessorias_company_snapshots",
+        "acessorias_delivery_snapshots",
     }.issubset(tables)
 
 
@@ -153,6 +155,8 @@ def test_backend_app_models_exports_new_s4_models() -> None:
     from backend.app import models
 
     for name in (
+        "AcessoriasCompanySnapshot",
+        "AcessoriasDeliverySnapshot",
         "CompanyActivityType",
         "ExternalCompany",
         "FiscalAlert",

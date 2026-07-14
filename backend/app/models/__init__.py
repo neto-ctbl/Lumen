@@ -1,3 +1,5 @@
+from backend.app.models.acessorias_company_snapshot import AcessoriasCompanySnapshot
+from backend.app.models.acessorias_delivery_snapshot import AcessoriasDeliverySnapshot
 from backend.app.models.audit_log import AuditLog
 from backend.app.models.company_activity_type import CompanyActivityType
 from backend.app.models.external_company import ExternalCompany
@@ -16,6 +18,8 @@ from backend.app.models.user_organization import UserOrganization
 from backend.app.models.watcher_file_event import WatcherFileEvent
 
 __all__ = [
+    "AcessoriasCompanySnapshot",
+    "AcessoriasDeliverySnapshot",
     "AuditLog",
     "CompanyActivityType",
     "ExternalCompany",

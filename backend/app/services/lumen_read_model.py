@@ -7,6 +7,9 @@ from decimal import Decimal
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session
 
+from backend.app.core.enums import FISCAL_REGIME_LABELS, FiscalRegime
+from backend.app.core.config import get_settings
+from backend.app.models.acessorias_company_snapshot import AcessoriasCompanySnapshot
 from backend.app.models.external_company import ExternalCompany
 from backend.app.models.fiscal_alert import FiscalAlert
 from backend.app.models.fiscal_evidence import FiscalEvidence
@@ -40,9 +43,9 @@ from backend.app.schemas.period import PeriodItem, PeriodListResponse
 
 PROVIDER_LABELS = {
     "ECONTROLE": "eControle",
-    "ACESSORIAS": "Acessorias",
+    "ACESSORIAS": "Acessórias",
     "SITTAX": "Sittax",
-    "DOMINIO": "Dominio",
+    "DOMINIO": "Domínio",
     "ECONET": "Econet",
     "WATCHER_G": "Watcher G:",
 }
@@ -72,11 +75,38 @@ def _ie_display(value: str | None) -> str:
     return value
 
 
-def _regime_label(_: ExternalCompany) -> str:
+def _regime_label_from_snapshot(snapshot: AcessoriasCompanySnapshot | None) -> str:
+    if snapshot is None:
+        return "Aguardando Acessorias"
+    if snapshot.regime_mapping_status == "MAPPED" and snapshot.regime_canonical:
+        try:
+            return FISCAL_REGIME_LABELS[FiscalRegime(snapshot.regime_canonical)]
+        except Exception:
+            return snapshot.regime_canonical
+    if snapshot.regime_mapping_status == "UNMAPPED":
+        return "Regime nao mapeado"
     return "Aguardando Acessorias"
 
 
-def _company_summary(company: ExternalCompany) -> CompanySummary:
+def _snapshot_map(db: Session, *, organization_id: int, company_ids: list[int]) -> dict[int, AcessoriasCompanySnapshot]:
+    if not company_ids:
+        return {}
+    rows = db.scalars(
+        select(AcessoriasCompanySnapshot)
+        .where(
+            AcessoriasCompanySnapshot.organization_id == organization_id,
+            AcessoriasCompanySnapshot.company_id.in_(company_ids),
+        )
+        .order_by(AcessoriasCompanySnapshot.updated_at.desc(), AcessoriasCompanySnapshot.id.desc())
+    ).all()
+    result: dict[int, AcessoriasCompanySnapshot] = {}
+    for row in rows:
+        if row.company_id is not None and row.company_id not in result:
+            result[row.company_id] = row
+    return result
+
+
+def _company_summary(company: ExternalCompany, snapshot: AcessoriasCompanySnapshot | None = None) -> CompanySummary:
     return CompanySummary(
         id=company.id,
         cnpj=company.cnpj,
@@ -87,7 +117,7 @@ def _company_summary(company: ExternalCompany) -> CompanySummary:
         municipio=company.municipio,
         uf=company.uf,
         active=company.active,
-        regime_label=_regime_label(company),
+        regime_label=_regime_label_from_snapshot(snapshot),
     )
 
 
@@ -124,7 +154,8 @@ def list_companies(db: Session, *, organization_id: int, search: str | None) -> 
         )
 
     companies = db.scalars(query.order_by(ExternalCompany.razao_social.asc(), ExternalCompany.id.asc())).all()
-    return CompanyListResponse(items=[_company_summary(company) for company in companies])
+    snapshots = _snapshot_map(db, organization_id=organization_id, company_ids=[company.id for company in companies])
+    return CompanyListResponse(items=[_company_summary(company, snapshots.get(company.id)) for company in companies])
 
 
 def list_periods(db: Session, *, organization_id: int) -> PeriodListResponse:
@@ -302,6 +333,7 @@ def get_cockpit(
         if row.company_id is not None:
             alert_count_by_company[row.company_id] = alert_count_by_company.get(row.company_id, 0) + 1
 
+    snapshots = _snapshot_map(db, organization_id=organization_id, company_ids=[company.id for company in companies])
     items: list[CockpitCompanyRow] = []
     for company in companies:
         company_statuses = status_by_company.get(company.id, [])
@@ -326,7 +358,7 @@ def get_cockpit(
                 nome_fantasia=company.nome_fantasia,
                 cnpj=company.cnpj,
                 inscricao_estadual_display=_ie_display(company.inscricao_estadual),
-                regime_label=_regime_label(company),
+                regime_label=_regime_label_from_snapshot(snapshots.get(company.id)),
                 department=first_status.responsible_department if first_status else None,
                 source=first_status.last_source if first_status else None,
                 overall_status=overall_status,
@@ -402,12 +434,31 @@ def get_company_summary(db: Session, *, organization_id: int, company_id: int, c
     )
 
     return CompanyDetailResponse(
-        company=_company_summary(company),
+        company=_company_summary(
+            company,
+            db.scalar(
+                select(AcessoriasCompanySnapshot)
+                .where(
+                    AcessoriasCompanySnapshot.organization_id == organization_id,
+                    AcessoriasCompanySnapshot.company_id == company.id,
+                )
+                .order_by(AcessoriasCompanySnapshot.updated_at.desc(), AcessoriasCompanySnapshot.id.desc())
+            ),
+        ),
         period=period.competencia,
         cnpj=company.cnpj,
         inscricao_estadual_display=_ie_display(company.inscricao_estadual),
         municipio_uf=" / ".join(part for part in [company.municipio, company.uf] if part) or "Nao informado",
-        regime_label=_regime_label(company),
+        regime_label=_regime_label_from_snapshot(
+            db.scalar(
+                select(AcessoriasCompanySnapshot)
+                .where(
+                    AcessoriasCompanySnapshot.organization_id == organization_id,
+                    AcessoriasCompanySnapshot.company_id == company.id,
+                )
+                .order_by(AcessoriasCompanySnapshot.updated_at.desc(), AcessoriasCompanySnapshot.id.desc())
+            )
+        ),
         kpis=CompanySummaryKpis(
             obligations_total=len(statuses),
             delivered_total=delivered_total,
@@ -586,6 +637,7 @@ def get_installments(db: Session, *, organization_id: int, competencia: str | No
 
 
 def get_integrations_health(db: Session, *, organization_id: int) -> IntegrationHealthResponse:
+    settings = get_settings()
     account_rows = db.scalars(
         select(IntegrationAccount).where(IntegrationAccount.organization_id == organization_id)
     ).all()
@@ -620,6 +672,14 @@ def get_integrations_health(db: Session, *, organization_id: int) -> Integration
         if provider == "ECONTROLE":
             note = "Espelho cadastral ativo no S5; leituras fiscais ainda sao read-only."
             status_value = account.status if account is not None else "CONFIGURAR"
+        elif provider == "ACESSORIAS":
+            configured = bool(settings.acessorias_api_token)
+            note = "API oficial read-only do S6: empresas, regime e entregas, sem mutacoes externas."
+            status_value = (
+                last_run.status
+                if last_run is not None
+                else ("CONFIGURAR" if not configured else "NAO_INICIADA")
+            )
         else:
             note = "Nao iniciado neste stage S5.1."
             status_value = account.status if account is not None else "NAO_INICIADA"
@@ -629,7 +689,11 @@ def get_integrations_health(db: Session, *, organization_id: int) -> Integration
                 provider=provider,
                 label=label,
                 status=status_value,
-                account_status=account.status if account is not None else None,
+                account_status=(
+                    account.status
+                    if account is not None
+                    else ("CONFIGURADO" if provider == "ACESSORIAS" and settings.acessorias_api_token else None)
+                ),
                 last_run_status=last_run.status if last_run is not None else None,
                 last_run_at=_iso_date(last_run.finished_at if last_run is not None else None),
                 processed_count=last_run.processed_count if last_run is not None else 0,

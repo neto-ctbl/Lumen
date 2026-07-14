@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lumen.local/schemas/acessorias_delivery.schema.json",
+  "title": "AcessoriasDeliveryList",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": true,
+    "required": [
+      "ID",
+      "Identificador",
+      "Razao",
+      "Entregas"
+    ],
+    "properties": {
+      "ID": {
+        "type": "string"
+      },
+      "Identificador": {
+        "type": "string"
+      },
+      "Razao": {
+        "type": "string"
+      },
+      "Fantasia": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "Entregas": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "Nome",
+            "EntDtPrazo",
+            "Status"
+          ],
+          "properties": {
+            "Nome": {
+              "type": "string"
+            },
+            "EntCompetencia": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "EntDtPrazo": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "EntDtAtraso": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "EntDtEntrega": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "EntDtFinalizacao": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "EntMulta": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "Status": {
+              "type": "string"
+            },
+            "EntGuiaLida": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "EntLastDH": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "RespEntrega": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "Config": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": true,
+              "properties": {
+                "EntID": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "Tipo": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ID": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "DptoID": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "DptoNome": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "CriadorID": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "RespPrazo": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "RespPrazoID": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "RespEntrega": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "RespEntregaID": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

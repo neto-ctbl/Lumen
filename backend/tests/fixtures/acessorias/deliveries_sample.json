@@ -1,0 +1,85 @@
+[
+  {
+    "ID": "9001",
+    "Identificador": "11.111.111/0001-11",
+    "Razao": "Alpha Ltda",
+    "Fantasia": "Alpha",
+    "Entregas": [
+      {
+        "Nome": "DAS",
+        "EntCompetencia": "2026-06-01",
+        "EntDtPrazo": "2026-06-20",
+        "EntDtAtraso": "2026-06-21",
+        "EntDtEntrega": "2026-06-18",
+        "EntDtFinalizacao": "2026-06-18 10:30:00",
+        "EntMulta": "N",
+        "Status": "Ent. antecipada",
+        "EntGuiaLida": "S",
+        "EntLastDH": "2026-06-18 10:30:00",
+        "RespEntrega": "Maria Fiscal",
+        "Config": {
+          "EntID": "5001",
+          "Tipo": "O",
+          "ID": "100",
+          "DptoID": "2",
+          "DptoNome": "Fiscal",
+          "CriadorID": null,
+          "RespPrazo": "Joana Prazo",
+          "RespPrazoID": "42",
+          "RespEntrega": "Maria Fiscal",
+          "RespEntregaID": "43"
+        }
+      },
+      {
+        "Nome": "GPS",
+        "EntCompetencia": "2026-06-01",
+        "EntDtPrazo": "2026-06-25",
+        "EntDtAtraso": "2026-06-26",
+        "EntDtEntrega": "0000-00-00",
+        "EntDtFinalizacao": null,
+        "EntMulta": "S",
+        "Status": "Atrasada!",
+        "EntGuiaLida": "",
+        "EntLastDH": "2026-06-25 12:00:00",
+        "RespEntrega": null,
+        "Config": {
+          "EntID": "5002",
+          "Tipo": "O",
+          "ID": "101",
+          "DptoID": "2",
+          "DptoNome": "Fiscal",
+          "CriadorID": null,
+          "RespPrazo": "Joana Prazo",
+          "RespPrazoID": "42",
+          "RespEntrega": null,
+          "RespEntregaID": null
+        }
+      },
+      {
+        "Nome": "Consulta do e-Social!",
+        "EntCompetencia": "2026-06-01",
+        "EntDtPrazo": "2026-06-22",
+        "EntDtAtraso": "2026-06-23",
+        "EntDtEntrega": "0000-00-00",
+        "EntDtFinalizacao": null,
+        "EntMulta": "N",
+        "Status": "Pendente",
+        "EntGuiaLida": "",
+        "EntLastDH": "2026-06-22 08:00:00",
+        "RespEntrega": null,
+        "Config": {
+          "EntID": "5003",
+          "Tipo": "T",
+          "ID": "102",
+          "DptoID": "1",
+          "DptoNome": "Pessoal",
+          "CriadorID": null,
+          "RespPrazo": "Pessoa DP",
+          "RespPrazoID": "55",
+          "RespEntrega": null,
+          "RespEntregaID": null
+        }
+      }
+    ]
+  }
+]

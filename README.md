@@ -1,8 +1,8 @@
 # Lumen - Fiscal Cockpit
 
-Data de referencia: 2026-07-08
+Data de referencia: 2026-07-14
 
-O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1 e o Stage S5. O Stage S5.1 esta parcialmente concluido. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1 e do espelho cadastral MVP do eControle no S5, o projeto passou a ter a primeira base do frontend fiscal read-only com APIs `/api/v1/lumen/*`.
+O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage S6.0 e o Stage S6. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5 e do frontend fiscal read-only do S5.1, o projeto passou a ter integracao oficial read-only com o Sistema Acessorias para empresas, regime tributario, obrigacoes e entregas, usando exclusivamente a API publica documentada e sem DevTools, HAR ou engenharia reversa.
 
 ## Escopo real atual
 
@@ -90,7 +90,7 @@ S5 entrega:
 - webhooks protegidos por `X-Lumen-Webhook-Token`
 - execucoes rastreadas em `integration_sync_runs`
 
-S5.1 entregue parcialmente:
+S5.1 entregue:
 
 - endpoints read-only em `backend/app/api/v1/endpoints/lumen.py`
 - read model fiscal em `backend/app/services/lumen_read_model.py`
@@ -98,15 +98,40 @@ S5.1 entregue parcialmente:
 - testes backend `backend/tests/test_lumen_read_endpoints.py`
 - frontend fiscal read-only com shell, layout, componentes e rotas protegidas em `/lumen/*`
 - E2E atualizados em `frontend/tests_e2e/smoke.spec.ts`, `shell.spec.ts` e `deliveries.spec.ts`
-- pendencias de refinamento visual e padronizacao de apresentacao ainda existem no frontend
+- frontend read-only validado como baseline funcional do portal fiscal
+
+S6.0 entregue:
+
+- `docs/ACESSORIAS_CONTRACT.md`
+- `docs/examples/sample_acessorias_company.json`
+- `docs/examples/sample_acessorias_delivery.json`
+- `schemas/acessorias_company.schema.json`
+- `schemas/acessorias_delivery.schema.json`
+- documentacao do projeto atualizada para registrar a API oficial do Acessorias
+- contrato limitado a operacoes de consulta para empresas e entregas
+- preparacao documental de autenticacao Bearer Token, rate limit, regimes, payloads, idempotencia e estrategia de sync
+
+S6 entregue:
+
+- `backend/app/models/acessorias_company_snapshot.py`
+- `backend/app/models/acessorias_delivery_snapshot.py`
+- migration `backend/alembic/versions/20260714_0004_create_acessorias_snapshots.py`
+- `backend/app/services/integrations/acessorias/client.py`
+- `backend/app/services/integrations/acessorias/mapper.py`
+- `backend/app/services/integrations/acessorias/regime.py`
+- `backend/app/services/integrations/acessorias/obligation_mapping.py`
+- `backend/app/services/integrations/acessorias/sync.py`
+- `backend/app/api/v1/endpoints/integrations/acessorias.py`
+- `backend/app/schemas/acessorias.py`
+- `backend/scripts/sync_acessorias_deliveries.py`
+- testes backend do Acessorias e E2E da tela Integracoes
+- health read-only da integracao e precedencia de regime no read model
 
 Ainda nao existem:
 
 - dominio fiscal de negocio
-- integracao Acessorias do S6
 - transmissao fiscal
 - mutacoes fiscais no portal
-- integracao Acessorias do S6
 - watcher, parser PDF, Sittax, Dominio, Econet ou transmissao fiscal
 
 ## Regimes fiscais reconhecidos
@@ -186,6 +211,15 @@ ECONTROLE_WEBHOOK_TOKEN=
 ECONTROLE_TIMEOUT_SECONDS=15
 ```
 
+Variaveis do S6:
+
+```powershell
+ACESSORIAS_API_BASE_URL=https://api.acessorias.com
+ACESSORIAS_API_TOKEN=
+ACESSORIAS_TIMEOUT_SECONDS=15
+ACESSORIAS_REQUESTS_PER_MINUTE=100
+```
+
 Observacoes do S5:
 
 - `ECONTROLE_API_BASE_URL` e `ECONTROLE_API_TOKEN` so sao exigidos para o script de sync HTTP
@@ -202,6 +236,22 @@ Observacoes do S5.1:
 - `fiscal_obligation_statuses`, `fiscal_evidences`, `fiscal_alerts`, `fiscal_installments` e `integration_sync_runs` podem retornar vazio sem erro
 - IE vazia continua persistida como `NULL`/vazio e so aparece como `ISENTO` no frontend
 - regime exibido permanece honesto como `Aguardando Acessorias` enquanto a fonte oficial do S6 nao existe
+
+Observacoes do S6:
+
+- o Acessorias possui API oficial documentada em `https://api.acessorias.com/documentation`
+- a base URL oficial e `https://api.acessorias.com`
+- a autenticacao oficial usa `Authorization: Bearer <token>`
+- o token deve ser gerado no proprio Sistema Acessorias pela opcao `API Token`
+- o limite oficial documentado e `100` requisicoes por minuto
+- nao e necessario usar DevTools, HAR ou engenharia reversa
+- Sittax e Econet permanecem como integracoes que podem depender de requisicoes observadas em etapas futuras
+- o S6 utilizara somente operacoes de consulta
+- nenhuma inclusao, edicao, transmissao ou alteracao externa faz parte do S6
+- o token e opcional no boot geral da aplicacao e obrigatorio apenas para sync real
+- o endpoint manual do S6 e `POST /api/v1/integrations/acessorias/sync` com RBAC `ADMIN|DEV`
+- o script operacional do S6 e `python -m backend.scripts.sync_acessorias_deliveries`
+- o modo fixture nao exige token real e reutiliza os mesmos mappers e servicos
 
 Observacao S3.1:
 
@@ -498,6 +548,15 @@ Observacao de escopo do S5.1:
 - KPIs zerados e listas vazias sao respostas validas quando ainda nao houver dados fiscais operacionais
 - nenhuma migration nova foi necessaria
 - S6/Acessorias nao foi iniciado
+
+Fechamento tecnico do S6:
+
+- `docs/ACESSORIAS_CONTRACT.md` formaliza autenticacao, endpoints `GET /companies/{identificador}` e `GET /deliveries/{identificador}`, campos de interesse, limites, riscos, aliases seguros e estrategia de sync
+- `docs/examples/` e `schemas/` contem exemplos anonimizados e contratos JSON derivados apenas da documentacao oficial
+- a migration `20260714_0004_create_acessorias_snapshots.py` cria `acessorias_company_snapshots` e `acessorias_delivery_snapshots`
+- o sync inicial permanece serial, read-only e previsivel: empresas por `ListAll + registrationData`, entregas por empresa e intervalo mensal com `config`
+- o portal continua sem consultar a API externa em request do frontend; ele le apenas o read model local e os `fiscal_obligation_statuses` atualizados pelo sync
+- o S6 nao baixa anexos, nao usa endpoints `POST`, nao transmite obrigacoes e nao inicia watcher nem conciliacao do S11
 
 ### 11. Seed logico do S4.1
 

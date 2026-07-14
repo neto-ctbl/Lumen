@@ -1,0 +1,40 @@
+{
+  "ID": "1",
+  "Identificador": "00.000.000/0001-91",
+  "Razao": "Empresa Exemplo LTDA",
+  "Fantasia": "Empresa Exemplo",
+  "Status": "Ativa",
+  "UF": "SP",
+  "Regime": "Lucro Real",
+  "InscricoesEstaduais": [
+    {
+      "IE": "123456789",
+      "UF": "SP"
+    }
+  ],
+  "ContatosNaEmpresa": [
+    {
+      "Nome": "Contato Exemplo",
+      "E-mail": "contato@example.local",
+      "Celular": "11999999999"
+    }
+  ],
+  "Departamentos": [
+    {
+      "ID": "1",
+      "Nome": "Fiscal",
+      "RespNome": "Responsavel Exemplo",
+      "RespEmail": "responsavel@example.local"
+    }
+  ],
+  "Obrigacoes": [
+    {
+      "Nome": "INSS / GPS",
+      "Status": "Ativa",
+      "Entregues": "0",
+      "Atrasadas": "1",
+      "Proximos30D": "0",
+      "Futuras30+": "0"
+    }
+  ]
+}

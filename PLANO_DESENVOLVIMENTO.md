@@ -713,7 +713,28 @@ Aceite:
 
 ## S6 - Integração Acessórias: regime, obrigações e entregas
 
-Status: pendente
+Status: concluido em 2026-07-14
+
+Micro-stage preparatorio concluido em 2026-07-14:
+
+- `docs/ACESSORIAS_CONTRACT.md`
+- `docs/examples/sample_acessorias_company.json`
+- `docs/examples/sample_acessorias_delivery.json`
+- `schemas/acessorias_company.schema.json`
+- `schemas/acessorias_delivery.schema.json`
+- confirmacao formal de que o Acessorias possui API oficial documentada
+- confirmacao formal de que o S6 usara somente operacoes de consulta
+
+Premissas oficiais congeladas para o S6:
+
+- documentacao oficial: `https://api.acessorias.com/documentation`
+- base URL oficial: `https://api.acessorias.com`
+- autenticacao: `Authorization: Bearer <token>`
+- token gerado no proprio Sistema Acessorias pela opcao `API Token`
+- rate limit documentado: `100` requisicoes por minuto
+- nao e necessario usar DevTools, HAR ou engenharia reversa para o Acessorias
+- Sittax e Econet continuam como integracoes que podem depender de requisicoes observadas em etapas futuras
+- nenhuma inclusao, edicao, transmissao ou alteracao externa faz parte do S6
 
 Objetivo:
 - Trazer a fonte oficial de regime tributário e status formal das obrigações.
@@ -735,6 +756,8 @@ Entregáveis:
 Regras:
 - Regime oficial do Lumen = regime do Acessórias.
 - Se regime divergir do eControle, usar Acessórias e gerar alerta cadastral.
+- o S6 deve permanecer read-only para a fonte Acessorias
+- o sync inicial deve priorizar seguranca e previsibilidade sobre paralelismo ou throughput
 
 Validação:
 ```bash
@@ -745,6 +768,45 @@ Aceite:
 - Sync idempotente por empresa/competência.
 - Status entregue/pendente refletido no domínio fiscal.
 - Runs têm contadores, erros e resumo.
+
+Entregues:
+- configuracao `ACESSORIAS_API_BASE_URL`, `ACESSORIAS_API_TOKEN`, `ACESSORIAS_TIMEOUT_SECONDS` e `ACESSORIAS_REQUESTS_PER_MINUTE`
+- migration `20260714_0004_create_acessorias_snapshots.py`
+- tabelas `acessorias_company_snapshots` e `acessorias_delivery_snapshots`
+- cliente oficial read-only com Bearer Token, rate limit serial, tratamento de `204`, `401`, `404`, `429`, JSON invalido e erro de negocio
+- mapper puro para empresas, entregas, datas, identificadores e status
+- mapping explicito de regime e aliases seguros de obrigacoes
+- sync serial de empresas por `ListAll + registrationData`
+- sync serial de entregas por empresa e intervalo mensal com `config`
+- upsert restrito de `fiscal_obligation_statuses` apenas para empresa local + obrigacao mapeada + `Config.Tipo = O`
+- alerta idempotente `REGIME_DIVERGENCE_ACESSORIAS_ECONTROLE`
+- endpoint manual `POST /api/v1/integrations/acessorias/sync` com RBAC `ADMIN|DEV`
+- script `backend/scripts/sync_acessorias_deliveries.py` com fixture mode
+- health da integracao e precedencia do regime no read model do portal
+- testes backend `test_acessorias_client.py`, `test_acessorias_mapper.py`, `test_acessorias_sync.py`, `test_acessorias_endpoint.py`, `test_regime_precedence.py`
+- E2E `frontend/tests_e2e/integrations.spec.ts`
+
+Validacao executada:
+- `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head`
+- `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_acessorias_client.py .\backend\tests\test_acessorias_mapper.py .\backend\tests\test_acessorias_sync.py .\backend\tests\test_acessorias_endpoint.py .\backend\tests\test_regime_precedence.py .\backend\tests\test_lumen_read_endpoints.py -q`
+- `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_auth.py .\backend\tests\test_rbac.py .\backend\tests\test_models.py .\backend\tests\test_econtrole_mapper.py .\backend\tests\test_econtrole_sync.py .\backend\tests\test_econtrole_webhook.py -q`
+- `.\.venv\Scripts\python.exe -m ruff check .\backend`
+- `.\.venv\Scripts\python.exe -m backend.scripts.sync_acessorias_deliveries --org-slug neto-contabilidade --period 2026-06 --companies-fixture .\backend\tests\fixtures\acessorias\companies_sample.json --deliveries-fixture .\backend\tests\fixtures\acessorias\deliveries_sample.json`
+- `cd frontend && npm run typecheck && npm run test:e2e`
+- `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini downgrade -1`
+- `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head`
+
+Pendencias:
+- a validacao com fixture na base principal confirmou snapshots e runs, mas nao criou `fiscal_obligation_statuses` porque os CNPJs anonimizados nao existem em `external_companies` da organizacao local usada na execucao manual
+- a sincronizacao incremental global por `ListAll + DtLastDH` continua fora desta primeira entrega do S6
+
+Decisoes novas:
+- usar exclusivamente a API oficial documentada em `https://api.acessorias.com/documentation`
+- restringir o S6 a `GET /companies/{identificador}` e `GET /deliveries/{identificador}`
+- nao baixar anexos no sync padrao e nao persistir links temporarios
+- manter tarefas `Config.Tipo = T` apenas em snapshot, sem criar `fiscal_obligation_statuses`
+- nao mapear obrigacoes por aproximacao e nao mapear `GPS` automaticamente para `DCTFWEB`
+- manter rollback de codigo e migration coordenados; durante downgrade controlado das tabelas `acessorias_*`, o read model deve ser revertido junto da migration em deploy real
 
 ---
 

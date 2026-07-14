@@ -733,3 +733,77 @@ Decisoes materializadas no S5.1:
 - o regime permanece exposto como `Aguardando Acessorias` enquanto o S6 nao existir
 - nenhuma migration nova foi criada
 - confirmacao explicita: o S6/Acessorias nao foi iniciado neste stage
+
+## Atualizacao S6.0 em 2026-07-14
+
+No estado real atual, foi materializada apenas a formalizacao documental do contrato oficial do Acessorias com:
+
+- `docs/ACESSORIAS_CONTRACT.md`
+- `docs/examples/sample_acessorias_company.json`
+- `docs/examples/sample_acessorias_delivery.json`
+- `schemas/acessorias_company.schema.json`
+- `schemas/acessorias_delivery.schema.json`
+
+Decisoes materializadas no S6.0:
+
+- o Acessorias possui API oficial documentada em `https://api.acessorias.com/documentation`
+- a base URL oficial e `https://api.acessorias.com`
+- a autenticacao oficial usa `Authorization: Bearer <token>`
+- o token deve ser gerado no proprio Sistema Acessorias pela opcao `API Token`
+- o limite oficial documentado e `100` requisicoes por minuto
+- nao e necessario usar DevTools, HAR ou engenharia reversa para o Acessorias
+- o S6 utilizara somente operacoes de consulta
+- nenhuma inclusao, edicao, transmissao ou alteracao externa faz parte do S6
+- os exemplos e schemas criados sao anonimizados e derivados somente da documentacao oficial
+
+Ainda permanecem fora de escopo neste ponto:
+
+- cliente HTTP do Acessorias
+- mapper do Acessorias
+- sync de entregas e regime
+- endpoint manual de sincronizacao
+- migration de snapshots
+- alteracao do regime exibido no portal
+
+## Atualizacao S6.1 em 2026-07-14
+
+No estado real atual, o Stage S6 foi materializado com:
+
+- `backend/app/models/acessorias_company_snapshot.py`
+- `backend/app/models/acessorias_delivery_snapshot.py`
+- `backend/alembic/versions/20260714_0004_create_acessorias_snapshots.py`
+- `backend/app/services/integrations/acessorias/__init__.py`
+- `backend/app/services/integrations/acessorias/client.py`
+- `backend/app/services/integrations/acessorias/mapper.py`
+- `backend/app/services/integrations/acessorias/regime.py`
+- `backend/app/services/integrations/acessorias/obligation_mapping.py`
+- `backend/app/services/integrations/acessorias/sync.py`
+- `backend/app/api/v1/endpoints/integrations/__init__.py`
+- `backend/app/api/v1/endpoints/integrations/acessorias.py`
+- `backend/app/schemas/acessorias.py`
+- `backend/scripts/sync_acessorias_deliveries.py`
+- `backend/tests/fixtures/acessorias/companies_sample.json`
+- `backend/tests/fixtures/acessorias/deliveries_sample.json`
+- `backend/tests/test_acessorias_client.py`
+- `backend/tests/test_acessorias_mapper.py`
+- `backend/tests/test_acessorias_sync.py`
+- `backend/tests/test_acessorias_endpoint.py`
+- `backend/tests/test_regime_precedence.py`
+- `frontend/tests_e2e/integrations.spec.ts`
+
+Decisoes materializadas no S6.1:
+
+- a integracao Acessorias usa somente a API oficial publica e somente endpoints `GET`
+- o sync inicial e serial e previsivel: empresas por `ListAll + registrationData`; entregas por empresa e intervalo mensal com `config`
+- `acessorias_company_snapshots` e `acessorias_delivery_snapshots` preservam payload bruto anonimizavel e chaves externas para auditoria
+- `fiscal_obligation_statuses` so e atualizado quando existe empresa local, obrigacao local mapeada e `Config.Tipo = O`
+- `Config.Tipo = T` permanece apenas em snapshot
+- o regime oficial do portal passa a priorizar snapshot do Acessorias quando mapeado; sem snapshot o placeholder continua `Aguardando Acessorias`
+- o health de Integracoes mostra estado seguro do Acessorias sem expor token, headers ou payload bruto
+- o endpoint manual `POST /api/v1/integrations/acessorias/sync` exige `ADMIN|DEV`; `VIEW` recebe `403`
+- fixture mode reutiliza os mesmos mappers e servicos, sem exigir token real
+- anexos, links temporarios, mutacoes externas, watcher e conciliacao S11 permanecem fora do escopo
+
+Observacao estrutural importante:
+
+- `backend/app/db/base.py` nao exigiu alteracao para o S6 porque o Alembic ja importa `backend.app.models`, e os novos models foram exportados em `backend/app/models/__init__.py`

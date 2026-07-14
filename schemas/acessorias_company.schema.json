@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lumen.local/schemas/acessorias_company.schema.json",
+  "title": "AcessoriasCompany",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "ID",
+    "Identificador",
+    "Razao",
+    "Status"
+  ],
+  "properties": {
+    "ID": {
+      "type": "string"
+    },
+    "Identificador": {
+      "type": "string"
+    },
+    "Razao": {
+      "type": "string"
+    },
+    "Fantasia": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "Status": {
+      "type": "string"
+    },
+    "UF": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "Regime": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "InscricoesEstaduais": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "IE",
+          "UF"
+        ],
+        "properties": {
+          "IE": {
+            "type": "string"
+          },
+          "UF": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ContatosNaEmpresa": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "Nome"
+        ],
+        "properties": {
+          "Nome": {
+            "type": "string"
+          },
+          "E-mail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "Celular": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "Departamentos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "ID",
+          "Nome"
+        ],
+        "properties": {
+          "ID": {
+            "type": "string"
+          },
+          "Nome": {
+            "type": "string"
+          },
+          "RespNome": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "RespEmail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "Obrigacoes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "Nome",
+          "Status"
+        ],
+        "properties": {
+          "Nome": {
+            "type": "string"
+          },
+          "Status": {
+            "type": "string"
+          },
+          "Entregues": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "Atrasadas": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "Proximos30D": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "Futuras30+": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

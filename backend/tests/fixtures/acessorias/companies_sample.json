@@ -1,0 +1,20 @@
+[
+  {
+    "ID": "9001",
+    "Identificador": "11.111.111/0001-11",
+    "Razao": "Alpha Ltda",
+    "Fantasia": "Alpha",
+    "Status": "Ativa",
+    "UF": "GO",
+    "Regime": "Simples Nacional"
+  },
+  {
+    "ID": "9002",
+    "Identificador": "22.222.222/0001-22",
+    "Razao": "Empresa Sem Match Ltda",
+    "Fantasia": "Sem Match",
+    "Status": "Ativa",
+    "UF": "GO",
+    "Regime": "Lucro Real"
+  }
+]
