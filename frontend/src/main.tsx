@@ -6,6 +6,8 @@ import { LoginPage } from "./features/auth/LoginPage";
 import { ProtectedRoute } from "./features/auth/ProtectedRoute";
 import { AuthProvider, useAuth } from "./stores/authStore";
 import "./styles/tokens.css";
+import "./styles/global.css";
+import "./styles/components.css";
 
 type NavigateOptions = {
   replace?: boolean;
@@ -47,7 +49,23 @@ function AppRoutes({
   if (pathname.startsWith("/lumen/painel")) {
     return (
       <ProtectedRoute onReject={() => navigate("/login", { replace: true })}>
-        <LumenShell onLogoutComplete={() => navigate("/login", { replace: true })} />
+        <LumenShell
+          navigate={navigate}
+          onLogoutComplete={() => navigate("/login", { replace: true })}
+          pathname={pathname}
+        />
+      </ProtectedRoute>
+    );
+  }
+
+  if (pathname.startsWith("/lumen/")) {
+    return (
+      <ProtectedRoute onReject={() => navigate("/login", { replace: true })}>
+        <LumenShell
+          navigate={navigate}
+          onLogoutComplete={() => navigate("/login", { replace: true })}
+          pathname={pathname}
+        />
       </ProtectedRoute>
     );
   }
@@ -62,10 +80,14 @@ function AppRoutes({
 }
 
 function App() {
-  const [pathname, setPathname] = useState(() => window.location.pathname || "/");
+  const [locationHref, setLocationHref] = useState(
+    () => `${window.location.pathname || "/"}${window.location.search || ""}`,
+  );
+  const pathname = window.location.pathname || "/";
 
   useEffect(() => {
-    const handlePopState = () => setPathname(window.location.pathname || "/");
+    const handlePopState = () =>
+      setLocationHref(`${window.location.pathname || "/"}${window.location.search || ""}`);
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
@@ -77,12 +99,12 @@ function App() {
       window.history.pushState({}, "", to);
     }
 
-    setPathname(window.location.pathname || "/");
+    setLocationHref(`${window.location.pathname || "/"}${window.location.search || ""}`);
   }
 
   return (
     <AuthProvider onUnauthorized={() => navigate("/login", { replace: true })}>
-      <AppRoutes navigate={navigate} pathname={pathname} />
+      <AppRoutes key={locationHref} navigate={navigate} pathname={pathname} />
     </AuthProvider>
   );
 }

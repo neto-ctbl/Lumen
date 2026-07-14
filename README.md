@@ -1,8 +1,8 @@
 # Lumen - Fiscal Cockpit
 
-Data de referencia: 2026-07-07
+Data de referencia: 2026-07-08
 
-O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1 e o Stage S5. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1 e do nucleo fiscal persistido no S4/S4.1, o projeto passou a ter o espelho cadastral MVP do eControle por HTTP, webhook e sincronizacao rastreavel.
+O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1 e o Stage S5. O Stage S5.1 esta parcialmente concluido. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1 e do espelho cadastral MVP do eControle no S5, o projeto passou a ter a primeira base do frontend fiscal read-only com APIs `/api/v1/lumen/*`.
 
 ## Escopo real atual
 
@@ -90,12 +90,24 @@ S5 entrega:
 - webhooks protegidos por `X-Lumen-Webhook-Token`
 - execucoes rastreadas em `integration_sync_runs`
 
+S5.1 entregue parcialmente:
+
+- endpoints read-only em `backend/app/api/v1/endpoints/lumen.py`
+- read model fiscal em `backend/app/services/lumen_read_model.py`
+- schemas do portal em `backend/app/schemas/company.py`, `period.py`, `dashboard.py`, `cockpit.py`, `delivery.py`, `evidence.py`, `divergence.py`, `installment.py` e `integration.py`
+- testes backend `backend/tests/test_lumen_read_endpoints.py`
+- frontend fiscal read-only com shell, layout, componentes e rotas protegidas em `/lumen/*`
+- E2E atualizados em `frontend/tests_e2e/smoke.spec.ts`, `shell.spec.ts` e `deliveries.spec.ts`
+- pendencias de refinamento visual e padronizacao de apresentacao ainda existem no frontend
+
 Ainda nao existem:
 
 - dominio fiscal de negocio
 - integracao Acessorias do S6
 - transmissao fiscal
-- frontend fiscal novo
+- mutacoes fiscais no portal
+- integracao Acessorias do S6
+- watcher, parser PDF, Sittax, Dominio, Econet ou transmissao fiscal
 
 ## Regimes fiscais reconhecidos
 
@@ -129,7 +141,8 @@ No S3, foram materializados autenticacao backend, RBAC global e multi-tenant ini
 No S4, foram materializados os modelos fiscais core, sem avancar para S5, S6 ou integracoes externas reais.
 No S4.1, foram materializados seeds logicos de regras-base e competencias, sem criar status por empresa/competencia e sem iniciar sincronizacao de empresas.
 O S4.1 foi tratado como micro-stage complementar de fechamento tecnico e nao como stage originalmente enumerado no `PLANO_DESENVOLVIMENTO.md`.
-No S5, foi materializada apenas a integracao cadastral MVP do eControle; o fluxo visual do frontend e o smoke E2E existente permanecem os mesmos.
+No S5, foi materializada apenas a integracao cadastral MVP do eControle.
+No S5.1, foram materializados os endpoints read-only `/api/v1/lumen/*`, o frontend fiscal funcional e os estados vazios honestos quando tabelas operacionais ainda estiverem vazias.
 
 ## Setup local no Windows PowerShell
 
@@ -179,6 +192,16 @@ Observacoes do S5:
 - `ECONTROLE_WEBHOOK_TOKEN` e obrigatorio para aceitar qualquer webhook do eControle
 - o endpoint de listagem usa path placeholder MVP isolada em codigo: `GET /companies`
 - nenhum token, cookie, sessao assistida ou payload real deve ser versionado
+
+Observacoes do S5.1:
+
+- todos os endpoints novos usam o prefixo `/api/v1/lumen`
+- o escopo e estritamente read-only neste stage
+- `VIEW`, `ADMIN` e `DEV` podem consultar; nao existem mutacoes nem execucao manual de jobs
+- `external_companies` e a fonte de empresas; `fiscal_periods` e a fonte de competencias
+- `fiscal_obligation_statuses`, `fiscal_evidences`, `fiscal_alerts`, `fiscal_installments` e `integration_sync_runs` podem retornar vazio sem erro
+- IE vazia continua persistida como `NULL`/vazio e so aparece como `ISENTO` no frontend
+- regime exibido permanece honesto como `Aguardando Acessorias` enquanto a fonte oficial do S6 nao existe
 
 Observacao S3.1:
 
@@ -266,6 +289,14 @@ Fluxo esperado do S3.1:
 5. Clicar em `Sair`
 6. Confirmar retorno para `/login`
 
+Fluxo complementar do S5.1:
+
+1. Validar sidebar com `Painel`, `Cockpit`, `Envios`, `Evidencias`, `Divergencias`, `Parcelamentos` e `Integracoes`
+2. Abrir o dropdown de empresa no header e pesquisar por razao social, apelido ou CNPJ
+3. Abrir o dropdown de competencia e confirmar exibicao em `MM/YYYY`
+4. Navegar para `/lumen/envios` e alternar os modos `Empresa` e `Todas`
+5. Confirmar que listas vazias e KPIs zerados aparecem sem erro quando nao houver dados fiscais operacionais
+
 ### 7. Validacao do frontend
 
 ```powershell
@@ -283,10 +314,13 @@ $env:E2E_ADMIN_PASSWORD = "ChangeMe123!"
 
 Se essas variaveis nao forem definidas, o E2E usa o admin local padrao de desenvolvimento acima apenas para ambiente local.
 
-Observacao S5 para o frontend:
+Observacao S5.1 para o frontend:
 
-- o smoke E2E existente deve continuar passando sem alteracao de fluxo visual
-- S5 nao adiciona tela nova nem altera `/login` ou `/lumen/painel`
+- `/login` permanece publico
+- `/lumen/*` permanece protegido pelo fluxo atual de `ProtectedRoute`, `authStore`, `authService` e `apiClient`
+- o roteamento continua manual, sem `react-router-dom`
+- o smoke E2E continua passando e agora cobre shell e envios tambem
+- estados vazios do portal sao esperados enquanto nao existirem dados fiscais operacionais
 
 ### 8. Validacao minima do backend S2
 
@@ -311,7 +345,7 @@ npm run typecheck
 npm run test:e2e
 ```
 
-O smoke E2E atual do frontend continua publico em `/lumen/painel`. O login visual e a protecao de rotas do frontend continuam fora do escopo do S3.
+O smoke E2E publico em `/lumen/painel` ficou superado pelo S3.1. No estado atual, `/login` e publico e `/lumen/*` exige autenticacao.
 
 No S3.1, o frontend deixa de ser totalmente publico:
 
@@ -437,6 +471,33 @@ Observacao de escopo do S5:
 - o S5 nao cria `fiscal_obligation_statuses`
 - o S5 nao inicia Acessorias nem transmissao fiscal
 - o frontend visual e o fluxo E2E existente continuam inalterados e devem seguir passando
+
+Validacao do S5.1:
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head
+.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_lumen_read_endpoints.py -q
+.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_auth.py .\backend\tests\test_rbac.py .\backend\tests\test_econtrole_mapper.py .\backend\tests\test_econtrole_sync.py .\backend\tests\test_econtrole_webhook.py -q
+ruff check .\backend
+cd .\frontend
+npm run typecheck
+npm run test:e2e
+```
+
+Validacao manual do S5.1:
+
+```powershell
+.\scripts\dev\run_backend.ps1
+.\scripts\dev\run_frontend.ps1
+```
+
+Observacao de escopo do S5.1:
+
+- todos os endpoints novos sao `GET /api/v1/lumen/*`
+- o portal fiscal continua estritamente read-only
+- KPIs zerados e listas vazias sao respostas validas quando ainda nao houver dados fiscais operacionais
+- nenhuma migration nova foi necessaria
+- S6/Acessorias nao foi iniciado
 
 ### 11. Seed logico do S4.1
 

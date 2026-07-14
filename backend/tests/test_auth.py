@@ -11,7 +11,7 @@ from backend.app.main import app
 from backend.app.models.organization import Organization
 from backend.app.models.user import User
 from backend.app.models.user_organization import UserOrganization
-from backend.app.core.config import Settings
+from backend.app.core.config import REPO_ROOT, Settings
 from backend.app.core.security import create_access_token, get_password_hash
 from backend.app.services.auth import ROLE_ADMIN
 from backend.scripts.create_initial_admin import create_initial_admin
@@ -63,6 +63,10 @@ def seed_user(
 
 def login(client: TestClient, *, email: str, password: str):
     return client.post("/api/v1/auth/login", json={"email": email, "password": password})
+
+
+def isolated_settings(**overrides: object) -> Settings:
+    return Settings(_env_file=None, **overrides)
 
 
 def test_auth_migrations_tables_exist(db_session) -> None:
@@ -188,7 +192,7 @@ def test_seed_admin_is_idempotent(db_session, monkeypatch) -> None:
     monkeypatch.setenv("INITIAL_ORG_NAME", "Seed Org")
     monkeypatch.setenv("INITIAL_ORG_SLUG", "seed-org")
 
-    settings = Settings()
+    settings = isolated_settings()
     create_initial_admin(db_session, settings)
     create_initial_admin(db_session, settings)
 
@@ -208,7 +212,30 @@ def test_seed_admin_requires_password(db_session, monkeypatch) -> None:
     monkeypatch.setenv("INITIAL_ORG_NAME", "Seed Org")
     monkeypatch.setenv("INITIAL_ORG_SLUG", "seed-org")
 
-    settings = Settings()
+    settings = isolated_settings()
 
     with pytest.raises(SystemExit, match="INITIAL_ADMIN_PASSWORD is required"):
         create_initial_admin(db_session, settings)
+
+
+def test_seed_admin_proceeds_with_explicit_password_when_env_file_is_disabled(db_session, monkeypatch) -> None:
+    monkeypatch.setenv("INITIAL_ADMIN_EMAIL", "seed-admin@example.local")
+    monkeypatch.setenv("INITIAL_ADMIN_PASSWORD", "SeedPass123")
+    monkeypatch.setenv("INITIAL_ADMIN_FULL_NAME", "Seed Admin")
+    monkeypatch.setenv("INITIAL_ORG_NAME", "Seed Org")
+    monkeypatch.setenv("INITIAL_ORG_SLUG", "seed-org")
+
+    settings = isolated_settings()
+
+    create_initial_admin(db_session, settings)
+
+    user = db_session.scalar(select(User).where(User.email == "seed-admin@example.local"))
+    organization = db_session.scalar(select(Organization).where(Organization.slug == "seed-org"))
+
+    assert user is not None
+    assert organization is not None
+    assert user.default_organization_id == organization.id
+
+
+def test_settings_default_env_file_configuration_is_preserved() -> None:
+    assert Settings.model_config.get("env_file") == REPO_ROOT / ".env"

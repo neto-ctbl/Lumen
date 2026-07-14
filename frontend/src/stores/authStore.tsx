@@ -85,6 +85,7 @@ export function AuthProvider({ children, onUnauthorized }: AuthProviderProps) {
       setStatus("authenticated");
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
+        clearAuthState(true);
         return;
       }
 
@@ -93,7 +94,7 @@ export function AuthProvider({ children, onUnauthorized }: AuthProviderProps) {
       );
       setStatus("anonymous");
     }
-  }, [session]);
+  }, [clearAuthState, session]);
 
   useEffect(() => {
     if (!session?.accessToken) {

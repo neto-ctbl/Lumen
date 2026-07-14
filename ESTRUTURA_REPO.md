@@ -689,3 +689,47 @@ Ainda permanecem fora de escopo neste ponto:
 - integracao Acessorias do S6
 - transmissao fiscal
 - telas novas de frontend
+
+## Atualizacao S5.1 em 2026-07-08
+
+No estado real atual, o shell fiscal read-only previsto para o portal passou a existir com:
+
+- `backend/app/api/v1/endpoints/lumen.py`
+- `backend/app/services/lumen_read_model.py`
+- `backend/app/schemas/company.py`
+- `backend/app/schemas/period.py`
+- `backend/app/schemas/dashboard.py`
+- `backend/app/schemas/cockpit.py`
+- `backend/app/schemas/delivery.py`
+- `backend/app/schemas/evidence.py`
+- `backend/app/schemas/divergence.py`
+- `backend/app/schemas/installment.py`
+- `backend/app/schemas/integration.py`
+- `backend/tests/test_lumen_read_endpoints.py`
+- `frontend/src/app/lumenRoutes.tsx`
+- `frontend/src/stores/lumenUiStore.tsx`
+- `frontend/src/services/lumenService.ts`
+- `frontend/src/components/layout/`
+- `frontend/src/components/selectors/`
+- `frontend/src/components/ui/`
+- `frontend/src/features/dashboard/`
+- `frontend/src/features/cockpit/`
+- `frontend/src/features/company/`
+- `frontend/src/features/deliveries/`
+- `frontend/src/features/evidences/`
+- `frontend/src/features/divergences/`
+- `frontend/src/features/installments/`
+- `frontend/src/features/integrations/`
+- `frontend/src/styles/global.css`
+- `frontend/src/styles/components.css`
+
+Decisoes materializadas no S5.1:
+
+- os endpoints fiscais do portal usam exclusivamente o prefixo `/api/v1/lumen`
+- o roteamento continua manual, preservando o fluxo de `/login`, `ProtectedRoute`, `authStore`, `authService` e `apiClient`
+- `selectedCompany`, `selectedPeriod`, `currentView`, `focusMode` e `filters` passam a existir em `lumenUiStore.tsx`
+- `external_companies` e `fiscal_periods` alimentam o portal; tabelas operacionais vazias retornam KPIs zerados e listas vazias sem erro
+- IE vazia continua bruta no banco e aparece como `ISENTO` apenas na interface
+- o regime permanece exposto como `Aguardando Acessorias` enquanto o S6 nao existir
+- nenhuma migration nova foi criada
+- confirmacao explicita: o S6/Acessorias nao foi iniciado neste stage

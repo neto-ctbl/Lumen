@@ -11,10 +11,12 @@ test("faz login, entra no painel protegido e sai", async ({ page }) => {
   await page.getByLabel("Senha").fill(adminPassword);
   await page.getByRole("button", { name: "Entrar" }).click();
 
-  await expect(page).toHaveURL(/\/lumen\/painel$/);
+  await expect(page).toHaveURL(/\/lumen\/painel/);
   await expect(page.getByText("Lumen Fiscal Cockpit")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Painel" })).toBeVisible();
-  await expect(page.getByText(adminEmail)).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Selecionar empresa" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Selecionar competencia" })).toBeVisible();
+  await expect(page.getByText("E2E Admin")).toBeVisible();
 
   await page.getByRole("button", { name: "Sair" }).click();
   await expect(page).toHaveURL(/\/login$/);

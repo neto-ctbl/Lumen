@@ -1,21 +1,22 @@
+import { useState } from "react";
+
+import { ContextStrip } from "../components/layout/ContextStrip";
+import { Sidebar } from "../components/layout/Sidebar";
+import { Topbar } from "../components/layout/Topbar";
+import { renderLumenRoute, getLumenRouteTitle } from "./lumenRoutes";
+import { LumenUiProvider } from "../stores/lumenUiStore";
 import { useAuth } from "../stores/authStore";
 
-const routeTitle = (pathname: string): string => {
-  if (pathname.startsWith("/lumen/painel")) {
-    return "Painel";
-  }
-
-  return "Portal";
-};
-
 type LumenShellProps = {
+  navigate: (to: string, options?: { replace?: boolean }) => void;
   onLogoutComplete: () => void;
+  pathname: string;
 };
 
-export function LumenShell({ onLogoutComplete }: LumenShellProps) {
+export function LumenShell({ navigate, onLogoutComplete, pathname }: LumenShellProps) {
   const { logout, user } = useAuth();
-  const currentPath = window.location.pathname;
-  const title = routeTitle(currentPath);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const title = getLumenRouteTitle(pathname);
 
   async function handleLogout() {
     await logout();
@@ -23,61 +24,35 @@ export function LumenShell({ onLogoutComplete }: LumenShellProps) {
   }
 
   return (
-    <main className="app-shell">
-      <section className="hero-card portal-card">
-        <div className="portal-topbar">
-          <div>
-            <span className="eyebrow">Lumen Fiscal Cockpit</span>
-            <h1>{title}</h1>
+    <LumenUiProvider navigate={navigate} pathname={pathname}>
+      <main className="portal-shell">
+        <Sidebar
+          mobileOpen={mobileOpen}
+          onNavigate={(to) => navigate(to)}
+          onToggleMobile={() => setMobileOpen((current) => !current)}
+        />
+
+        <section className="shell-content">
+          <Topbar
+            onLogout={handleLogout}
+            onToggleSidebar={() => setMobileOpen((current) => !current)}
+            title={title}
+          />
+          <ContextStrip />
+
+          <div className="user-strip">
+            <span>{user?.full_name ?? user?.email ?? "Nao identificado"}</span>
+            <small>
+              {user?.organization.name ?? "Sem organizacao"} · {user?.global_role ?? "Sem role"}
+            </small>
           </div>
 
-          <button className="secondary-button" onClick={() => void handleLogout()} type="button">
-            Sair
-          </button>
-        </div>
-
-        <p>
-          Ponte minima de autenticacao do S3.1 conectada ao backend JWT do Lumen,
-          preservando o shell atual enquanto as telas fiscais reais continuam fora do
-          escopo.
-        </p>
-
-        <div className="status-grid identity-grid">
-          <article>
-            <strong>Usuario</strong>
-            <span>{user?.full_name ?? user?.email ?? "Nao identificado"}</span>
-          </article>
-          <article>
-            <strong>Email</strong>
-            <span>{user?.email ?? "Nao identificado"}</span>
-          </article>
-          <article>
-            <strong>Role global</strong>
-            <span>{user?.global_role ?? "Nao identificado"}</span>
-          </article>
-          <article>
-            <strong>Organizacao ativa</strong>
-            <span>{user?.organization.name ?? "Nao identificada"}</span>
-          </article>
-        </div>
-
-        <div className="status-grid">
-          <article>
-            <strong>Frontend</strong>
-            <span>Vite em 5175 com rota /login</span>
-          </article>
-          <article>
-            <strong>API</strong>
-            <span>FastAPI em 8000 com /api/v1/auth/me</span>
-          </article>
-          <article>
-            <strong>Tenant</strong>
-            <span>{user?.organization.slug ?? "Sem tenant ativo"}</span>
-          </article>
-        </div>
-
-        <code className="route-pill">{currentPath || "/lumen/painel"}</code>
-      </section>
-    </main>
+          {renderLumenRoute({
+            pathname,
+            onNavigate: (to) => navigate(to),
+          })}
+        </section>
+      </main>
+    </LumenUiProvider>
   );
 }

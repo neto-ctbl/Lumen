@@ -635,6 +635,82 @@ Registro complementar de fechamento do Stage S5:
 - pendencia nao bloqueante registrada na validacao: a primeira tentativa de regressao backend em paralelo competiu pelo mesmo banco `lumen_test`; em execucao serial a suite passou integralmente sem ajuste de codigo do S5
 - confirmacao explicita: o S5 nao cria `fiscal_obligation_statuses`, nao inicia Acessorias, nao cria frontend novo, nao usa banco direto do eControle e nao inicia S6
 
+## S5.1 - Frontend fiscal funcional read-only com empresas reais
+
+Status: parcialmente concluido
+
+Objetivo:
+- Entregar o primeiro portal fiscal funcional do Lumen, visualmente aderente ao shell previsto, consumindo apenas dados reais ja persistidos ate o S5.
+
+Escopo:
+- Endpoints read-only em `/api/v1/lumen/*`.
+- Protecao por autenticacao e RBAC (`VIEW`, `ADMIN`, `DEV`).
+- Frontend fiscal funcional com roteamento manual preservado.
+- Estados vazios honestos quando tabelas operacionais ainda estiverem vazias.
+
+Entregaveis backend:
+- `GET /api/v1/lumen/companies?search=`
+- `GET /api/v1/lumen/periods`
+- `GET /api/v1/lumen/dashboard?period=YYYY-MM`
+- `GET /api/v1/lumen/cockpit?period=YYYY-MM&companyId=&status=&department=&source=`
+- `GET /api/v1/lumen/companies/{id}/summary?period=YYYY-MM`
+- `GET /api/v1/lumen/deliveries?period=YYYY-MM&companyId=`
+- `GET /api/v1/lumen/evidences?period=YYYY-MM&companyId=`
+- `GET /api/v1/lumen/divergences?period=YYYY-MM&companyId=`
+- `GET /api/v1/lumen/installments?period=YYYY-MM&companyId=`
+- `GET /api/v1/lumen/integrations/health`
+- `backend/app/services/lumen_read_model.py`
+- `backend/tests/test_lumen_read_endpoints.py`
+
+Entregaveis frontend:
+- `frontend/src/app/LumenShell.tsx`
+- `frontend/src/app/lumenRoutes.tsx`
+- `frontend/src/stores/lumenUiStore.tsx`
+- `frontend/src/services/lumenService.ts`
+- `frontend/src/components/layout/Sidebar.tsx`
+- `frontend/src/components/layout/Topbar.tsx`
+- `frontend/src/components/layout/ContextStrip.tsx`
+- `frontend/src/components/selectors/CompanyDropdown.tsx`
+- `frontend/src/components/selectors/PeriodDropdown.tsx`
+- `frontend/src/components/ui/Badge.tsx`
+- `frontend/src/components/ui/Button.tsx`
+- `frontend/src/components/ui/Card.tsx`
+- `frontend/src/components/ui/Hero.tsx`
+- `frontend/src/components/ui/KpiCard.tsx`
+- `frontend/src/components/ui/Progress.tsx`
+- `frontend/src/components/ui/Table.tsx`
+- `frontend/src/features/dashboard/DashboardPage.tsx`
+- `frontend/src/features/cockpit/CockpitPage.tsx`
+- `frontend/src/features/company/CompanyPage.tsx`
+- `frontend/src/features/deliveries/DeliveriesPage.tsx`
+- `frontend/src/features/evidences/EvidencesPage.tsx`
+- `frontend/src/features/divergences/DivergencesPage.tsx`
+- `frontend/src/features/installments/InstallmentsPage.tsx`
+- `frontend/src/features/integrations/IntegrationsPage.tsx`
+- `frontend/tests_e2e/smoke.spec.ts`
+- `frontend/tests_e2e/shell.spec.ts`
+- `frontend/tests_e2e/deliveries.spec.ts`
+
+Validacao:
+```powershell
+.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head
+.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_lumen_read_endpoints.py -q
+.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_auth.py .\backend\tests\test_rbac.py .\backend\tests\test_econtrole_mapper.py .\backend\tests\test_econtrole_sync.py .\backend\tests\test_econtrole_webhook.py -q
+ruff check .\backend
+cd .\frontend
+npm run typecheck
+npm run test:e2e
+```
+
+Aceite:
+- `/login` permanece publico e `/lumen/*` permanece protegido.
+- Sidebar, topbar, context strip e dropdowns funcionam sem `react-router-dom`.
+- `external_companies` e `fiscal_periods` alimentam o portal.
+- IE vazia continua sendo exibida como `ISENTO` apenas no frontend.
+- KPIs zerados e listas vazias nao quebram a experiencia quando ainda nao existem dados fiscais operacionais.
+- confirmacao explicita: o S6/Acessorias nao foi iniciado neste stage.
+- pendencias visuais e de acabamento de UX ainda mantem o stage em fechamento parcial.
+
 ## S6 - Integração Acessórias: regime, obrigações e entregas
 
 Status: pendente

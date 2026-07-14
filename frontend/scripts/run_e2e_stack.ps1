@@ -23,6 +23,7 @@ if ($stalePids) {
 
 Set-Location $repoRoot
 & $backendPython -m backend.scripts.create_initial_admin
+& $backendPython -m backend.scripts.seed_periods --year (Get-Date).Year --org-slug $env:INITIAL_ORG_SLUG
 
 $backendProcess = Start-Process `
     -FilePath $backendPython `
