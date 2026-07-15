@@ -2,7 +2,7 @@
 
 Data de referencia: 2026-07-14
 
-O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage S6.0, o Stage S6 e o micro-stage S7.0. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5, do frontend fiscal read-only do S5.1 e da integracao oficial read-only com o Sistema Acessorias no S6, o projeto passou a ter contrato observado do Sittax, fixtures anonimizadas, schemas observados e isolamento do stack E2E em relacao ao `.env` local, sem cliente HTTP real nem chamadas externas novas.
+O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage S6.0, o Stage S6, o micro-stage S7.0 e o micro-stage S7.1. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5, do frontend fiscal read-only do S5.1 e da integracao oficial read-only com o Sistema Acessorias no S6, o projeto passou a ter fundacao tecnica do cliente Sittax com login read-only, sessao exclusiva local, listagem de empresas, fixture mode e script seguro de conectividade, sem apuracao, sem sync e sem persistencia.
 
 ## Escopo real atual
 
@@ -132,7 +132,7 @@ Ainda nao existem:
 - dominio fiscal de negocio
 - transmissao fiscal
 - mutacoes fiscais no portal
-- watcher, parser PDF, Sittax, Dominio, Econet ou transmissao fiscal
+- watcher, parser PDF, Dominio, Econet ou transmissao fiscal
 
 ## Regimes fiscais reconhecidos
 
@@ -231,6 +231,13 @@ SITTAX_PASSWORD=
 SITTAX_API_TOKEN=
 SITTAX_TIMEOUT_SECONDS=20
 ```
+
+Observacoes do S7.1:
+
+- o cliente real do Sittax usa `SITTAX_EMAIL` e `SITTAX_PASSWORD`; `SITTAX_API_TOKEN` permanece apenas reservado
+- o JWT do Sittax fica somente em memoria dentro de `SittaxSession`
+- o S7.1 implementa apenas login e listagem de empresas
+- apuracao, DIFAL, documentos, tarefas, snapshots, sync e health funcional continuam fora de escopo
 
 Observacoes do S5:
 
@@ -579,6 +586,17 @@ Fechamento tecnico do S7.0:
 - o stack E2E dedicado sobrescreve `ACESSORIAS_API_TOKEN`, `SITTAX_EMAIL`, `SITTAX_PASSWORD` e `SITTAX_API_TOKEN` para nao herdar integracoes do `.env` local
 - nenhuma migration, nenhum model Sittax, nenhum cliente real, nenhum sync real e nenhuma chamada externa nova foram adicionados
 - o macro-stage S7 continua pendente; apenas o micro-stage documental e de seguranca foi fechado
+
+Fechamento tecnico do S7.1:
+
+- `backend/app/services/integrations/sittax/` passou a existir com `errors.py`, `session.py`, `client.py`, `mapper.py` e `__init__.py`
+- `backend/app/schemas/sittax.py` define DTOs read-only para escritorio e empresas
+- `backend/scripts/check_sittax_connection.py` valida login e listagem de empresas sem persistir dados nem imprimir PII
+- `backend/tests/test_sittax_client.py`, `test_sittax_session.py`, `test_sittax_mapper.py` e `test_sittax_connection_script.py` cobrem contrato, seguranca e fixture mode
+- a sessao Sittax usa um unico `httpx.Client` por instancia, lock local por `session.exclusive()` e JWT somente em memoria
+- o card Sittax do E2E continua `Nao iniciada` / `Nao configurada`, sem botao de sync e sem chamada externa
+- nenhuma migration, nenhum model Sittax, nenhum sync e nenhum endpoint manual foram adicionados
+- o macro-stage S7 continua pendente
 
 Fechamento final validado em 2026-07-15:
 

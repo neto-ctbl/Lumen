@@ -17,3 +17,5 @@ Data de referencia: 2026-07-15
 - Perda de contexto durante a execucao pode invalidar leituras contextuais.
 - Uso sem autorizacao formal do portal pode trazer risco operacional e contratual.
 - Endpoints com nome/metodo ambiguo, como `POST /api/v2/painel-contador/transmissao`, nao podem ser tratados como seguros sem revalidacao.
+- Reutilizar a mesma sessao sem exclusao mutua local pode misturar autenticacao e contexto futuro entre threads.
+- Assumir qualquer escritorio fora do payload de login pode listar empresas erradas.

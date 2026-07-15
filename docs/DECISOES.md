@@ -18,3 +18,18 @@ Data de referencia: 2026-07-15
 - O log bruto `sittax-network-log.jsonl` e somente fonte temporaria de analise e deve permanecer fora do Git.
 - O endpoint `POST /api/v2/painel-contador/transmissao` foi classificado como ambiguo e adiado.
 - O micro-stage S7.0 e documental e de seguranca; ele nao cria cliente HTTP real, login real, models, migrations ou sync.
+
+## S7.1 - Fundacao tecnica do cliente Sittax
+
+- O cliente Sittax do S7.1 permanece estritamente read-only e limitado a login e listagem de empresas.
+- A sessao Sittax nasce stateful e exclusiva, com um unico `httpx.Client` por instancia.
+- O JWT do Sittax existe somente em memoria na sessao ativa.
+- A senha do Sittax so e usada para montar o body de login no momento da chamada.
+- O cliente Sittax nao usa `httpx.Client` global, singleton global ou token global.
+- A sessao local usa exclusao mutua por instancia via `session.exclusive()`.
+- A mesma sessao nao pode ser usada simultaneamente por threads diferentes.
+- `active_company_cnpj` e `active_period` existem apenas como placeholders nulos para compatibilidade com o contexto futuro.
+- O S7.1 nao define contexto por apuracao e nao simula contexto ativo.
+- O escritorio ativo deve ser resolvido deterministicamente a partir do payload observado de login.
+- O fixture mode do Sittax reutiliza os mesmos mappers do cliente real e nao acessa rede.
+- O script `check_sittax_connection` valida apenas login e listagem de empresas, sem persistencia e sem PII.

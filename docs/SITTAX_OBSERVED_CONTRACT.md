@@ -1,4 +1,4 @@
-# Sittax Observed Contract for Lumen S7.0
+# Sittax Observed Contract for Lumen S7.1
 
 Data de referencia: 2026-07-15
 
@@ -11,6 +11,12 @@ Data de referencia: 2026-07-15
 - O Lumen utilizara apenas leitura.
 - Nao havera transmissao, recalculo ou qualquer mutacao externa.
 - O contrato deve ser revalidado quando o portal mudar.
+
+## Estado atual de implementacao
+
+- S7.0 concluiu apenas documentacao, fixtures anonimizadas e schemas observados.
+- S7.1 implementa somente autenticacao read-only, sessao exclusiva local e listagem de empresas.
+- S7.1 nao implementa apuracao, DIFAL, documentos fiscais, painel da empresa, tarefas, sync, snapshots, endpoint manual ou health funcional.
 
 ## Classificacoes usadas
 
@@ -51,6 +57,7 @@ Consequencias obrigatorias para a arquitetura do conector:
 - Dependencia de contexto: nao
 - Riscos: vazamento de senha, JWT, cookies e contexto de escritorio
 - Uso previsto no Lumen: autenticacao futura e descoberta do escritorio/usuario
+- Implementacao atual do S7.1: login read-only com body observado `usuario` + `senha`, token somente em memoria e sem persistencia
 
 ### Empresas do escritorio
 
@@ -66,6 +73,7 @@ Consequencias obrigatorias para a arquitetura do conector:
 - Dependencia de contexto: nao
 - Riscos: depende do escritorio selecionado; IDs internos nao devem ser tratados como estaveis
 - Uso previsto no Lumen: conciliacao com `external_companies` e cache de empresa Sittax
+- Implementacao atual do S7.1: listagem read-only por `idEscritorio` resolvido no login, com mapper sem persistencia
 
 ### Apuracao
 

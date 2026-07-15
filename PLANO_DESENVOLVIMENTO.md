@@ -815,13 +815,6 @@ Decisoes novas:
 - manter rollback de codigo e migration coordenados; durante downgrade controlado das tabelas `acessorias_*`, o read model deve ser revertido junto da migration em deploy real
 - para validacao manual via endpoint HTTP, o usuario autenticado precisa pertencer a uma organizacao que possua `external_companies` correspondentes ao tenant consultado no Acessorias; no ambiente local isso significou diferenciar `lumen` de `neto-contabilidade`
 
----
-
-Perfeito. Substitua **todo o conteúdo do `PLANO_DESENVOLVIMENTO.md` a partir de `## S7` até o final** pelo bloco abaixo.
-
-Isso corrige a inversão atual, onde S7 ainda está como frontend e Sittax/Econet ficaram tarde demais no plano. No arquivo atual, S7 está como “Frontend shell”, enquanto Sittax só aparece no S12 e Econet no S14. 
-
-````md
 ## S7 - Sittax read-only: Simples, DAS, DIFAL e documentos fiscais
 
 Status: pendente
@@ -1011,6 +1004,43 @@ Decisoes novas:
 - a regra de contexto por `empresaCnpj` e `periodo` fica registrada como confirmada
 - nenhuma chamada externa nova foi autorizada neste micro-stage
 - o log bruto do Sittax permanece fora do Git e nao gera fixture automatica
+
+### Micro-stage S7.1 - Cliente base: autenticacao, sessao exclusiva e empresas
+
+Status: concluido em 2026-07-15
+
+Entregues:
+- `backend/app/services/integrations/sittax/__init__.py`
+- `backend/app/services/integrations/sittax/errors.py`
+- `backend/app/services/integrations/sittax/session.py`
+- `backend/app/services/integrations/sittax/client.py`
+- `backend/app/services/integrations/sittax/mapper.py`
+- `backend/app/schemas/sittax.py`
+- `backend/scripts/check_sittax_connection.py`
+- `backend/tests/test_sittax_client.py`
+- `backend/tests/test_sittax_session.py`
+- `backend/tests/test_sittax_mapper.py`
+- `backend/tests/test_sittax_connection_script.py`
+- ajuste de `frontend/tests_e2e/integrations.spec.ts` para consolidar o card Sittax sem operacao externa
+
+Validacao executada:
+- `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_sittax_client.py .\backend\tests\test_sittax_session.py .\backend\tests\test_sittax_mapper.py .\backend\tests\test_sittax_connection_script.py -q`
+- `.\.venv\Scripts\python.exe -m pytest .\backend\tests -q`
+- `.\.venv\Scripts\python.exe -m ruff check .\backend`
+- `cd .\frontend && npm run typecheck && npm run test:e2e`
+- `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini heads`
+
+Pendencias:
+- o macro-stage S7 continua pendente
+- apuracao, DIFAL, documentos fiscais, painel e tarefas seguem fora de escopo
+- snapshots, sync, endpoint manual e health funcional seguem fora de escopo
+
+Decisoes novas:
+- a fundacao do Sittax nasce stateful e exclusiva por sessao, sem `httpx.Client` global
+- o JWT permanece apenas em memoria dentro de `SittaxSession`
+- o escritorio e resolvido deterministicamente a partir do login observado
+- a listagem de empresas continua sem persistencia e sem reconciliacao neste micro-stage
+- fixture mode e script de conectividade validam apenas login e empresas
 
 ---
 

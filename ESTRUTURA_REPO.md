@@ -862,3 +862,36 @@ Ainda permanecem fora de escopo neste ponto:
 - endpoint manual de sync
 - health funcional do Sittax
 - qualquer chamada externa nova
+
+## Atualizacao S7.1 em 2026-07-15
+
+No estado real atual, foi materializada a fundacao tecnica do cliente Sittax com:
+
+- `backend/app/services/integrations/sittax/__init__.py`
+- `backend/app/services/integrations/sittax/errors.py`
+- `backend/app/services/integrations/sittax/session.py`
+- `backend/app/services/integrations/sittax/client.py`
+- `backend/app/services/integrations/sittax/mapper.py`
+- `backend/app/schemas/sittax.py`
+- `backend/scripts/check_sittax_connection.py`
+- `backend/tests/test_sittax_client.py`
+- `backend/tests/test_sittax_session.py`
+- `backend/tests/test_sittax_mapper.py`
+- `backend/tests/test_sittax_connection_script.py`
+
+Decisoes materializadas no S7.1:
+
+- a integracao real continua read-only e limitada a login e listagem de empresas
+- a sessao Sittax usa um unico `httpx.Client` por instancia, com exclusao mutua local por `session.exclusive()`
+- o JWT permanece somente em memoria e nao vai para banco, snapshots ou logs
+- `active_company_cnpj` e `active_period` existem apenas como placeholders nulos para o contexto futuro
+- o escritorio e resolvido deterministicamente a partir do payload observado de login
+- fixture mode reutiliza os mesmos mappers do cliente real e nao acessa rede
+- o script `check_sittax_connection.py` nao imprime PII e nao persiste nada
+
+Ainda permanecem fora de escopo neste ponto:
+
+- apuracao e definicao real de contexto
+- DIFAL, documentos fiscais, painel e tarefas
+- snapshots, sync, endpoint manual e health funcional
+- models e migration Sittax

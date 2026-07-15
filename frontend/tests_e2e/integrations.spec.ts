@@ -24,6 +24,12 @@ test("integracoes exibe card do Acessorias sem mutacao externa", async ({ page }
   await expect(acessoriasCard.getByText(/^Configurar$/)).toBeVisible();
   await expect(acessoriasCard.getByText(/Nao configurada|Não configurada/)).toBeVisible();
   await expect(acessoriasCard.getByText(/Sem execucao|Sem execução/)).toBeVisible();
+  const sittaxCard = page
+    .getByRole("heading", { name: /Sittax/i })
+    .locator("xpath=ancestor::section[contains(@class, 'card')][1]");
+  await expect(sittaxCard.getByRole("heading", { name: /Sittax/i })).toBeVisible();
+  await expect(sittaxCard.getByText(/Nao iniciada|Não iniciada/)).toBeVisible();
+  await expect(sittaxCard.getByText(/Nao configurada|Não configurada/)).toBeVisible();
   await expect(page.getByRole("button", { name: /sincronizar|executar|enviar|transmitir/i })).toHaveCount(0);
 
   await page
