@@ -817,1014 +817,643 @@ Decisoes novas:
 
 ---
 
-Perfeito. Substitua **todo o conteúdo do `PLANO_DESENVOLVIMENTO.md` a partir de `## S7` até o final** pelo bloco abaixo.
-
-Isso corrige a inversão atual, onde S7 ainda está como frontend e Sittax/Econet ficaram tarde demais no plano. No arquivo atual, S7 está como “Frontend shell”, enquanto Sittax só aparece no S12 e Econet no S14. 
-
-````md
-## S7 - Sittax read-only: Simples, DAS, DIFAL e documentos fiscais
+## S7 - Frontend shell e fidelidade visual base
 
 Status: pendente
 
 Objetivo:
-- Integrar dados do Sittax para enriquecer a operação do Simples Nacional, especialmente apuração, DAS, DIFAL, documentos fiscais importados e tarefas/transmissões.
-
-Justificativa:
-- O Sittax é uma das integrações centrais do Lumen.
-- Depois do eControle e do Acessórias, é a fonte operacional mais importante para empresas do Simples Nacional.
-- Essa integração deve vir antes de novos refinamentos visuais, porque ela alimentará o Cockpit, Envios, Evidências, Divergências e futuras regras de conciliação.
-
-Premissas:
-- A integração é somente leitura.
-- Tratar Sittax como integração baseada em endpoints observados, até confirmação formal.
-- Não acionar transmissão, envio, recálculo ou qualquer ação fiscal externa.
-- Não usar endpoints com `recalcular=true`.
-- Não chamar endpoints de transmissão.
-- Não processar várias empresas em paralelo usando a mesma sessão quando o endpoint depender de contexto empresa/período.
+- Implementar o app shell visual do Lumen, preservando o protótipo e preparando navegação real.
 
 Escopo:
-- Login por endpoint com JWT Bearer.
-- Sessão/controlador de autenticação.
-- Listagem de empresas.
-- Mapeamento de empresas Sittax com empresas espelhadas do eControle.
-- Consulta de apuração por CNPJ e período.
-- Consulta de DIFAL respeitando contexto de sessão.
-- Consulta de documentos fiscais de entrada.
-- Consulta de documentos fiscais de saída.
-- Consulta de tarefas/transmissões.
-- Snapshots locais.
-- Health da integração.
-- Fixture mode para testes sem token real.
+- Layout global.
+- Sidebar.
+- Topbar.
+- Dropdown de empresa.
+- Dropdown de competência.
+- Context strip.
+- Tokens visuais.
+- Rotas principais.
+- Estado global.
 
-Endpoints observados e candidatos:
-- `POST https://autenticacao.sittax.com.br/api/auth/login`
-- `GET /api/empresa/listar-todas-escritorio-empresas-selecao`
-- `GET /api/apuracao/retornar-apuracao-sittax?empresaCnpj=...&periodo=...`
-- `GET /api/difal/obter-valores-difal?recalcular=false`
-- `GET /api/nota-fiscal/lista-nota-fiscal-entrada-paginacao`
-- `GET /api/nota-fiscal/lista-nota-fiscal-saida-paginacao`
-- `GET /api/tarefa/paginacao`
+Entregáveis:
+- `frontend/src/app/LumenShell.tsx`
+- `frontend/src/app/lumenRoutes.tsx`
+- `frontend/src/components/layout/Sidebar.tsx`
+- `Topbar.tsx`
+- `ContextStrip.tsx`
+- `CompanyDropdown.tsx`
+- `PeriodDropdown.tsx`
+- `frontend/src/styles/tokens.css`
+- `global.css`
+- `components.css`
+- Store `lumenUiStore.ts`.
 
-Regra técnica crítica:
-- A chamada de apuração com `empresaCnpj` e `periodo` define o contexto da sessão.
-- O endpoint de DIFAL usa esse contexto.
-- O conector não deve consultar DIFAL de empresas diferentes em paralelo na mesma sessão.
-- Usar fila sequencial, lock de contexto ou sessões isoladas.
-
-Entregáveis de banco:
-- `sittax_company_snapshots`
-- `sittax_apuracao_snapshots`
-- `sittax_difal_snapshots`
-- `sittax_fiscal_document_snapshots`
-- `sittax_task_snapshots`, se necessário
-
-Entregáveis backend:
-- `backend/app/models/sittax_company_snapshot.py`
-- `backend/app/models/sittax_apuracao_snapshot.py`
-- `backend/app/models/sittax_difal_snapshot.py`
-- `backend/app/models/sittax_fiscal_document_snapshot.py`
-- `backend/app/models/sittax_task_snapshot.py`
-- migration para snapshots Sittax
-- `backend/app/services/integrations/sittax/client.py`
-- `backend/app/services/integrations/sittax/session.py`
-- `backend/app/services/integrations/sittax/mapper.py`
-- `backend/app/services/integrations/sittax/sync.py`
-- `backend/app/services/integrations/sittax/context_lock.py`
-- `backend/app/api/v1/endpoints/integrations/sittax.py`
-- `backend/app/schemas/sittax.py`
-- `backend/scripts/sync_sittax.py`
-
-Jobs:
-- `sync_sittax_companies`
-- `sync_sittax_apuracao_period`
-- `sync_sittax_difal_period`
-- `sync_sittax_fiscal_documents`
-- `sync_sittax_tasks`
-
-Variáveis de ambiente:
-```powershell
-SITTAX_AUTH_BASE_URL=https://autenticacao.sittax.com.br
-SITTAX_API_BASE_URL=https://api.sittax.com.br
-SITTAX_APURACAO_BASE_URL=https://apuracao.sittax.com.br
-SITTAX_EMAIL=
-SITTAX_PASSWORD=
-SITTAX_TIMEOUT_SECONDS=20
-````
-
-Observação de segurança:
-
-* Senha, token JWT, cookies e headers sensíveis nunca devem ser versionados.
-* Logs devem mascarar `Authorization`, `password`, `token`, `apiKey`, cookies e qualquer JWT.
-
-Campos úteis da apuração:
-
-* CNPJ
-* razão social
-* período
-* receita líquida
-* receita de produtos
-* receita de serviços
-* RBT12
-* RBA
-* valor do DAS
-* valor do DAS por XML
-* anexos
-* CFOPs
-* se possui folha
-* CNAEs/atividades
-* alertas
-* erros
-* riscos
-
-Campos úteis do DIFAL:
-
-* possui guia
-* número DARE
-* valor total
-* valor de revenda
-* valor de uso/consumo/imobilizado
-* data de fechamento
-* data de transmissão
-* total de compras
-* mensagem
-* notas sem tipo/referência
-
-Campos úteis dos documentos fiscais:
-
-* chave de acesso
-* modelo
-* número
-* data de emissão
-* data de entrada
-* competência
-* UF emitente/destinatário
-* CFOP
-* valor
-* presença de XML
-* tipo entrada/saída
-
-Validação:
-
-```powershell
-.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head
-.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_sittax_client.py .\backend\tests\test_sittax_mapper.py .\backend\tests\test_sittax_context_lock.py .\backend\tests\test_sittax_sync.py -q
-.\.venv\Scripts\python.exe -m ruff check .\backend
+Rotas:
+```txt
+/lumen/painel
+/lumen/cockpit
+/lumen/empresa/:companyId
+/lumen/envios
+/lumen/evidencias
+/lumen/divergencias
+/lumen/parcelamentos
+/lumen/integracoes
 ```
 
-Aceite:
+Validação:
+```bash
+cd frontend
+npm run lint
+npm run typecheck
+npm run test:e2e -- shell.spec.ts
+```
 
-* Login Sittax funciona em ambiente local autorizado.
-* Empresas são salvas em snapshot de forma idempotente.
-* Apuração por CNPJ/período é salva em snapshot.
-* DIFAL é consultado sem mistura de contexto entre empresas.
-* Documentos fiscais de entrada/saída são persistidos em snapshot.
-* Tarefas/transmissões são persistidas quando disponíveis.
-* Nenhuma transmissão, recálculo ou mutação externa é executada.
-* Health da integração aparece em `/api/v1/lumen/integrations/health`.
-* Fixture mode permite testar sem credenciais reais.
+Checklist visual:
+- Sidebar 288px desktop.
+- Sidebar colapsada em telas médias.
+- Header sticky com blur.
+- Empresa e competência no header.
+- Context strip com empresa, CNPJ/IE, competência e regime.
+- IE vazia aparece como `ISENTO`.
+- Inter, gradientes azul/roxo, cards arredondados e badges corretos.
+
+Aceite:
+- Navegação principal funcional.
+- Estado de empresa/competência preservado entre telas.
+- Layout responsivo abaixo de 760px.
 
 ---
 
-## S8 - Econet: CNAE, atividade, Fator R e cache assistido
+## S8 - APIs e telas MVP: Painel, Cockpit, Empresa e Envios
 
 Status: pendente
 
 Objetivo:
+- Entregar a primeira experiência operacional do Lumen com dados reais do backend.
 
-* Enriquecer empresas por CNAE com dados da Econet, identificando tipo de atividade, Fator R, anexos do Simples, possibilidade de Simples/MEI e obrigações indicativas por regime.
-
-Justificativa:
-
-* A Econet é fonte usada manualmente pelo escritório para classificação tributária.
-* O Lumen deve aproveitar essa fonte para reduzir consulta manual repetitiva.
-* A informação de Fator R é crítica para empresas do Simples Nacional e deve ser cruzada futuramente com Sittax e Domínio Folha.
-
-Premissas:
-
-* Econet possui CAPTCHA de clique no login.
-* Não burlar CAPTCHA.
-* Não automatizar login de forma indevida.
-* Usar login manual assistido.
-* Usar sessão persistente enquanto válida.
-* Consultar apenas CNAEs novos ou com cache vencido.
-* Não consultar Econet em tempo real a cada abertura de tela.
-
-Tipos de atividade oficiais do Lumen:
-
-* `COMERCIO`
-* `INDUSTRIA`
-* `SERVICOS`
-* `SERVICOS_MEDICOS_ODONTOLOGICOS`
-* `SERVICOS_IMOBILIARIOS`
-* `TEMPLO_RELIGIOSO`
-
-Regra:
-
-* Uma empresa pode ter mais de um tipo de atividade, conforme seus CNAEs.
-
-Endpoints observados e candidatos:
-
-* `GET /ferramentas/regimes_cnae/buscaCnae.php?busca=...`
-* `GET /ferramentas/regimes_cnae/index.php?idcnae=...&acao=abrir`
-* `GET /ferramentas/regimes_cnae/subAbas.php?aba=lucroPresumido&idCnae=...`
-* `GET /ferramentas/regimes_cnae/subAbas.php?aba=lucroRealTrimestral&idCnae=...`
-* `GET /ferramentas/regimes_cnae/subAbas.php?aba=lucroRealEstimativa&idCnae=...`
-* `GET /ferramentas/regimes_cnae/subAbas.php?aba=simplesNacionalTributacao&idCnae=...`
-* `GET /ferramentas/regimes_cnae/subAbas.php?aba=empreendedorIndividual&idCnae=...`
-* `GET /ferramentas/regimes_cnae/abas.php?aba=obrigacoes&idCnae=...`
-
-Entregáveis de banco:
-
-* `econet_cnae_cache`
-* eventual ajuste em `company_activity_types`, se necessário para registrar fonte/confiança/revisão
-
-Campos do cache:
-
-* `cnae`
-* `descricao`
-* `econet_id_cnae`
-* `simples_permitido`
-* `mei_permitido`
-* `tem_fator_r`
-* `anexo_simples_padrao`
-* `anexo_simples_condicional`
-* `lucro_presumido_possivel`
-* `lucro_real_obrigatorio`
-* `atividade_detectada`
-* `obrigacoes_pj_geral`
-* `obrigacoes_simples`
-* `raw_html_index`
-* `raw_html_simples`
-* `raw_html_lucro_presumido`
-* `raw_html_obrigacoes`
-* `retrieved_at`
-* `expires_at`
-* `parse_status`
+Escopo:
+- Endpoints agregados.
+- Tela Painel.
+- Tela Cockpit Fiscal.
+- Tela Empresa.
+- Tela Envios.
 
 Entregáveis backend:
+- `GET /api/v1/lumen/companies?search=`
+- `GET /api/v1/lumen/periods`
+- `GET /api/v1/lumen/dashboard?period=YYYY-MM`
+- `GET /api/v1/lumen/cockpit?period=YYYY-MM&companyId=&status=&department=&source=`
+- `GET /api/v1/lumen/companies/{id}/summary?period=YYYY-MM`
+- `GET /api/v1/lumen/deliveries?period=YYYY-MM&companyId=`
 
-* `backend/app/services/integrations/econet/assisted_session.py`
-* `backend/app/services/integrations/econet/client.py`
-* `backend/app/services/integrations/econet/parser.py`
-* `backend/app/services/integrations/econet/cache.py`
-* `backend/app/services/factor_r.py`
-* `backend/app/api/v1/endpoints/integrations/econet.py`
-* `backend/app/schemas/econet.py`
-* `backend/scripts/enrich_cnaes_econet.py`
-
-Jobs:
-
-* `enrich_cnaes_econet`
-* `revalidate_econet_cnae_cache`
-
-Regras:
-
-* Se `tem_fator_r = true`, criar sinal/alerta para empresas do Simples.
-* Se Econet indicar Anexo V sujeito ao Fator R e possibilidade de Anexo III quando Fator R >= 28%, registrar essa condição.
-* Se Econet indicar impossibilidade de Simples e Acessórias indicar Simples, gerar alerta cadastral/fiscal.
-* Se sessão Econet expirar, não quebrar o portal; apenas exibir status de sessão expirada.
+Entregáveis frontend:
+- `DashboardPage.tsx`
+- `CockpitPage.tsx`
+- `CompanyPage.tsx`
+- `DeliveriesPage.tsx`
+- Componentes de KPI, tabelas, filtros e badges.
 
 Validação:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_econet_parser.py .\backend\tests\test_econet_cache.py .\backend\tests\test_factor_r_rules.py -q
-.\.venv\Scripts\python.exe -m ruff check .\backend
+```bash
+pytest backend/tests/test_dashboard_endpoints.py backend/tests/test_cockpit_endpoints.py backend/tests/test_deliveries_endpoint.py
+cd frontend && npm run test:e2e -- dashboard.spec.ts cockpit.spec.ts deliveries.spec.ts company.spec.ts
 ```
 
 Aceite:
-
-* CNAE novo entra em fila de enriquecimento.
-* Consulta assistida salva HTML bruto e campos interpretados no cache.
-* Empresa recebe atividade padronizada quando a confiança for suficiente.
-* Empresa com CNAE sujeito ao Fator R recebe flag `tem_fator_r`.
-* Sessão expirada aparece no health da integração sem quebrar telas.
-* Nenhuma tentativa de bypass de CAPTCHA é implementada.
+- Painel mostra KPIs por competência.
+- Cockpit filtra por status, departamento, regime e fonte.
+- Tela Empresa mostra dados cadastrais, regime oficial, atividade, Fator R, obrigações, evidências e divergências.
+- Tela Envios suporta escopo “empresa” e “todas”.
 
 ---
 
-## S9 - Domínio Folha: importador do Resumo Mensal e DCTFWeb DP
+## S9 - Watcher local e motor de evidências por arquivo
 
 Status: pendente
 
 Objetivo:
-
-* Usar o relatório da Domínio Folha para identificar fator gerador de DCTFWeb pela folha/eSocial e atribuir a responsabilidade ao DP quando esse for o único fator gerador.
-
-Justificativa:
-
-* A Domínio não possui API útil para consulta.
-* O relatório PDF do Resumo Mensal da Folha se mostrou mais útil que o Excel para automação.
-* A DCTFWeb gerada exclusivamente por folha/eSocial deve ser responsabilidade do DP, não do Fiscal.
-
-Premissas:
-
-* Não criar robô de tela da Domínio.
-* Não depender do Excel da Domínio para esse relatório.
-* Usar PDF com texto extraível.
-* OCR somente se o PDF vier como imagem ou a extração de texto falhar.
+- Detectar guias, recibos, parcelamentos e evidências fiscais salvas nas pastas das empresas.
 
 Escopo:
+- Agente local.
+- Parser de caminho, empresa e competência.
+- Hash de arquivo.
+- Classificação inicial por nome/caminho.
+- Extração de texto de PDF.
+- Registro de evidências.
+- Idempotência por hash/caminho.
 
-* Upload/importação assistida do PDF Resumo Mensal da Folha.
-* Parser por blocos de empresa.
-* Extração de CNPJ, empresa, competência e rubricas.
-* Persistência de movimentos por empresa/competência.
-* Regra de origem DCTFWeb.
-* Alerta para mês seguinte quando houver movimento anterior.
-
-Entregáveis de banco:
-
-* `dominio_payroll_imports`
-* `dominio_payroll_company_movements`
-
-Entregáveis backend:
-
-* `backend/app/models/dominio_payroll.py`
-* migration para tabelas da Domínio Folha, se ainda não existirem fisicamente
-* `backend/app/services/pdf/parse_dominio_payroll.py`
-* `backend/app/services/integrations/dominio/payroll_importer.py`
-* `backend/app/services/integrations/dominio/mapper.py`
-* `backend/app/services/dctfweb_origins.py`
-* `backend/app/api/v1/endpoints/integrations/dominio.py`
-* `backend/app/schemas/dominio.py`
-* `backend/scripts/import_dominio_payroll.py`
-
-Campos extraídos:
-
-* `company_cnpj`
-* `company_name`
-* `competencia`
-* `tem_folha`
-* `tem_empregado`
-* `tem_pro_labore`
-* `tem_autonomo`
-* `tem_inss`
-* `tem_fgts`
-* `tem_rescisao`
-* `tem_ferias`
-* `valor_proventos`
-* `valor_descontos`
-* `valor_informativas`
-* `valor_liquido`
-* `raw_text`
-* `arquivo_origem`
-
-Regras de DCTFWeb:
-
-* Movimento de folha, pró-labore, autônomo, INSS, FGTS ou rescisão indica fator gerador de DCTFWeb origem DP.
-* Se o único fator gerador da DCTFWeb for folha/eSocial, `responsible_department = DP`.
-* Se houver folha + REINF/MIT/tributos federais, `responsible_department = COMPARTILHADO`.
-* Se houver somente REINF/MIT/tributos federais, `responsible_department = FISCAL`.
-* Se houve DCTFWeb com movimento em uma competência, gerar alerta para a competência seguinte verificar envio, ainda que zerado/sem movimento, quando aplicável.
-
-Validação:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_dominio_payroll_parser.py .\backend\tests\test_dctfweb_origins.py .\backend\tests\test_dctfweb_next_month_alert.py -q
-.\.venv\Scripts\python.exe -m ruff check .\backend
-```
-
-Aceite:
-
-* PDF importado cria movimento por empresa sem duplicidade.
-* Empresas não encontradas no espelho local ficam em fila de conferência.
-* DCTFWeb por folha aparece como responsabilidade do DP.
-* DCTFWeb com múltiplas origens aparece como `COMPARTILHADO`.
-* Alerta do mês posterior é gerado corretamente.
-* Nenhum robô de tela da Domínio é criado.
-
----
-
-## S10 - Watcher local e motor de evidências por arquivo
-
-Status: pendente
-
-Objetivo:
-
-* Detectar guias, recibos, parcelamentos e evidências fiscais salvas nas pastas das empresas.
-
-Justificativa:
-
-* O watcher é uma fonte essencial de evidências reais.
-* Ele não decide sozinho o status fiscal; ele gera sinais e evidências para o backend conciliar.
-* Deve funcionar principalmente sobre PDFs digitais com texto extraível.
-
-Escopo:
-
-* Agente local.
-* Parser de caminho, empresa e competência.
-* Hash de arquivo.
-* Classificação inicial por nome/caminho.
-* Extração inicial de texto de PDF.
-* Registro de evidências.
-* Idempotência por hash/caminho.
+Entregáveis:
+- `agent/watcher/main.py`
+- `file_detector.py`
+- `company_resolver.py`
+- `period_resolver.py`
+- `backend/app/services/pdf/text_extract.py`
+- `backend/app/services/pdf/classify_tax.py`
+- Endpoint `POST /api/v1/lumen/evidences/watcher-event`.
+- Job `process_pdf_evidences`.
+- Tabela/eventos `watcher_file_events`.
 
 Pasta principal alvo:
-
 ```txt
 G:\EMPRESAS\[empresa]\Escrita Fiscal\[competência]\Guias - Impostos e Parcelamentos
 ```
 
 Palavras-chave iniciais:
-
 ```txt
 DAS, PIS, COFINS, ICMS, ISS, DIFAL, PROTEGE, PGFN, SISPAR, PARC,
 DCTFWEB, DARF, REINF, MIT, IRPJ, CSLL
 ```
 
-Entregáveis agent:
-
-* `agent/watcher/main.py`
-* `agent/watcher/config.py`
-* `agent/watcher/file_detector.py`
-* `agent/watcher/company_resolver.py`
-* `agent/watcher/period_resolver.py`
-* `agent/watcher/hash.py`
-* `agent/watcher/client.py`
-* `agent/parsers/file_name_classifier.py`
-* `agent/parsers/pdf_text_probe.py`
-
-Entregáveis backend:
-
-* `backend/app/services/pdf/text_extract.py`
-* `backend/app/services/pdf/classify_tax.py`
-* `backend/app/api/v1/endpoints/watcher.py`
-* endpoint `POST /api/v1/lumen/evidences/watcher-event`
-* job `process_pdf_evidences`
-
-Regras:
-
-* O agente local gera evento e envia para o backend.
-* O backend decide conciliação final.
-* PDF com texto extraível não deve usar OCR.
-* OCR é fallback futuro, não obrigatório neste stage.
-* Arquivo duplicado por hash/caminho não deve gerar evidência duplicada.
-
 Validação:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_watcher_events.py .\backend\tests\test_pdf_text_extract.py .\backend\tests\test_file_classifier.py -q
-.\.venv\Scripts\python.exe -m ruff check .\backend .\agent
+```bash
+pytest backend/tests/test_watcher_events.py backend/tests/test_pdf_text_extract.py backend/tests/test_file_classifier.py
 ```
 
 Aceite:
-
-* Arquivo novo gera `watcher_file_event`.
-* Arquivo novo gera ou atualiza `fiscal_evidence`.
-* Reprocessar o mesmo arquivo não duplica evidência.
-* Empresa é resolvida por pasta quando possível.
-* Competência é resolvida por pasta quando possível.
-* Baixa confiança fica como `BAIXA_CONFIANCA` ou `CONFERENCIA_MANUAL`.
+- Arquivo novo gera evidência sem duplicidade.
+- PDF com texto extraível não usa OCR.
+- CNPJ/IE/competência/valor/vencimento são extraídos quando disponíveis.
+- Baixa confiança fica como `CONFERENCIA_MANUAL` ou `BAIXA_CONFIANCA`.
 
 ---
 
-## S11 - Parsers fiscais e classificação de guias/recibos
+## S10 - Parsers fiscais e classificação de guias/recibos
 
 Status: pendente
 
 Objetivo:
-
-* Transformar PDFs e arquivos encontrados em evidências fiscais úteis para conciliação.
-
-Justificativa:
-
-* Os exemplos reais de guias demonstraram que o conteúdo dos PDFs traz dados suficientes para classificar e extrair campos relevantes.
-* O nome do arquivo ajuda, mas a fonte principal deve ser o conteúdo do PDF.
+- Transformar PDFs e arquivos encontrados em evidências fiscais úteis para conciliação.
 
 Escopo:
-
-* Parsers por tipo de documento.
-* Campos normalizados.
-* Confiança por evidência.
-* Tratamento de guias estaduais sem CNPJ claro.
-* Parcelamentos PGFN/SISPAR.
-* Testes com fixtures anonimizadas.
+- Parsers por tipo de documento.
+- Campos normalizados.
+- Confiança por evidência.
+- Tratamento de guias estaduais sem CNPJ claro.
+- Parcelamentos PGFN/SISPAR.
 
 Entregáveis:
-
-* `backend/app/services/pdf/parse_das.py`
-* `backend/app/services/pdf/parse_darf.py`
-* `backend/app/services/pdf/parse_icms.py`
-* `backend/app/services/pdf/parse_iss.py`
-* `backend/app/services/pdf/parse_installment.py`
-* `backend/app/services/pdf/parse_dctfweb_receipt.py`
-* `backend/app/services/pdf/parse_reinf_receipt.py`
-* `backend/app/services/pdf/normalize.py`
-
-Prioridade de implementação:
-
-1. DAS
-2. DARF/PIS/COFINS
-3. ICMS/PROTEGE
-4. Parcelamento PGFN/SISPAR
-5. DCTFWeb/REINF/MIT/recibos
+- Parsers:
+  - `parse_das.py`
+  - `parse_darf.py`
+  - `parse_icms.py`
+  - `parse_iss.py`
+  - `parse_installment.py`
+  - `parse_dctfweb_receipt.py`
+  - `parse_reinf_receipt.py`
+- Normalizador de valores, datas, CNPJ, IE e competência.
+- Test fixtures anonimizadas em `docs/examples` ou `data/examples`.
 
 Campos mínimos de evidência:
-
-* `file_path`
-* `file_hash`
-* `file_name`
-* `detected_tax`
-* `detected_obligation`
-* `cnpj_detected`
-* `ie_detected`
-* `razao_social_detected`
-* `competencia_detected`
-* `due_date`
-* `amount_total`
-* `amount_principal`
-* `amount_multa`
-* `amount_juros`
-* `document_number`
-* `receipt_number`
-* `barcode`
-* `installment_protocol`
-* `installment_current`
-* `installment_total`
-* `confidence`
-* `raw_text`
-
-Regras:
-
-* DAS deve identificar Documento de Arrecadação do Simples Nacional.
-* DARF deve identificar Documento de Arrecadação de Receitas Federais.
-* PIS/COFINS devem ser confirmados por código/denominação no PDF.
-* ICMS/PROTEGE podem não ter CNPJ; vincular por pasta + IE + razão social.
-* Parcelamento deve aproveitar também o nome do arquivo, especialmente padrões como `(13 de 18)`.
-* Se nome e conteúdo concordam, confiança alta.
-* Se nome e conteúdo divergem, enviar para conferência manual.
+- `file_path`
+- `file_hash`
+- `file_name`
+- `detected_tax`
+- `detected_obligation`
+- `cnpj_detected`
+- `ie_detected`
+- `razao_social_detected`
+- `competencia_detected`
+- `due_date`
+- `amount_total`
+- `document_number`
+- `receipt_number`
+- `barcode`
+- `installment_protocol`
+- `installment_current`
+- `installment_total`
+- `confidence`
+- `raw_text`
 
 Validação:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_pdf_parsers.py .\backend\tests\test_installment_parser.py -q
-.\.venv\Scripts\python.exe -m ruff check .\backend
+```bash
+pytest backend/tests/test_pdf_parsers.py backend/tests/test_installment_parser.py
 ```
 
 Aceite:
-
-* Guias comuns são classificadas com confiança adequada.
-* Valores, vencimentos, competência e documento são extraídos quando presentes.
-* Guias sem CNPJ podem ser vinculadas por pasta + IE + razão social.
-* Parcelamento no padrão `Parc. PGFN-SISPAR 013021061 - 05-2026 (13 de 18)` extrai tipo, protocolo, competência, parcela atual e total.
-* OCR não é usado no caminho padrão.
+- Guias comuns são classificadas com confiança adequada.
+- Guias sem CNPJ podem ser vinculadas por pasta + IE + razão social.
+- Parcelamento no padrão `Parc. PGFN-SISPAR 013021061 - 05-2026 (13 de 18)` extrai tipo, protocolo, competência, parcela atual e total.
 
 ---
 
-## S12 - Motor de conciliação fiscal
+## S11 - Motor de conciliação fiscal
 
 Status: pendente
 
 Objetivo:
-
-* Cruzar Acessórias, Sittax, Domínio, Econet, watcher e evidências para calcular o status fiscal real por empresa/competência.
-
-Justificativa:
-
-* O motor de conciliação deve vir depois das fontes principais, para que as regras sejam implementadas sobre dados reais ou snapshots já modelados.
-* Ele é o coração lógico do Lumen.
+- Cruzar Acessórias, watcher, Sittax, Domínio e evidências para calcular status fiscal real por empresa/competência.
 
 Escopo:
-
-* Serviço central de conciliação.
-* Priorização de fontes.
-* Cálculo de status.
-* Divergências.
-* Responsável por departamento.
-* Reprocessamento idempotente por competência.
-* Auditoria das decisões.
-
-Fontes:
-
-* Acessórias
-* Sittax
-* Domínio Folha
-* Econet
-* Watcher/PDF
-* Histórico interno
+- Serviço central de conciliação.
+- Priorização de fontes.
+- Cálculo de status.
+- Divergências.
+- Reprocessamento idempotente por competência.
 
 Entregáveis:
-
-* `backend/app/services/reconciliation.py`
-* `backend/app/services/source_priority.py`
-* `backend/app/services/dctfweb_origins.py`, complementos se necessário
-* job `reconcile_fiscal_period`
-* endpoint `POST /api/v1/lumen/reconciliation/run` com RBAC `ADMIN|DEV`
-* atualização das APIs de Cockpit, Envios, Evidências e Divergências
+- `backend/app/services/reconciliation.py`
+- Job `reconcile_fiscal_period`.
+- Endpoint `POST /api/v1/lumen/reconciliation/run` (`ADMIN|DEV`).
+- Registro de divergências em `fiscal_alerts` ou tabela dedicada, conforme decisão S0.
 
 Exemplos de regra:
-
-* Guia DAS encontrada + Acessórias entregue = `CONFIRMADO_ARQUIVO_ACESSORIAS`.
-* Acessórias entregue + arquivo não encontrado = `CONFIRMADO_API` com alerta leve se evidência física for obrigatória.
-* Guia ICMS encontrada + Acessórias pendente = `DIVERGENTE`.
-* Sittax informa DIFAL sem guia + Acessórias consta DIFAL pendente = revisar aplicabilidade/dispensa.
-* Sittax informa DIFAL com guia + arquivo ausente + Acessórias pendente = pendência crítica.
-* Folha com movimento + Acessórias sem DCTFWeb = alerta DP.
-* Econet indica Fator R + empresa Simples + Sittax apurou DAS = alerta de revisão de anexo/fator R.
-* DCTFWeb somente folha/eSocial = responsável `DP`.
-* DCTFWeb com folha + REINF/MIT = responsável `COMPARTILHADO`.
-
-Status de conciliação:
-
-* `CONFIRMADO_ARQUIVO_ACESSORIAS`
-* `CONFIRMADO_API`
-* `CONFIRMADO_ARQUIVO`
-* `PENDENTE`
-* `PENDENTE_SEM_ARQUIVO`
-* `DIVERGENTE`
-* `DISPENSADO_AUTOMATICAMENTE`
-* `NAO_APLICAVEL`
-* `BAIXA_CONFIANCA`
-* `CONFERENCIA_MANUAL`
+- Guia DAS encontrada + Acessórias entregue = `CONFIRMADO_ARQUIVO_ACESSORIAS`.
+- Guia ICMS encontrada + Acessórias pendente = `DIVERGENTE`.
+- Acessórias entregue + arquivo não encontrado = `CONFIRMADO_API` com alerta leve se evidência física for obrigatória.
+- Sittax com DIFAL com guia + arquivo ausente = pendência crítica.
+- Folha com movimento + Acessórias sem DCTFWeb = alerta de obrigação possivelmente não controlada.
 
 Validação:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_reconciliation.py .\backend\tests\test_divergence_rules.py .\backend\tests\test_dctfweb_origins.py .\backend\tests\test_factor_r_rules.py -q
-.\.venv\Scripts\python.exe -m ruff check .\backend
+```bash
+pytest backend/tests/test_reconciliation.py backend/tests/test_divergence_rules.py
 ```
 
 Aceite:
-
-* Reprocessar a mesma competência não duplica alertas/evidências.
-* Status por obrigação é recalculável e auditável.
-* Divergências aparecem nas APIs do Cockpit e tela Divergências.
-* Responsável por departamento é calculado corretamente.
-* DCTFWeb por folha é atribuída ao DP quando for único fator gerador.
-* DCTFWeb mista é atribuída como `COMPARTILHADO`.
+- Reprocessar a mesma competência não duplica alertas/evidências.
+- Status por obrigação é recalculável e auditável.
+- Divergências aparecem nas APIs do Cockpit e tela Divergências.
 
 ---
 
-## S13 - Frontend operacional com dados reais
+## S12 - Sittax read-only: Simples, DAS, DIFAL e documentos fiscais
 
 Status: pendente
 
 Objetivo:
-
-* Transformar o shell e as telas read-only já existentes em uma experiência operacional conectada aos dados reais das integrações e da conciliação.
-
-Justificativa:
-
-* O shell fiscal e as rotas principais já foram materializados no S5.1.
-* A partir deste stage, o foco visual deve ser conectar e lapidar a experiência sobre dados reais, e não apenas montar layout vazio.
-* Este stage deve consumir resultados de Acessórias, Sittax, Econet, Domínio, watcher e conciliação.
+- Integrar dados do Sittax para enriquecer apuração do Simples Nacional, DAS, DIFAL, documentos fiscais e tarefas/transmissões.
 
 Escopo:
-
-* Painel com KPIs reais.
-* Cockpit com status por fonte/departamento.
-* Tela Empresa com dossiê fiscal real.
-* Tela Envios com origem, evidência, responsável e confiança.
-* Tela Evidências com arquivos processados.
-* Tela Divergências com fila real.
-* Tela Integrações com health real.
-* Ajustes visuais de fidelidade ao guia estético.
-
-Entregáveis backend:
-
-* Ajustes nos endpoints read-only já existentes:
-
-  * `GET /api/v1/lumen/dashboard`
-  * `GET /api/v1/lumen/cockpit`
-  * `GET /api/v1/lumen/companies/{id}/summary`
-  * `GET /api/v1/lumen/deliveries`
-  * `GET /api/v1/lumen/evidences`
-  * `GET /api/v1/lumen/divergences`
-  * `GET /api/v1/lumen/installments`
-  * `GET /api/v1/lumen/integrations/health`
-
-Entregáveis frontend:
-
-* refino de `DashboardPage.tsx`
-* refino de `CockpitPage.tsx`
-* refino de `CompanyPage.tsx`
-* refino de `DeliveriesPage.tsx`
-* refino de `EvidencesPage.tsx`
-* refino de `DivergencesPage.tsx`
-* refino de `IntegrationsPage.tsx`
-* componentes:
-
-  * `DctfwebOriginCard.tsx`
-  * `FactorRCard.tsx`
-  * `EvidenceTimeline.tsx`
-  * `IntegrationHealthCard.tsx`
-  * `JobsGrid.tsx`
-
-Checklist visual:
-
-* Sidebar, topbar, context strip e dropdowns preservados.
-* Header sticky com blur.
-* Empresa e competência no header.
-* IE vazia aparece como `ISENTO`.
-* Regime oficial vem do Acessórias.
-* Fator R aparece no dossiê da empresa.
-* DCTFWeb exibe origem e departamento responsável.
-* Tela Envios suporta escopo “empresa” e “todas”.
-* Estados vazios continuam honestos.
-* Divergências reais aparecem com severidade e ações.
-
-Validação:
-
-```powershell
-cd .\frontend
-npm run typecheck
-npm run test:e2e
-```
-
-Validação backend:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_lumen_read_endpoints.py .\backend\tests\test_dashboard_endpoints.py .\backend\tests\test_cockpit_endpoints.py .\backend\tests\test_deliveries_endpoint.py -q
-```
-
-Aceite:
-
-* Painel mostra KPIs reais por competência.
-* Cockpit filtra por status, departamento, regime e fonte.
-* Tela Empresa mostra dados cadastrais, regime oficial, atividades, Fator R, obrigações, evidências, DCTFWeb e divergências.
-* Tela Envios mostra responsável, status, evidência, protocolo, valor e confiança.
-* Tela Integrações mostra eControle, Acessórias, Sittax, Domínio, Econet e Watcher.
-* Nenhuma ação fiscal externa é adicionada.
-
----
-
-## S14 - Parcelamentos: controle ativo, evidência mensal e risco
-
-Status: pendente
-
-Objetivo:
-
-* Controlar parcelamentos ativos, evidências mensais e risco de inadimplência.
-
-Escopo:
-
-* Persistência de parcelamentos.
-* Atualização por PDF/nome do arquivo.
-* Histórico por competência.
-* Regras de risco.
-* Tela Parcelamentos.
+- Login por endpoint com JWT Bearer.
+- Listagem de empresas.
+- Consulta de apuração por CNPJ/período.
+- Consulta de DIFAL respeitando contexto de sessão.
+- Consulta de documentos fiscais.
+- Consulta de tarefas/transmissões.
+- Snapshots locais.
 
 Entregáveis:
+- `sittax_company_snapshots`
+- `sittax_apuracao_snapshots`
+- `sittax_difal_snapshots`
+- `sittax_task_snapshots` se necessário.
+- Cliente Sittax com fila sequencial ou sessão isolada.
+- Job `sync_sittax_apuracao_period`.
+- Job `sync_sittax_difal_period`.
+- Health de integração.
 
-* Serviço `backend/app/services/installments.py`
-* job `scan_installment_risks`
-* endpoint `GET /api/v1/lumen/installments?period=YYYY-MM&companyId=`
-* atualização de `InstallmentsPage.tsx`
-* tabela com empresa, tipo, protocolo, parcela, valor, vencimento, última evidência e risco
+Regra técnica crítica:
+- Não processar várias empresas em paralelo usando a mesma sessão quando endpoint depender de contexto empresa/período.
+
+Validação:
+```bash
+pytest backend/tests/test_sittax_client.py backend/tests/test_sittax_mapper.py backend/tests/test_sittax_context_lock.py backend/tests/test_sittax_sync.py
+```
+
+Aceite:
+- Snapshots são idempotentes por empresa/período.
+- DIFAL não mistura contexto entre empresas.
+- Nenhum endpoint aciona transmissão ou recálculo sem autorização explícita.
+- Dados alimentam Cockpit, Envios e Divergências.
+
+---
+
+## S13 - Domínio Folha: importador do Resumo Mensal e DCTFWeb DP
+
+Status: pendente
+
+Objetivo:
+- Usar relatório da Domínio para identificar fator gerador de DCTFWeb pela folha/eSocial e atribuir responsabilidade ao DP quando aplicável.
+
+Escopo:
+- Upload/importação assistida de PDF do Resumo Mensal da Folha.
+- Parser por blocos de empresa.
+- Persistência dos movimentos.
+- Regra de origem DCTFWeb.
+- Alerta para mês seguinte após movimento.
+
+Entregáveis:
+- `dominio_payroll_imports`
+- `dominio_payroll_company_movements`
+- Parser `parse_dominio_payroll.py`.
+- Endpoint `POST /api/v1/lumen/dominio/payroll/import` (`ADMIN|DEV`).
+- Serviço `dctfweb_origins.py`.
+- Job `scan_dctfweb_origins`.
+
+Campos extraídos:
+- `company_cnpj`
+- `company_name`
+- `competencia`
+- `tem_folha`
+- `tem_empregado`
+- `tem_pro_labore`
+- `tem_autonomo`
+- `tem_inss`
+- `tem_fgts`
+- `tem_rescisao`
+- `tem_ferias`
+- `valor_proventos`
+- `valor_descontos`
+- `valor_informativas`
+- `valor_liquido`
+- `raw_text`
+- `arquivo_origem`
+
+Regras:
+- Movimento, pró-labore, autônomo, INSS, FGTS ou rescisão indicam fator gerador DCTFWeb origem DP.
+- Se único fator gerador for folha/eSocial, responsável = `DP`.
+- Se houver folha + REINF/MIT, responsável = `COMPARTILHADO`.
+- Se houve DCTFWeb com movimento em `05/2026`, gerar alerta para `06/2026` verificar envio zerado/sem movimento quando aplicável.
+
+Validação:
+```bash
+pytest backend/tests/test_dominio_payroll_parser.py backend/tests/test_dctfweb_origins.py backend/tests/test_dctfweb_next_month_alert.py
+```
+
+Aceite:
+- PDF importado cria movimentos por empresa sem duplicidade.
+- DCTFWeb DP aparece no Cockpit/Envios.
+- Alerta do mês posterior é gerado corretamente.
+
+---
+
+## S14 - Econet: cache por CNAE, atividade e Fator R
+
+Status: pendente
+
+Objetivo:
+- Enriquecer empresas por CNAE com dados da Econet, preservando login assistido e cache local.
+
+Escopo:
+- Sessão assistida.
+- Consulta de CNAEs novos/vencidos.
+- Parser HTML.
+- Cache por CNAE.
+- Fator R.
+- Classificação de atividades.
+- Alertas por CNAE.
+
+Entregáveis:
+- `econet_cnae_cache`.
+- `backend/app/services/integrations/econet/assisted_session.py`.
+- `client.py`, `parser.py`, `cache.py`.
+- Job `enrich_cnaes_econet`.
+- Tela/endpoint de status da sessão Econet.
+- Alerta de Fator R.
+
+Campos do cache:
+- `cnae`
+- `descricao`
+- `econet_id_cnae`
+- `simples_permitido`
+- `mei_permitido`
+- `tem_fator_r`
+- `anexo_simples_padrao`
+- `anexo_simples_condicional`
+- `lucro_presumido_possivel`
+- `lucro_real_obrigatorio`
+- `atividade_detectada`
+- `obrigacoes_pj_geral`
+- `obrigacoes_simples`
+- `raw_html_index`
+- `raw_html_simples`
+- `raw_html_lucro_presumido`
+- `raw_html_obrigacoes`
+- `retrieved_at`
+- `expires_at`
+- `parse_status`
+
+Regras:
+- Não consultar Econet em tempo real a cada tela.
+- Consultar CNAEs novos ou cache vencido.
+- Permitir revisão manual de baixa confiança.
+- Se `tem_fator_r = true`, alertar empresa do Simples para verificar folha/pró-labore antes de confirmar DAS.
+
+Validação:
+```bash
+pytest backend/tests/test_econet_parser.py backend/tests/test_econet_cache.py backend/tests/test_factor_r_rules.py
+```
+
+Aceite:
+- CNAE cacheado alimenta atividade e Fator R.
+- Sessão expirada não quebra portal; gera status “Sessão assistida expirada”.
+- Nenhuma tentativa de bypass de CAPTCHA.
+
+---
+
+## S15 - Parcelamentos: controle ativo, evidência mensal e risco
+
+Status: pendente
+
+Objetivo:
+- Controlar parcelamentos ativos, evidências mensais e risco de inadimplência.
+
+Escopo:
+- Persistência de parcelamentos.
+- Atualização por PDF/nome do arquivo.
+- Histórico por competência.
+- Regras de risco.
+- Tela Parcelamentos.
+
+Entregáveis:
+- Serviço `installments.py`.
+- Job `scan_installment_risks`.
+- Endpoint `GET /api/v1/lumen/installments?period=YYYY-MM&companyId=`.
+- Tela `InstallmentsPage.tsx`.
+- Tabela com empresa, tipo, protocolo, parcela, valor, vencimento, última evidência e risco.
 
 Alertas:
-
-* Parcelamento sem envio no mês.
-* Parcelamento sem evidência por vários meses.
-* Parcela atual não evolui.
-* Parcelamento ativo sem protocolo.
-* Parcelamento próximo do fim.
-* Possível inadimplência.
+- Parcelamento sem envio no mês.
+- Parcelamento sem evidência por vários meses.
+- Parcela atual não evolui.
+- Parcelamento ativo sem protocolo.
+- Parcelamento próximo do fim.
+- Possível inadimplência.
 
 Validação:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_installments.py .\backend\tests\test_installment_risk_rules.py -q
-cd .\frontend
-npm run test:e2e -- installments.spec.ts
+```bash
+pytest backend/tests/test_installments.py backend/tests/test_installment_risk_rules.py
+cd frontend && npm run test:e2e -- installments.spec.ts
 ```
 
 Aceite:
-
-* Parcelamento PDF atualiza status sem duplicidade.
-* Risco aparece no painel e na tela Parcelamentos.
-* Histórico por competência fica rastreável.
+- Parcelamento PDF atualiza status sem duplicidade.
+- Risco aparece no painel e na tela Parcelamentos.
+- Histórico por competência fica rastreável.
 
 ---
 
-## S15 - Divergências, alertas e centro operacional
+## S16 - Divergências, alertas e centro operacional
 
 Status: pendente
 
 Objetivo:
-
-* Transformar exceções fiscais em fila operacional clara para revisão humana.
+- Transformar exceções fiscais em fila operacional clara para revisão humana.
 
 Escopo:
-
-* Serviço de alertas.
-* Fila de divergências.
-* Severidade.
-* Ações humanas: confirmar evidência, justificar, abrir empresa.
-* Centro de integrações/jobs.
+- Serviço de alertas.
+- Fila de divergências.
+- Severidade.
+- Ações humanas: confirmar evidência, justificar, abrir empresa.
+- Centro de integrações/jobs.
 
 Entregáveis:
-
-* `backend/app/services/alerts.py`
-* endpoint `GET /api/v1/lumen/divergences?period=YYYY-MM&companyId=`
-* endpoint `POST /api/v1/lumen/divergences/{id}/resolve` com RBAC `ADMIN|DEV`
-* tela `DivergencesPage.tsx`
-* tela `IntegrationsPage.tsx` com saúde de:
-
-  * eControle
-  * Acessórias
-  * Sittax
-  * Domínio
-  * Econet
-  * Watcher G:
-* `JobsGrid.tsx`
+- `backend/app/services/alerts.py`.
+- Endpoint `GET /api/v1/lumen/divergences?period=YYYY-MM&companyId=`.
+- Endpoint `POST /api/v1/lumen/divergences/{id}/resolve` (`ADMIN|DEV`).
+- Tela `DivergencesPage.tsx`.
+- Tela `IntegrationsPage.tsx` com saúde de eControle, Acessórias, Sittax, Domínio, Econet e Watcher G:.
+- `JobsGrid.tsx`.
 
 Validação:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_alerts.py .\backend\tests\test_divergences_endpoint.py .\backend\tests\test_integrations_health.py -q
-cd .\frontend
-npm run test:e2e -- divergences.spec.ts integrations.spec.ts
+```bash
+pytest backend/tests/test_alerts.py backend/tests/test_divergences_endpoint.py backend/tests/test_integrations_health.py
+cd frontend && npm run test:e2e -- divergences.spec.ts integrations.spec.ts
 ```
 
 Aceite:
-
-* Divergências são deduplicadas por empresa/competência/regra.
-* Usuário consegue justificar ou confirmar evidência com auditoria.
-* Saúde das integrações aparece de forma compreensível.
-* Ações humanas não executam transmissão fiscal externa.
+- Divergências são deduplicadas por empresa/competência/regra.
+- Usuário consegue justificar ou confirmar evidência com auditoria.
+- Saúde das integrações aparece de forma compreensível.
 
 ---
 
-## S16 - Jobs, observabilidade e runbooks operacionais
+## S17 - Jobs, observabilidade e runbooks operacionais
 
 Status: pendente
 
 Objetivo:
-
-* Tornar automações rastreáveis, reprocessáveis e operáveis pelo escritório.
+- Tornar automações rastreáveis, reprocessáveis e operáveis pelo escritório.
 
 Escopo:
-
-* Worker real.
-* Tracking de jobs.
-* APIs de status.
-* Scripts PowerShell.
-* Runbooks.
+- Worker RQ.
+- Tracking de jobs.
+- APIs de status.
+- Scripts PowerShell.
+- Runbooks.
 
 Entregáveis:
-
-* Worker runner real.
-* endpoints:
-
-  * `GET /api/v1/worker/health`
-  * `GET /api/v1/worker/jobs/{job_id}`
-  * `GET /api/v1/worker/snapshot`
-* scripts:
-
-  * `scripts/ops/run_acessorias_sync.ps1`
-  * `scripts/ops/run_econtrole_reconcile.ps1`
-  * `scripts/ops/run_sittax_sync.ps1`
-  * `scripts/ops/run_econet_enrich.ps1`
-  * `scripts/ops/run_dominio_payroll_import.ps1`
-  * `scripts/ops/run_file_scan.ps1`
-  * `scripts/ops/run_reconciliation_period.ps1`
-* `docs/RUNBOOK_LOCAL.md`
+- Worker runner.
+- Endpoints:
+  - `GET /api/v1/worker/health`
+  - `GET /api/v1/worker/jobs/{job_id}`
+  - `GET /api/v1/worker/snapshot`
+- Scripts:
+  - `scripts/ops/run_acessorias_sync.ps1`
+  - `scripts/ops/run_econtrole_reconcile.ps1`
+  - `scripts/ops/run_file_scan.ps1`
+  - `scripts/ops/run_reconciliation_period.ps1`
+- `docs/RUNBOOK_LOCAL.md`.
 
 Jobs principais:
-
-* `sync_econtrole_companies`
-* `sync_acessorias_deliveries`
-* `sync_sittax_companies`
-* `sync_sittax_apuracao_period`
-* `sync_sittax_difal_period`
-* `sync_sittax_fiscal_documents`
-* `enrich_cnaes_econet`
-* `import_dominio_payroll_pdf`
-* `scan_fiscal_files`
-* `process_pdf_evidences`
-* `reconcile_fiscal_period`
-* `scan_dctfweb_origins`
-* `scan_installment_risks`
-* `generate_fiscal_alerts`
+- `sync_econtrole_companies`
+- `sync_acessorias_deliveries`
+- `sync_sittax_companies`
+- `sync_sittax_apuracao_period`
+- `sync_sittax_difal_period`
+- `scan_fiscal_files`
+- `process_pdf_evidences`
+- `import_dominio_payroll_pdf`
+- `enrich_cnaes_econet`
+- `reconcile_fiscal_period`
+- `scan_dctfweb_origins`
+- `scan_installment_risks`
+- `generate_fiscal_alerts`
 
 Validação:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_worker.py .\backend\tests\test_job_runs.py -q
-.\.venv\Scripts\python.exe -m ruff check .\backend .\agent
+```bash
+pytest backend/tests/test_worker.py backend/tests/test_job_runs.py
 ```
 
 Aceite:
-
-* Cada job tem `run_id`, status, início, fim, contadores, erros e resumo.
-* Job pode ser reprocessado sem duplicidade indevida.
-* Operação por PowerShell funciona sem credenciais versionadas.
-* Health de integrações e worker aparece no portal.
+- Cada job tem `run_id`, status, início, fim, contadores, erros e resumo.
+- Job pode ser reprocessado sem duplicidade indevida.
+- Operação por PowerShell funciona sem credenciais versionadas.
 
 ---
 
-## S17 - Hardening de segurança e LGPD operacional
+## S18 - Hardening de segurança e LGPD operacional
 
 Status: pendente
 
 Objetivo:
-
-* Proteger dados fiscais, sessões e credenciais antes de uso real amplo.
+- Proteger dados fiscais, sessões e credenciais antes de uso real.
 
 Escopo:
-
-* Revisão de segredos.
-* Criptografia de credenciais/sessões quando persistidas.
-* Sanitização de logs.
-* RBAC refinado.
-* Política de retenção.
-* Export de dados sem arquivos sensíveis.
+- Revisão de segredos.
+- Criptografia de credenciais/sessões quando persistidas.
+- Sanitização de logs.
+- RBAC refinado.
+- Política de retenção.
+- Export de dados sem arquivos sensíveis.
 
 Entregáveis:
-
-* `docs/SECURITY.md` atualizado.
-* Serviço de criptografia para credenciais.
-* Redaction de logs.
-* Testes de permissão.
-* Checklist de go-live seguro.
-* Revisão de armazenamento de tokens no frontend.
-* Revisão de sessões assistidas da Econet.
-* Política para não versionar arquivos fiscais reais.
+- `docs/SECURITY.md` atualizado.
+- Serviço de criptografia para credenciais.
+- Redaction de logs.
+- Testes de permissão.
+- Checklist de go-live seguro.
 
 Validação:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_security.py .\backend\tests\test_rbac.py .\backend\tests\test_log_redaction.py -q
-.\.venv\Scripts\python.exe -m ruff check .\backend .\agent
+```bash
+pytest backend/tests/test_security.py backend/tests/test_rbac.py backend/tests/test_log_redaction.py
 ```
 
 Aceite:
-
-* Logs não exibem tokens, senhas, cookies, JWTs ou API keys.
-* Arquivos fiscais reais seguem fora do Git.
-* Sessões assistidas são protegidas e expiram de forma controlada.
-* VIEW não executa jobs sensíveis.
-* ADMIN/DEV têm permissões compatíveis com operação segura.
+- Logs não exibem tokens/senhas/cookies.
+- Arquivos fiscais reais seguem fora do Git.
+- Sessões assistidas são protegidas e expiram de forma controlada.
 
 ---
 
-## S18 - Testes de regressão, performance e go-live MVP
+## S19 - Testes de regressão, performance e go-live MVP
 
 Status: pendente
 
 Objetivo:
-
-* Validar o Lumen em cenário real controlado antes de uso operacional amplo.
+- Validar o Lumen em cenário real controlado antes de uso operacional amplo.
 
 Escopo:
-
-* Testes ponta a ponta.
-* Carga inicial com empresas reais controladas.
-* Validação de watcher em pasta piloto.
-* Validação de Acessórias, Sittax, Domínio e Econet com amostras reais/anonimizadas.
-* Ajustes de UX.
-* Runbooks finais.
-* Plano de rollback.
-* Plano de backup.
+- Testes ponta a ponta.
+- Carga inicial com empresas reais controladas.
+- Validação de watcher em pasta piloto.
+- Validação de Acessórias, Sittax, Domínio e Econet com amostras reais/anonimizadas.
+- Ajustes de UX.
+- Runbooks finais.
 
 Entregáveis:
-
-* suíte E2E completa
-* `docs/GO_LIVE_CHECKLIST.md`
-* `docs/KNOWN_LIMITATIONS.md`
-* plano de rollback
-* plano de backup
-* checklist de operação mensal
-* checklist de incidentes de integração
+- Suíte E2E completa.
+- Checklist de go-live.
+- `docs/GO_LIVE_CHECKLIST.md`.
+- `docs/KNOWN_LIMITATIONS.md`.
+- Plano de rollback.
+- Plano de backup.
 
 Validação:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest .\backend\tests
-.\.venv\Scripts\python.exe -m ruff check .\backend .\agent
-cd .\frontend
-npm run lint
-npm run typecheck
-npm run test:e2e
+```bash
+pytest backend/tests
+ruff check backend agent
+mypy backend/app
+cd frontend && npm run lint && npm run typecheck && npm run test && npm run test:e2e
 ```
 
 Aceite:
-
-* Usuário consegue abrir Painel, Cockpit, Empresa, Envios, Evidências, Divergências, Parcelamentos e Integrações.
-* Uma competência piloto pode ser reconciliada do início ao fim.
-* Acessórias sincroniza regime e entregas.
-* Sittax sincroniza Simples, DAS, DIFAL e documentos.
-* Econet identifica Fator R e atividade por CNAE.
-* Domínio Folha identifica DCTFWeb DP.
-* Watcher identifica guias/recibos salvos.
-* Divergências e baixa confiança ficam em fila humana, não escondidas.
-* Nenhum fluxo transmite obrigação fiscal automaticamente.
+- Usuário consegue abrir Painel, Cockpit, Empresa, Envios, Evidências, Divergências, Parcelamentos e Integrações.
+- Uma competência piloto pode ser reconciliada do início ao fim.
+- Divergências e baixa confiança ficam em fila humana, não escondidas.
+- Nenhum fluxo transmite obrigação fiscal automaticamente.
 
 ---
 
 ## Ordem recomendada para execução com Codex
 
 1. S0 a S4: fundação técnica e modelo fiscal.
-2. S5 e S6: fontes estruturais eControle + Acessórias.
-3. S7: Sittax read-only, por ser o motor operacional do Simples, DAS, DIFAL e documentos fiscais.
-4. S8: Econet, para CNAE, atividade, Fator R, anexos e validação tributária.
-5. S9: Domínio Folha, para fator gerador de DCTFWeb e responsabilidade DP.
-6. S10 e S11: watcher e parsers de guias/recibos.
-7. S12: motor de conciliação fiscal.
-8. S13: frontend operacional com dados reais.
-9. S14 e S15: parcelamentos, divergências, alertas e centro operacional.
-10. S16 a S18: jobs, segurança, regressão e go-live.
+2. S5 e S6: fontes essenciais eControle + Acessórias.
+3. S7 e S8: portal operacional MVP.
+4. S9 a S11: watcher, parsers e conciliação.
+5. S12 a S14: Sittax, Domínio e Econet.
+6. S15 e S16: parcelamentos, divergências e integrações visuais.
+7. S17 a S19: operação, segurança, regressão e go-live.
 
 ## Modelo de fechamento de stage
 
@@ -1858,7 +1487,4 @@ Atualize documentação quando houver decisão técnica ou de domínio.
 Não versionar segredos, cookies, PDFs/XMLs reais ou sessões assistidas.
 Não criar automação de transmissão fiscal nem bypass de CAPTCHA.
 Ao final, informe arquivos alterados, comandos de validação e pendências.
-```
-
-```
 ```

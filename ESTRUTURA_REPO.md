@@ -807,3 +807,23 @@ Decisoes materializadas no S6.1:
 Observacao estrutural importante:
 
 - `backend/app/db/base.py` nao exigiu alteracao para o S6 porque o Alembic ja importa `backend.app.models`, e os novos models foram exportados em `backend/app/models/__init__.py`
+
+## Fechamento S6 em 2026-07-15
+
+Validacoes finais registradas no estado real do repositorio:
+
+- `docker compose -f .\infra\docker-compose.yml up -d`
+- `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head`
+- suites backend do S6 e da regressao do S5 executadas com sucesso
+- `.\.venv\Scripts\python.exe -m ruff check .\backend`
+- schema das tabelas `acessorias_company_snapshots` e `acessorias_delivery_snapshots` conferido via `psql`
+- fixture sync executado duas vezes, confirmando idempotencia de snapshots e runs
+- login manual `ADMIN` confirmado no backend local
+- endpoint `POST /api/v1/integrations/acessorias/sync` validado em `dry_run`
+- validacao real da API oficial confirmada de forma segura por empresa e por cadastro/regime
+
+Observacoes operacionais do fechamento:
+
+- o E2E da tela `Integracoes` passou na suite local, mas a execucao manual pode parecer parada enquanto `run_e2e_stack.ps1` sobe backend dedicado, seed e frontend em portas isoladas
+- o `dry_run` amplo de entregas pode ficar longo ou bloquear em handshake TLS externo; para operacao local, o teste recomendado e `--company-id` ou `--skip-deliveries`
+- a organizacao autenticada no endpoint HTTP influencia o match com `external_companies`; no ambiente local, `lumen` e `neto-contabilidade` possuem contextos distintos

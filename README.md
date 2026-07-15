@@ -558,6 +558,14 @@ Fechamento tecnico do S6:
 - o portal continua sem consultar a API externa em request do frontend; ele le apenas o read model local e os `fiscal_obligation_statuses` atualizados pelo sync
 - o S6 nao baixa anexos, nao usa endpoints `POST`, nao transmite obrigacoes e nao inicia watcher nem conciliacao do S11
 
+Fechamento final validado em 2026-07-15:
+
+- login manual com `ADMIN` confirmado no backend local
+- endpoint manual `POST /api/v1/integrations/acessorias/sync` validado em `dry_run`
+- leitura real da API oficial do Acessorias confirmada com token local fora do Git
+- validacao real mais util no estado atual: `--org-slug neto-contabilidade --period 2026-06 --company-id 78 --dry-run`
+- o `dry_run` amplo no tenant `lumen` confirmou conectividade e contrato, mas nao gerou match de empresas locais porque o usuario autenticado estava na organizacao `lumen` e o espelho real de empresas usado na validacao pertence a `neto-contabilidade`
+
 ### 11. Seed logico do S4.1
 
 ```powershell
