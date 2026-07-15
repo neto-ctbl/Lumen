@@ -11,7 +11,7 @@ from backend.app.main import app
 from backend.app.models.organization import Organization
 from backend.app.models.user import User
 from backend.app.models.user_organization import UserOrganization
-from backend.app.core.config import REPO_ROOT, Settings
+from backend.app.core.config import REPO_ROOT, Settings, get_settings
 from backend.app.core.security import create_access_token, get_password_hash
 from backend.app.services.auth import ROLE_ADMIN
 from backend.scripts.create_initial_admin import create_initial_admin
@@ -239,3 +239,16 @@ def test_seed_admin_proceeds_with_explicit_password_when_env_file_is_disabled(db
 
 def test_settings_default_env_file_configuration_is_preserved() -> None:
     assert Settings.model_config.get("env_file") == REPO_ROOT / ".env"
+
+
+def test_get_settings_can_disable_dotenv(monkeypatch) -> None:
+    monkeypatch.setenv("LUMEN_DISABLE_DOTENV", "1")
+    monkeypatch.delenv("ACESSORIAS_API_TOKEN", raising=False)
+    get_settings.cache_clear()
+
+    try:
+        settings = get_settings()
+    finally:
+        get_settings.cache_clear()
+
+    assert settings.acessorias_api_token is None

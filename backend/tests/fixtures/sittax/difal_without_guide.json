@@ -1,0 +1,26 @@
+{
+  "$id": "1",
+  "sucesso": true,
+  "mensagem": "Sem DIFAL devido para a competencia observada.",
+  "possuiMensagemDeAlerta": true,
+  "difal": {
+    "$id": "1",
+    "id": "difal-sint-002",
+    "possuiGuia": false,
+    "numeroDareGuiaRevenda": null,
+    "numeroDareGuiaUsoConsumoImobilizado": null,
+    "valorGuiaRevenda": 0.0,
+    "valorGuiaRevendaUtilizandoCredito": 0.0,
+    "valorGuiaUsoConsumoImobilizadoUtilizandoCredito": 0.0,
+    "totalTodasCompras": 0.0,
+    "totalReceitaRevendaInterestadual": 0.0,
+    "totalReceitaUsoConsumoImobilizado": 0.0,
+    "totalRevendaInterna": 0.0,
+    "totalRevendaOutras": 0.0,
+    "totalUsoConsumoInterno": 0.0,
+    "dataFechamento": null,
+    "dataTransmissao": null,
+    "temNotasComReferenciaSemTipo": false,
+    "creditos": []
+  }
+}

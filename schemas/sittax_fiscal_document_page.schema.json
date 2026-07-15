@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lumen.local/schemas/sittax_fiscal_document_page.schema.json",
+  "title": "SittaxObservedFiscalDocumentPage",
+  "description": "Observed paginated web payload for Sittax fiscal documents. Not an official public API schema.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "sucesso",
+    "total",
+    "totalFiltrado",
+    "lista"
+  ],
+  "properties": {
+    "$id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "sucesso": {
+      "type": "boolean"
+    },
+    "total": {
+      "type": "integer"
+    },
+    "totalFiltrado": {
+      "type": "integer"
+    },
+    "lista": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "id",
+          "chave_acesso",
+          "numero",
+          "modelo",
+          "data_competencia",
+          "valor_total",
+          "status"
+        ],
+        "properties": {
+          "$id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": [
+              "string",
+              "integer"
+            ]
+          },
+          "chave_acesso": {
+            "type": "string"
+          },
+          "numero": {
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "modelo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "data_emissao": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "data_entrada": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "data_competencia": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "emitente_nome": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "emitente_uf": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "destinatario_nome": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "destinatario_uf": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "emitente_cpf_cnpj": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cfops": {
+            "type": "array",
+            "items": {
+              "type": [
+                "string",
+                "integer"
+              ]
+            }
+          },
+          "valor_total": {
+            "type": "number"
+          },
+          "valor_base_calculo": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "valor_deducoes": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "desconto_condicionado": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "desconto_incondicionado": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "tem_xml": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tipo_importacao": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "importada": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

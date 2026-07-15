@@ -1,0 +1,17 @@
+{
+  "$id": "1",
+  "sucesso": true,
+  "nome": "EMPRESA EXEMPLO A",
+  "email": "usuario.empresa@example.invalid",
+  "alertas": [
+    {
+      "$id": "1",
+      "id": "alerta-sint-001",
+      "tipoDoAlerta": "RISCO",
+      "tipoStatusAlerta": "ABERTO",
+      "mensagem": "Alerta sintetico do painel da empresa.",
+      "ciente": false,
+      "historicoDoAlerta": []
+    }
+  ]
+}

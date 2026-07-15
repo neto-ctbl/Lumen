@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lumen.local/schemas/sittax_task_page.schema.json",
+  "title": "SittaxObservedTaskPage",
+  "description": "Observed paginated web payload for Sittax tasks. Not an official public API schema.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "sucesso",
+    "total",
+    "totalFiltrado",
+    "lista"
+  ],
+  "properties": {
+    "$id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "sucesso": {
+      "type": "boolean"
+    },
+    "total": {
+      "type": "integer"
+    },
+    "totalFiltrado": {
+      "type": "integer"
+    },
+    "lista": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "id",
+          "guid",
+          "titulo",
+          "status",
+          "periodo"
+        ],
+        "properties": {
+          "$id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": [
+              "string",
+              "integer"
+            ]
+          },
+          "guid": {
+            "type": "string"
+          },
+          "titulo": {
+            "type": "string"
+          },
+          "descricaoString": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nomeEmpresa": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "periodo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "usuarioId": {
+            "type": [
+              "string",
+              "integer",
+              "null"
+            ]
+          },
+          "usuarioNome": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dataCriacao": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dataFimProcessamento": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tempoProcessamento": {
+            "type": [
+              "integer",
+              "number",
+              "null"
+            ]
+          },
+          "possuiArquivo": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "nomeArquivo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "extensaoArquivo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

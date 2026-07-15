@@ -908,6 +908,7 @@ SITTAX_API_BASE_URL=https://api.sittax.com.br
 SITTAX_APURACAO_BASE_URL=https://apuracao.sittax.com.br
 SITTAX_EMAIL=
 SITTAX_PASSWORD=
+SITTAX_API_TOKEN=
 SITTAX_TIMEOUT_SECONDS=20
 ````
 
@@ -982,6 +983,34 @@ Aceite:
 * Nenhuma transmissão, recálculo ou mutação externa é executada.
 * Health da integração aparece em `/api/v1/lumen/integrations/health`.
 * Fixture mode permite testar sem credenciais reais.
+
+### Micro-stage S7.0 - Contrato observado, seguranca dos artefatos e fixtures anonimizadas
+
+Status: concluido em 2026-07-15
+
+Entregues:
+- `docs/SITTAX_OBSERVED_CONTRACT.md`
+- `docs/DECISOES.md`
+- `docs/RISCOS.md`
+- `docs/SECURITY.md`
+- fixtures anonimizadas em `backend/tests/fixtures/sittax/`
+- schemas observados em `schemas/sittax_*.schema.json`
+- testes `backend/tests/test_sittax_fixture_safety.py` e `backend/tests/test_sittax_observed_schemas.py`
+- isolamento do stack E2E dedicado contra `ACESSORIAS_API_TOKEN`, `SITTAX_EMAIL`, `SITTAX_PASSWORD` e `SITTAX_API_TOKEN` vindos do `.env` local
+
+Validacao executada:
+- `git check-ignore -v .\scripts\scan\logs\sittax-network-log.jsonl`
+- `git ls-files | Select-String -Pattern "sittax-network-log|sittax-network"`
+- `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_sittax_fixture_safety.py .\backend\tests\test_sittax_observed_schemas.py -q`
+
+Pendencias:
+- o macro-stage S7 continua pendente
+- cliente HTTP real, models, migrations e sync real seguem fora de escopo
+
+Decisoes novas:
+- a regra de contexto por `empresaCnpj` e `periodo` fica registrada como confirmada
+- nenhuma chamada externa nova foi autorizada neste micro-stage
+- o log bruto do Sittax permanece fora do Git e nao gera fixture automatica
 
 ---
 

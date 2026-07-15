@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lumen.local/schemas/sittax_difal.schema.json",
+  "title": "SittaxObservedDifal",
+  "description": "Observed web payload for Sittax DIFAL. Not an official public API schema.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "sucesso",
+    "difal"
+  ],
+  "properties": {
+    "$id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "sucesso": {
+      "type": "boolean"
+    },
+    "mensagem": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "possuiMensagemDeAlerta": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "difal": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "id",
+        "possuiGuia",
+        "creditos"
+      ],
+      "properties": {
+        "$id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "possuiGuia": {
+          "type": "boolean"
+        },
+        "numeroDareGuiaRevenda": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "numeroDareGuiaUsoConsumoImobilizado": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "valorGuiaRevenda": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "valorGuiaRevendaUtilizandoCredito": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "valorGuiaUsoConsumoImobilizadoUtilizandoCredito": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "totalTodasCompras": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "totalReceitaRevendaInterestadual": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "totalReceitaUsoConsumoImobilizado": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "dataFechamento": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dataTransmissao": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "temNotasComReferenciaSemTipo": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "creditos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

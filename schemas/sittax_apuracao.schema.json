@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lumen.local/schemas/sittax_apuracao.schema.json",
+  "title": "SittaxObservedApuracao",
+  "description": "Observed web payload for Sittax apuracao. Not an official public API schema.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "ok",
+    "status",
+    "erros",
+    "data"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "status": {
+      "type": "integer"
+    },
+    "erros": {
+      "type": "array",
+      "items": {
+        "type": [
+          "object",
+          "string"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "id",
+        "periodoFiscal",
+        "valorDas",
+        "rba",
+        "rbt12"
+      ],
+      "properties": {
+        "id": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "empresaCnpj": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "empresaNome": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "escritorioNome": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "periodoFiscal": {
+          "type": "string"
+        },
+        "valorDas": {
+          "type": "number"
+        },
+        "valorDasXml": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "numeroDas": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "numeroDeclaracao": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "numeroExtrato": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rba": {
+          "type": "number"
+        },
+        "rbt12": {
+          "type": "number"
+        },
+        "receitaLiquida": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "receitaProdutos": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "receitaServicos": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "folhaDePagamentos": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "percentualFatorR": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "tipoDaTransmissao": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dataHoraTransmissao": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mensagens": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "inconsistencias": {
+          "type": "array",
+          "items": {
+            "type": [
+              "object",
+              "string"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "resumosTributacaoSittax": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "resumosTributacaoXml": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

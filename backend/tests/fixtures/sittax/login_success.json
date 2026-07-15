@@ -1,0 +1,29 @@
+{
+  "codigo": 0,
+  "primeiroAcesso": false,
+  "token": "jwt-sintetico.s7_0.apenas_fixture",
+  "usuario": {
+    "id": "usr-sittax-001",
+    "nome": "USUARIO EXEMPLO",
+    "sobrenome": "S7",
+    "email": "usuario.sittax@example.invalid",
+    "phoneNumber": "+55-62-0000-0000",
+    "ativo": true,
+    "emailConfirmed": true,
+    "emailVerificado": true,
+    "whatsappVerificado": false,
+    "nivel": "ADMIN",
+    "role": "ADMIN",
+    "revendaId": "rev-sint-001",
+    "eUsuarioEmpresa": false,
+    "eUsuarioGrupoEmpresas": false,
+    "ehImplantacao": false,
+    "temQueVotarNps": false,
+    "termoPendente": false,
+    "escritorio": {
+      "id": "esc-sint-001",
+      "nome": "ESCRITORIO EXEMPLO"
+    },
+    "claimsAtivasInativas": []
+  }
+}

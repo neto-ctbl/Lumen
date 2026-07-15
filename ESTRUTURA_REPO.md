@@ -827,3 +827,38 @@ Observacoes operacionais do fechamento:
 - o E2E da tela `Integracoes` passou na suite local, mas a execucao manual pode parecer parada enquanto `run_e2e_stack.ps1` sobe backend dedicado, seed e frontend em portas isoladas
 - o `dry_run` amplo de entregas pode ficar longo ou bloquear em handshake TLS externo; para operacao local, o teste recomendado e `--company-id` ou `--skip-deliveries`
 - a organizacao autenticada no endpoint HTTP influencia o match com `external_companies`; no ambiente local, `lumen` e `neto-contabilidade` possuem contextos distintos
+
+## Atualizacao S7.0 em 2026-07-15
+
+No estado real atual, foi materializado apenas o micro-stage documental e de seguranca do Sittax com:
+
+- `docs/SITTAX_OBSERVED_CONTRACT.md`
+- `docs/DECISOES.md`
+- `docs/RISCOS.md`
+- `docs/SECURITY.md`
+- `backend/tests/fixtures/sittax/`
+- `schemas/sittax_company.schema.json`
+- `schemas/sittax_apuracao.schema.json`
+- `schemas/sittax_difal.schema.json`
+- `schemas/sittax_fiscal_document_page.schema.json`
+- `schemas/sittax_task_page.schema.json`
+- `schemas/sittax_company_panel.schema.json`
+- `backend/tests/test_sittax_fixture_safety.py`
+- `backend/tests/test_sittax_observed_schemas.py`
+
+Decisoes materializadas no S7.0:
+
+- o Sittax continua sem cliente HTTP real, sem login real e sem sync real
+- a apuracao observada e registrada como setter confirmado do contexto de sessao
+- DIFAL, painel da empresa e notas fiscais ficam classificados como endpoints contextuais
+- `POST /api/v2/painel-contador/transmissao` fica adiado como endpoint ambiguo
+- o log bruto `sittax-network-log*.jsonl` passa a ter protecao especifica no `.gitignore`
+- o stack E2E dedicado limpa variaveis de integracao para nao depender do `.env` local
+
+Ainda permanecem fora de escopo neste ponto:
+
+- models Sittax
+- migration Sittax
+- endpoint manual de sync
+- health funcional do Sittax
+- qualquer chamada externa nova

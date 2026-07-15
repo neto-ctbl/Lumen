@@ -14,6 +14,10 @@ $env:INITIAL_ADMIN_FULL_NAME = "E2E Admin"
 $env:INITIAL_ORG_NAME = "Lumen"
 $env:INITIAL_ORG_SLUG = "lumen"
 $env:VITE_API_BASE_URL = "http://127.0.0.1:$backendPort"
+$env:ACESSORIAS_API_TOKEN = ""
+$env:SITTAX_EMAIL = ""
+$env:SITTAX_PASSWORD = ""
+$env:SITTAX_API_TOKEN = ""
 
 $stalePids = Get-NetTCPConnection -LocalPort $backendPort, $frontendPort -State Listen -ErrorAction SilentlyContinue |
     Select-Object -ExpandProperty OwningProcess -Unique
@@ -25,6 +29,7 @@ Set-Location $repoRoot
 & $backendPython -m backend.scripts.create_initial_admin
 & $backendPython -m backend.scripts.seed_periods --year (Get-Date).Year --org-slug $env:INITIAL_ORG_SLUG
 
+$env:LUMEN_DISABLE_DOTENV = "1"
 $backendProcess = Start-Process `
     -FilePath $backendPython `
     -ArgumentList "-m", "uvicorn", "backend.app.main:app", "--host", "127.0.0.1", "--port", "$backendPort" `
@@ -52,6 +57,7 @@ try {
     Set-Location $frontendPath
     npm run dev -- --host 127.0.0.1 --port $frontendPort
 } finally {
+    Remove-Item Env:LUMEN_DISABLE_DOTENV -ErrorAction SilentlyContinue
     if ($backendProcess -and -not $backendProcess.HasExited) {
         Stop-Process -Id $backendProcess.Id -Force
     }

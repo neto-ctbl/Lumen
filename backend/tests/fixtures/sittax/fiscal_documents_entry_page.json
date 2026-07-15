@@ -1,0 +1,47 @@
+{
+  "$id": "1",
+  "sucesso": true,
+  "total": 3,
+  "totalFiltrado": 3,
+  "lista": [
+    {
+      "$id": "1",
+      "id": "nf-ent-001",
+      "chave_acesso": "NFE-SINT-ENTRADA-00000000000000000000000000000000000000000001",
+      "numero": 101,
+      "modelo": "55",
+      "data_emissao": "2026-06-05T08:00:00Z",
+      "data_entrada": "2026-06-06T08:00:00Z",
+      "data_competencia": "06/2026",
+      "emitente_nome": "FORNECEDOR EXEMPLO A",
+      "emitente_uf": "SP",
+      "cfops": [
+        "2102",
+        "2403"
+      ],
+      "valor_total": 1520.25,
+      "tem_xml": true,
+      "status": "IMPORTADA",
+      "tipo_importacao": "XML",
+      "importada": true
+    },
+    {
+      "$id": "2",
+      "id": "nf-ent-002",
+      "chave_acesso": "NFE-SINT-ENTRADA-00000000000000000000000000000000000000000002",
+      "numero": 102,
+      "modelo": "55",
+      "data_emissao": "2026-06-18T11:30:00Z",
+      "data_entrada": "2026-06-19T11:30:00Z",
+      "data_competencia": "06/2026",
+      "emitente_nome": "FORNECEDOR EXEMPLO B",
+      "emitente_uf": "GO",
+      "cfops": [],
+      "valor_total": 845.99,
+      "tem_xml": false,
+      "status": "PENDENTE_CLASSIFICACAO",
+      "tipo_importacao": "MANUAL",
+      "importada": false
+    }
+  ]
+}

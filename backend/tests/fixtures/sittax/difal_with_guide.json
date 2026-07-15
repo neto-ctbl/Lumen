@@ -1,0 +1,32 @@
+{
+  "$id": "1",
+  "sucesso": true,
+  "mensagem": null,
+  "possuiMensagemDeAlerta": false,
+  "difal": {
+    "$id": "1",
+    "id": "difal-sint-001",
+    "possuiGuia": true,
+    "numeroDareGuiaRevenda": "DARE-SINT-REV-001",
+    "numeroDareGuiaUsoConsumoImobilizado": "DARE-SINT-UCI-001",
+    "valorGuiaRevenda": 410.55,
+    "valorGuiaRevendaUtilizandoCredito": 398.1,
+    "valorGuiaUsoConsumoImobilizadoUtilizandoCredito": 55.2,
+    "totalTodasCompras": 18890.43,
+    "totalReceitaRevendaInterestadual": 5120.77,
+    "totalReceitaUsoConsumoImobilizado": 980.11,
+    "totalRevendaInterna": 2210.0,
+    "totalRevendaOutras": 744.0,
+    "totalUsoConsumoInterno": 331.5,
+    "dataFechamento": "2026-06-30T17:00:00Z",
+    "dataTransmissao": "2026-07-01T09:30:00Z",
+    "temNotasComReferenciaSemTipo": false,
+    "creditos": [
+      {
+        "$id": "1",
+        "tipo": "CREDITO_DIFAL",
+        "valor": 12.45
+      }
+    ]
+  }
+}

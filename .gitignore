@@ -44,6 +44,9 @@ agent/sessions/
 agent/.sessions/
 agent/cache/sessions/
 backend/storage/sessions/
+sittax-network-log*.jsonl
+*.sittax-network.jsonl
+data/private/
 
 # ---------------------------------------------------------------------------
 # Python / FastAPI
@@ -121,6 +124,10 @@ redis-data/
 # Logs, dumps e artefatos temporários
 # ---------------------------------------------------------------------------
 logs/
+!scripts/
+!scripts/scan/
+!scripts/scan/logs/
+scripts/scan/logs/sittax-network-log*.jsonl
 *.log
 *.log.*
 tmp/

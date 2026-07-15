@@ -2,7 +2,7 @@
 
 Data de referencia: 2026-07-14
 
-O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage S6.0 e o Stage S6. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5 e do frontend fiscal read-only do S5.1, o projeto passou a ter integracao oficial read-only com o Sistema Acessorias para empresas, regime tributario, obrigacoes e entregas, usando exclusivamente a API publica documentada e sem DevTools, HAR ou engenharia reversa.
+O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage S6.0, o Stage S6 e o micro-stage S7.0. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5, do frontend fiscal read-only do S5.1 e da integracao oficial read-only com o Sistema Acessorias no S6, o projeto passou a ter contrato observado do Sittax, fixtures anonimizadas, schemas observados e isolamento do stack E2E em relacao ao `.env` local, sem cliente HTTP real nem chamadas externas novas.
 
 ## Escopo real atual
 
@@ -218,6 +218,18 @@ ACESSORIAS_API_BASE_URL=https://api.acessorias.com
 ACESSORIAS_API_TOKEN=
 ACESSORIAS_TIMEOUT_SECONDS=15
 ACESSORIAS_REQUESTS_PER_MINUTE=100
+```
+
+Variaveis preparatorias do S7:
+
+```powershell
+SITTAX_AUTH_BASE_URL=https://autenticacao.sittax.com.br
+SITTAX_API_BASE_URL=https://api.sittax.com.br
+SITTAX_APURACAO_BASE_URL=https://apuracao.sittax.com.br
+SITTAX_EMAIL=
+SITTAX_PASSWORD=
+SITTAX_API_TOKEN=
+SITTAX_TIMEOUT_SECONDS=20
 ```
 
 Observacoes do S5:
@@ -557,6 +569,16 @@ Fechamento tecnico do S6:
 - o sync inicial permanece serial, read-only e previsivel: empresas por `ListAll + registrationData`, entregas por empresa e intervalo mensal com `config`
 - o portal continua sem consultar a API externa em request do frontend; ele le apenas o read model local e os `fiscal_obligation_statuses` atualizados pelo sync
 - o S6 nao baixa anexos, nao usa endpoints `POST`, nao transmite obrigacoes e nao inicia watcher nem conciliacao do S11
+
+Fechamento tecnico do S7.0:
+
+- `docs/SITTAX_OBSERVED_CONTRACT.md` materializa o contrato observado do portal Sittax sem versionar o log bruto
+- `docs/DECISOES.md`, `docs/RISCOS.md` e `docs/SECURITY.md` passam a existir com as decisoes e restricoes do Sittax
+- `backend/tests/fixtures/sittax/` contem fixtures sinteticas e anonimizadas para login, empresas, apuracao, DIFAL, painel, tarefas e notas fiscais
+- `schemas/sittax_*.schema.json` registram envelopes observados e expansibilidade do contrato
+- o stack E2E dedicado sobrescreve `ACESSORIAS_API_TOKEN`, `SITTAX_EMAIL`, `SITTAX_PASSWORD` e `SITTAX_API_TOKEN` para nao herdar integracoes do `.env` local
+- nenhuma migration, nenhum model Sittax, nenhum cliente real, nenhum sync real e nenhuma chamada externa nova foram adicionados
+- o macro-stage S7 continua pendente; apenas o micro-stage documental e de seguranca foi fechado
 
 Fechamento final validado em 2026-07-15:
 

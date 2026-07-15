@@ -1,0 +1,26 @@
+{
+  "$id": "1",
+  "sucesso": true,
+  "total": 2,
+  "totalFiltrado": 2,
+  "lista": [
+    {
+      "$id": "1",
+      "id": "task-sint-001",
+      "guid": "guid-sint-task-001",
+      "titulo": "Transmitir DAS sintetico",
+      "descricaoString": "Tarefa observada apenas para leitura.",
+      "nomeEmpresa": "EMPRESA EXEMPLO A",
+      "periodo": "06/2026",
+      "status": "CONCLUIDA",
+      "usuarioId": "usr-sittax-001",
+      "usuarioNome": "USUARIO EXEMPLO",
+      "dataCriacao": "2026-07-01T08:10:00Z",
+      "dataFimProcessamento": "2026-07-01T08:11:30Z",
+      "tempoProcessamento": 90,
+      "possuiArquivo": true,
+      "nomeArquivo": "comprovante_sintetico.pdf",
+      "extensaoArquivo": ".pdf"
+    }
+  ]
+}

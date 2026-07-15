@@ -1,0 +1,46 @@
+{
+  "$id": "1",
+  "sucesso": true,
+  "total": 4,
+  "totalFiltrado": 4,
+  "lista": [
+    {
+      "$id": "1",
+      "id": "nf-sai-001",
+      "chave_acesso": "NFE-SINT-SAIDA-00000000000000000000000000000000000000000001",
+      "numero": 501,
+      "modelo": "55",
+      "data_emissao": "2026-06-10T14:00:00Z",
+      "data_competencia": "06/2026",
+      "destinatario_nome": "CLIENTE EXEMPLO A",
+      "destinatario_uf": "DF",
+      "emitente_cpf_cnpj": "12345678000195",
+      "valor_total": 2980.0,
+      "valor_base_calculo": 2780.0,
+      "valor_deducoes": 0.0,
+      "desconto_condicionado": 0.0,
+      "desconto_incondicionado": 25.0,
+      "tem_xml": true,
+      "status": "AUTORIZADA"
+    },
+    {
+      "$id": "2",
+      "id": "nf-sai-002",
+      "chave_acesso": "NFE-SINT-SAIDA-00000000000000000000000000000000000000000002",
+      "numero": 502,
+      "modelo": "65",
+      "data_emissao": "2026-06-27T19:15:00Z",
+      "data_competencia": "06/2026",
+      "destinatario_nome": "CLIENTE EXEMPLO B",
+      "destinatario_uf": "GO",
+      "emitente_cpf_cnpj": "12345678000195",
+      "valor_total": 411.38,
+      "valor_base_calculo": 411.38,
+      "valor_deducoes": 0.0,
+      "desconto_condicionado": 0.0,
+      "desconto_incondicionado": 0.0,
+      "tem_xml": false,
+      "status": "SEM_XML"
+    }
+  ]
+}

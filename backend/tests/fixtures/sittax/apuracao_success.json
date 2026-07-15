@@ -1,0 +1,50 @@
+{
+  "ok": true,
+  "status": 200,
+  "erros": [],
+  "data": {
+    "id": "apur-sint-2026-06-001",
+    "empresaCnpj": "12345678000195",
+    "empresaNome": "EMPRESA EXEMPLO A LTDA",
+    "escritorioNome": "ESCRITORIO EXEMPLO",
+    "periodoFiscal": "06/2026",
+    "valorDas": 1834.77,
+    "valorDasXml": 1834.77,
+    "numeroDas": "DAS-SINT-202606-001",
+    "numeroDeclaracao": "DECL-SINT-202606-001",
+    "numeroExtrato": "EXT-SINT-202606-001",
+    "rba": 352400.12,
+    "rbaAnoAnterior": 301200.88,
+    "rbt12": 486122.43,
+    "receitaLiquida": 40221.76,
+    "receitaProdutos": 15780.13,
+    "receitaServicos": 24441.63,
+    "folhaDePagamentos": true,
+    "percentualFatorR": 31.42,
+    "percentualImpostoSobreReceita": 6.15,
+    "tipoDaTransmissao": "NAO_TRANSMITIDA",
+    "dataHoraTransmissao": null,
+    "mensagens": [
+      {
+        "$id": "1",
+        "tipo": "ALERTA",
+        "texto": "Mensagem sintetica de conferencia."
+      }
+    ],
+    "inconsistencias": [],
+    "resumosTributacaoSittax": [
+      {
+        "$id": "1",
+        "anexo": "ANEXO_III",
+        "aliquotaEfetiva": 6.15,
+        "receita": 24441.63
+      }
+    ],
+    "resumosTributacaoXml": [],
+    "relatorioDeConferenciaSittax": {
+      "$id": "1",
+      "possuiRisco": true,
+      "itens": 2
+    }
+  }
+}

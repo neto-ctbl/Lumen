@@ -1,0 +1,40 @@
+{
+  "$id": "1",
+  "sucesso": true,
+  "empresas": [
+    {
+      "$id": "1",
+      "id": "emp-sittax-001",
+      "cnpj": "12345678000195",
+      "nome": "EMPRESA EXEMPLO A LTDA",
+      "fantasia": "EMPRESA EXEMPLO A",
+      "uf": "GO",
+      "inscricaoEstadual": "IE-SINT-0001",
+      "homologada": true,
+      "regimeDeCaixa": false,
+      "usaRegimeDeCaixa": false,
+      "escritorioTO": {
+        "$id": "1",
+        "id": "esc-sint-001",
+        "nome": "ESCRITORIO EXEMPLO"
+      }
+    },
+    {
+      "$id": "2",
+      "id": "emp-sittax-002",
+      "cnpj": "98765432000110",
+      "nome": "EMPRESA EXEMPLO B LTDA",
+      "fantasia": "EMPRESA EXEMPLO B",
+      "uf": "GO",
+      "inscricaoEstadual": null,
+      "homologada": false,
+      "regimeDeCaixa": true,
+      "usaRegimeDeCaixa": true,
+      "escritorioTO": {
+        "$id": "2",
+        "id": "esc-sint-001",
+        "nome": "ESCRITORIO EXEMPLO"
+      }
+    }
+  ]
+}

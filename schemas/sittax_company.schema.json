@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lumen.local/schemas/sittax_company.schema.json",
+  "title": "SittaxObservedCompanyList",
+  "description": "Observed web payload for Sittax companies. Not an official public API schema.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "sucesso",
+    "empresas"
+  ],
+  "properties": {
+    "$id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "sucesso": {
+      "type": "boolean"
+    },
+    "empresas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "id",
+          "cnpj",
+          "nome"
+        ],
+        "properties": {
+          "$id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": [
+              "string",
+              "integer"
+            ]
+          },
+          "cnpj": {
+            "type": "string"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "fantasia": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uf": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "inscricaoEstadual": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "homologada": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "regimeDeCaixa": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "usaRegimeDeCaixa": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "escritorioTO": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

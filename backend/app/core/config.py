@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+import os
 from pathlib import Path
 
 from pydantic import AliasChoices, Field, field_validator
@@ -51,6 +52,16 @@ class Settings(BaseSettings):
     acessorias_api_token: str | None = Field(default=None, alias="ACESSORIAS_API_TOKEN")
     acessorias_timeout_seconds: int = Field(default=15, alias="ACESSORIAS_TIMEOUT_SECONDS")
     acessorias_requests_per_minute: int = Field(default=100, alias="ACESSORIAS_REQUESTS_PER_MINUTE")
+    sittax_auth_base_url: str = Field(default="https://autenticacao.sittax.com.br", alias="SITTAX_AUTH_BASE_URL")
+    sittax_api_base_url: str = Field(default="https://api.sittax.com.br", alias="SITTAX_API_BASE_URL")
+    sittax_apuracao_base_url: str = Field(
+        default="https://apuracao.sittax.com.br",
+        alias="SITTAX_APURACAO_BASE_URL",
+    )
+    sittax_email: str | None = Field(default=None, alias="SITTAX_EMAIL")
+    sittax_password: str | None = Field(default=None, alias="SITTAX_PASSWORD")
+    sittax_api_token: str | None = Field(default=None, alias="SITTAX_API_TOKEN")
+    sittax_timeout_seconds: int = Field(default=20, alias="SITTAX_TIMEOUT_SECONDS")
 
     @field_validator("database_url", "test_database_url")
     @classmethod
@@ -66,7 +77,7 @@ class Settings(BaseSettings):
             raise ValueError("Token expiration values must be positive integers.")
         return value
 
-    @field_validator("econtrole_timeout_seconds", "acessorias_timeout_seconds")
+    @field_validator("econtrole_timeout_seconds", "acessorias_timeout_seconds", "sittax_timeout_seconds")
     @classmethod
     def validate_positive_timeout(cls, value: int) -> int:
         if value <= 0:
@@ -83,4 +94,6 @@ class Settings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
+    if os.getenv("LUMEN_DISABLE_DOTENV") == "1":
+        return Settings(_env_file=None)
     return Settings()
