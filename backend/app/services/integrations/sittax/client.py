@@ -20,7 +20,7 @@ from .errors import (
     SittaxSessionError,
     SittaxTransportError,
 )
-from .mapper import map_companies_response, map_login_response
+from .mapper import map_company_item, map_login_response
 from .session import SittaxSession
 
 
@@ -81,7 +81,7 @@ class SittaxClient:
         )
         logger.info("sittax login succeeded")
 
-    def list_companies(self) -> list[SittaxCompanyItem]:
+    def list_companies_payloads(self) -> list[dict[str, Any]]:
         self.session.assert_exclusive()
         if not self.session.is_authenticated or not self.session.office_id:
             raise SittaxSessionError("Sittax session is not authenticated.")
@@ -91,9 +91,21 @@ class SittaxClient:
             f"{self.session.api_base_url}/api/empresa/listar-todas-escritorio-empresas-selecao",
             params={"idEscritorio": self.session.office_id},
         )
-        companies = map_companies_response(payload)
-        logger.info("sittax companies request succeeded", count=len(companies))
-        return companies
+        companies = payload.get("empresas")
+        if payload.get("sucesso") is not True:
+            raise SittaxResponseError("Sittax companies response returned sucesso=false.")
+        if not isinstance(companies, list):
+            raise SittaxResponseError("Sittax companies response is missing empresas list.")
+        normalized: list[dict[str, Any]] = []
+        for entry in companies:
+            if not isinstance(entry, dict):
+                raise SittaxResponseError("Sittax companies payload contains a non-object company entry.")
+            normalized.append(entry)
+        logger.info("sittax companies request succeeded", count=len(normalized))
+        return normalized
+
+    def list_companies(self) -> list[SittaxCompanyItem]:
+        return [map_company_item(payload) for payload in self.list_companies_payloads()]
 
     def _request_json(
         self,
@@ -201,8 +213,16 @@ class FixtureSittaxClient(SittaxClient):
         del settings
         self.authenticate(username="fixture", password="fixture")
 
-    def list_companies(self) -> list[SittaxCompanyItem]:
+    def list_companies_payloads(self) -> list[dict[str, Any]]:
         self.session.assert_exclusive()
         if not self.session.is_authenticated:
             raise SittaxSessionError("Sittax session is not authenticated.")
-        return map_companies_response(self._companies_payload)
+        companies = self._companies_payload.get("empresas")
+        if self._companies_payload.get("sucesso") is not True:
+            raise SittaxResponseError("Sittax companies response returned sucesso=false.")
+        if not isinstance(companies, list):
+            raise SittaxResponseError("Sittax companies response is missing empresas list.")
+        return [item for item in companies if isinstance(item, dict)]
+
+    def list_companies(self) -> list[SittaxCompanyItem]:
+        return [map_company_item(payload) for payload in self.list_companies_payloads()]

@@ -6,6 +6,7 @@ Data de referencia: 2026-07-15
 
 - Os endpoints observados do portal podem mudar sem aviso.
 - Payloads e envelopes podem mudar sem versionamento formal.
+- Empresas com CNPJ invalido ou payload parcial devem degradar para `INVALID_CNPJ` sem derrubar a execucao inteira.
 - Mistura de contexto entre empresas pode levar DIFAL, notas ou painel a apontarem para a empresa errada.
 - Mistura de competencia pode produzir leitura incorreta do contexto.
 - Uma sessao pode ser alterada por nova apuracao no meio do processamento.
@@ -19,3 +20,4 @@ Data de referencia: 2026-07-15
 - Endpoints com nome/metodo ambiguo, como `POST /api/v2/painel-contador/transmissao`, nao podem ser tratados como seguros sem revalidacao.
 - Reutilizar a mesma sessao sem exclusao mutua local pode misturar autenticacao e contexto futuro entre threads.
 - Assumir qualquer escritorio fora do payload de login pode listar empresas erradas.
+- Ausencia de uma empresa na listagem Sittax nao pode ser tratada como delete local automatico.

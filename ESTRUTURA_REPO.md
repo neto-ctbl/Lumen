@@ -897,3 +897,38 @@ Ainda permanecem fora de escopo neste ponto:
 - DIFAL, documentos fiscais, painel e tarefas
 - snapshots, sync, endpoint manual e health funcional
 - models e migration Sittax
+
+## Atualizacao S7.2 em 2026-07-16
+
+No estado real atual, foi materializado o snapshot cadastral read-only do Sittax com:
+
+- `backend/app/models/sittax_company_snapshot.py`
+- `backend/alembic/versions/20260716_0005_create_sittax_company_snapshots.py`
+- `backend/app/services/integrations/sittax/sync.py`
+- `backend/scripts/sync_sittax_companies.py`
+- `backend/tests/test_sittax_company_snapshot.py`
+- `backend/tests/test_sittax_company_sync.py`
+- `backend/tests/test_sync_sittax_companies_script.py`
+
+Decisoes materializadas no S7.2:
+
+- o snapshot Sittax usa identidade da fonte por `organization_id + sittax_company_id`
+- a reconciliacao local usa `organization_id + cnpj` contra `external_companies`
+- `company_id` do snapshot referencia `external_companies.id` quando houver match univoco
+- `state_registration` continua nullable; `ISENTO` permanece apenas para representacao futura de frontend
+- `raw_payload` fica somente em `sittax_company_snapshots`
+- `integration_sync_runs` guardam apenas contadores, erros sanitizados e metadata segura
+- `dry_run` autentica, lista e reconcilia sem persistir snapshots ou runs
+- fixture mode reutiliza o mesmo mapper e o mesmo servico, sem rede
+- nenhuma ausencia no Sittax gera soft delete local neste micro-stage
+- a validacao real final do S7.2 foi concluida em `2026-07-16` com `157` snapshots reais persistidos para `neto-contabilidade`
+- a segunda execucao serial do sync confirmou idempotencia real com `snapshots_created = 0`
+- a distribuicao real confirmada no banco ficou `MATCHED = 155` e `UNMATCHED = 2`
+
+Ainda permanecem fora de escopo neste ponto:
+
+- apuracao e definicao real de contexto
+- DIFAL, documentos fiscais, painel e tarefas
+- endpoint de frontend ou botao operacional
+- health funcional do Sittax por request
+- qualquer mutacao externa

@@ -1046,6 +1046,50 @@ Decisoes novas:
 - a validacao real confirmou `157` empresas retornadas no tenant autorizado
 - o login real do portal foi homologado com sucesso por `codigo = 200`; o mapper passou a aceitar `0` e `200` como sucesso observado
 
+### Micro-stage S7.2 - Snapshot de empresas e reconciliacao cadastral
+
+Status: concluido em 2026-07-16
+
+Objetivo:
+- persistir localmente o snapshot read-only da listagem de empresas Sittax
+- reconciliar cada empresa por `organization_id + cnpj`
+
+Entregues:
+- `backend/app/models/sittax_company_snapshot.py`
+- migration `20260716_0005_create_sittax_company_snapshots.py`
+- `backend/app/services/integrations/sittax/sync.py`
+- `backend/scripts/sync_sittax_companies.py`
+- `backend/tests/test_sittax_company_snapshot.py`
+- `backend/tests/test_sittax_company_sync.py`
+- `backend/tests/test_sync_sittax_companies_script.py`
+
+Validacao executada:
+- `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head`
+- `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_sittax_company_snapshot.py .\backend\tests\test_sittax_company_sync.py .\backend\tests\test_sync_sittax_companies_script.py -q`
+- `.\.venv\Scripts\python.exe -m pytest .\backend\tests -q`
+- `.\.venv\Scripts\python.exe -m ruff check .\backend`
+- `cd .\frontend && npm run typecheck && npm run test:e2e`
+- `.\.venv\Scripts\python.exe -m backend.scripts.check_sittax_connection --fixture`
+- `.\.venv\Scripts\python.exe -m backend.scripts.check_sittax_connection`
+- `.\.venv\Scripts\python.exe -m backend.scripts.sync_sittax_companies --org-slug neto-contabilidade --dry-run`
+- `.\.venv\Scripts\python.exe -m backend.scripts.sync_sittax_companies --org-slug neto-contabilidade`
+- `.\.venv\Scripts\python.exe -m backend.scripts.sync_sittax_companies --org-slug neto-contabilidade`
+- `docker compose -f .\infra\docker-compose.yml exec postgres psql -U lumen -d lumen -c "select count(*) from sittax_company_snapshots;"`
+- `docker compose -f .\infra\docker-compose.yml exec postgres psql -U lumen -d lumen -c "select match_status, count(*) from sittax_company_snapshots group by match_status order by match_status;"`
+- `docker compose -f .\infra\docker-compose.yml exec postgres psql -U lumen -d lumen -c "select organization_id, sittax_company_id, count(*) from sittax_company_snapshots group by organization_id, sittax_company_id having count(*) > 1;"`
+- `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini downgrade -1`
+- `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini current`
+- `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head`
+
+Decisoes novas:
+- o snapshot e multi-tenant e idempotente por `organization_id + sittax_company_id`
+- a reconciliacao local usa `organization_id + cnpj` e trata `MATCHED`, `UNMATCHED`, `AMBIGUOUS` e `INVALID_CNPJ`
+- `state_registration` continua nullable
+- `raw_payload` fica apenas no snapshot; `integration_sync_runs` recebem apenas resumo seguro
+- `dry_run` nao escreve banco e fixture mode nao acessa rede
+- o sync Sittax continua limitado a login e listagem de empresas, sem apuracao, sem contexto ativo e sem mutacao externa
+- a validacao real final do S7.2 confirmou `157` snapshots, `155` `MATCHED`, `2` `UNMATCHED` e segunda execucao real com `snapshots_created = 0`
+
 ---
 
 ## S8 - Econet: CNAE, atividade, Fator R e cache assistido

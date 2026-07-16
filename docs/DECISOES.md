@@ -35,3 +35,16 @@ Data de referencia: 2026-07-15
 - O script `check_sittax_connection` valida apenas login e listagem de empresas, sem persistencia e sem PII.
 - A homologacao real do S7.1 confirmou o fluxo `login -> escritorio -> empresas` em 2026-07-16.
 - O login real do portal Sittax foi aceito com `codigo = 200`; o cliente deve considerar `0` e `200` como sucessos observados de autenticacao.
+
+## S7.2 - Snapshot de empresas Sittax
+
+- O S7.2 persiste apenas snapshot local read-only da listagem de empresas Sittax.
+- A identidade da fonte no snapshot e `organization_id + sittax_company_id`.
+- A reconciliacao local usa `organization_id + cnpj` contra `external_companies`.
+- O snapshot usa `company_id` nullable para referenciar `external_companies.id` somente quando houver match univoco.
+- `MATCHED`, `UNMATCHED`, `AMBIGUOUS` e `INVALID_CNPJ` devem ser tratados explicitamente.
+- `state_registration` continua nullable no banco; `ISENTO` segue apenas como representacao de interface futura.
+- Ausencia na listagem Sittax nao implica exclusao nem inativacao automatica de empresa local.
+- `dry_run` autentica e reconcilia em memoria sem persistir snapshots, runs ou auditoria.
+- `integration_sync_runs` do S7.2 guardam apenas contadores, erros sanitizados e metadata segura.
+- O sync Sittax permanece restrito a `POST /api/auth/login` e `GET /api/empresa/listar-todas-escritorio-empresas-selecao`.

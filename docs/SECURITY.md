@@ -8,6 +8,7 @@ Data de referencia: 2026-07-15
 - Senha do Sittax nunca deve ser persistida em banco, snapshot, fixture ou log.
 - JWT do Sittax deve existir somente em memoria durante a execucao futura; ele nao deve ser persistido em snapshots.
 - No S7.1, o JWT do Sittax existe somente na instancia de `SittaxSession` e so durante a execucao do processo.
+- No S7.2, `raw_payload` da empresa Sittax fica somente em `sittax_company_snapshots`; `integration_sync_runs` nao devem armazenar payload bruto, lista de empresas ou CNPJs completos.
 - Headers completos nao devem ser logados.
 - Qualquer log de erro com dados externos deve usar `mask_value()` e `redact_mapping()`.
 - Logs de rede brutos do navegador, como `sittax-network-log.jsonl`, sao proibidos no Git.
@@ -20,6 +21,7 @@ Data de referencia: 2026-07-15
 - Testes do Sittax devem rodar em fixture mode.
 - E2E nao devem depender de credenciais reais nem de chamada externa nova.
 - O script de conectividade do Sittax so pode exibir contagem de empresas e identificador mascarado do escritorio.
+- O script `sync_sittax_companies` deve emitir apenas JSON seguro com contadores e erros sanitizados.
 
 ## Escopo permitido
 
@@ -27,4 +29,4 @@ Data de referencia: 2026-07-15
 - Proibido chamar transmissao, recalculo, fechamento, upload, inclusao, exclusao ou edicao.
 - `recalcular=true` e proibido.
 - O health futuro do Sittax deve refletir apenas estado local, sem login ou consulta externa por request.
-- O S7.1 nao cria sync, snapshot, migration, endpoint manual nem integracao operacional no health.
+- O S7.2 cria snapshot e script operacional, mas continua sem apuracao, sem contexto ativo, sem endpoint de frontend e sem integracao operacional no health.

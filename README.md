@@ -2,7 +2,7 @@
 
 Data de referencia: 2026-07-14
 
-O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage S6.0, o Stage S6, o micro-stage S7.0 e o micro-stage S7.1. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5, do frontend fiscal read-only do S5.1 e da integracao oficial read-only com o Sistema Acessorias no S6, o projeto passou a ter fundacao tecnica do cliente Sittax com login read-only, sessao exclusiva local, listagem de empresas, fixture mode e script seguro de conectividade, sem apuracao, sem sync e sem persistencia.
+O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage S6.0, o Stage S6, o micro-stage S7.0, o micro-stage S7.1 e o micro-stage S7.2. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5, do frontend fiscal read-only do S5.1, da integracao oficial read-only com o Sistema Acessorias no S6 e da fundacao tecnica do cliente Sittax no S7.1, o projeto passou a persistir snapshot local read-only das empresas Sittax com reconciliacao por organizacao + CNPJ, idempotencia por organizacao + ID Sittax, dry-run e fixture mode, sem apuracao, sem contexto ativo e sem mutacao externa.
 
 ## Escopo real atual
 
@@ -238,6 +238,16 @@ Observacoes do S7.1:
 - o JWT do Sittax fica somente em memoria dentro de `SittaxSession`
 - o S7.1 implementa apenas login e listagem de empresas
 - apuracao, DIFAL, documentos, tarefas, snapshots, sync e health funcional continuam fora de escopo
+
+Observacoes do S7.2:
+
+- o S7.2 cria apenas `sittax_company_snapshots`
+- o sync Sittax continua estritamente read-only e chama somente login e listagem de empresas
+- a reconciliacao local usa `organization_id + cnpj` contra `external_companies`
+- `state_registration` permanece nullable; `ISENTO` segue sendo apenas representacao futura de frontend
+- `raw_payload` fica somente no snapshot da empresa; `integration_sync_runs` recebe apenas contadores, erros sanitizados e metadata segura
+- `--dry-run` autentica e reconcilia em memoria sem escrever snapshots nem `integration_sync_runs`
+- fixture mode reutiliza o mesmo mapper e o mesmo servico sem acessar rede
 
 Observacoes do S5:
 
@@ -600,6 +610,21 @@ Fechamento tecnico do S7.1:
 - validacao real controlada do Sittax executada em `2026-07-16`: login real aprovado, escritorio resolvido e `157` empresas retornadas em modo read-only
 - a homologacao real confirmou os endpoints do S7.1 sem chamar apuracao, DIFAL, documentos, tarefas ou qualquer mutacao externa
 - o login real do portal retornou sucesso com `codigo = 200`, e o mapper do cliente foi ajustado para aceitar `0` e `200` como codigos de sucesso observados
+
+Fechamento tecnico do S7.2:
+
+- `backend/app/models/sittax_company_snapshot.py` materializa o snapshot multi-tenant de empresas Sittax
+- a migration `20260716_0005_create_sittax_company_snapshots.py` cria apenas `sittax_company_snapshots`
+- `backend/app/services/integrations/sittax/sync.py` implementa autenticacao, listagem, reconciliacao por CNPJ, upsert idempotente, dry-run, fixture mode e rastreio por `integration_sync_runs`
+- `backend/scripts/sync_sittax_companies.py` executa o sync operacional seguro por `--org-slug`, `--dry-run` e `--companies-fixture`
+- `MATCHED`, `UNMATCHED`, `AMBIGUOUS` e `INVALID_CNPJ` passam a ser tratados explicitamente no snapshot
+- ausencia na listagem Sittax nao gera soft delete nem inativacao automatica de `external_companies`
+- o sync continua serial por sessao, sem apuracao, sem contexto ativo, sem DIFAL, sem documentos, sem tarefas e sem qualquer mutacao externa
+- o card Sittax do frontend e o fluxo E2E continuam sem sync operacional exposto
+- validacao automatizada concluida em `2026-07-16` com `15 passed` na suite nova, `154 passed` na regressao backend, `ruff` limpo, `typecheck` ok e `4 passed` no E2E
+- validacao real controlada concluida em `2026-07-16` com `157` empresas recebidas, `157` validas, `155` reconciliadas como `MATCHED` e `2` como `UNMATCHED`
+- a primeira execucao real persistiu `157` snapshots; a segunda execucao serial confirmou idempotencia com `snapshots_created = 0` e `snapshots_unchanged = 157`
+- a consulta SQL final confirmou `157` linhas em `sittax_company_snapshots`, distribuicao `MATCHED = 155` e `UNMATCHED = 2`, e zero duplicidades por `organization_id + sittax_company_id`
 
 Fechamento final validado em 2026-07-15:
 

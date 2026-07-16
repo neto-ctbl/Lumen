@@ -1,4 +1,4 @@
-# Sittax Observed Contract for Lumen S7.1
+# Sittax Observed Contract for Lumen S7.2
 
 Data de referencia: 2026-07-15
 
@@ -15,9 +15,11 @@ Data de referencia: 2026-07-15
 ## Estado atual de implementacao
 
 - S7.0 concluiu apenas documentacao, fixtures anonimizadas e schemas observados.
-- S7.1 implementa somente autenticacao read-only, sessao exclusiva local e listagem de empresas.
-- S7.1 nao implementa apuracao, DIFAL, documentos fiscais, painel da empresa, tarefas, sync, snapshots, endpoint manual ou health funcional.
+- S7.1 implementou autenticacao read-only, sessao exclusiva local e listagem de empresas.
+- S7.2 implementa snapshot local read-only apenas para a listagem de empresas, com reconciliacao por `organization_id + cnpj`.
+- S7.2 nao implementa apuracao, DIFAL, documentos fiscais, painel da empresa, tarefas, contexto ativo, endpoint de frontend ou health funcional.
 - Validacao real controlada executada em 2026-07-16 confirmou login, resolucao de escritorio e listagem de `157` empresas em tenant autorizado.
+- Validacao real final do S7.2 executada em 2026-07-16 confirmou `157` snapshots persistidos, distribuicao `MATCHED = 155` e `UNMATCHED = 2`, e segunda execucao serial idempotente sem criacao adicional.
 
 ## Classificacoes usadas
 
@@ -75,7 +77,7 @@ Consequencias obrigatorias para a arquitetura do conector:
 - Dependencia de contexto: nao
 - Riscos: depende do escritorio selecionado; IDs internos nao devem ser tratados como estaveis
 - Uso previsto no Lumen: conciliacao com `external_companies` e cache de empresa Sittax
-- Implementacao atual do S7.1: listagem read-only por `idEscritorio` resolvido no login, com mapper sem persistencia
+- Implementacao atual do S7.2: listagem read-only por `idEscritorio` resolvido no login, com persistencia local apenas em `sittax_company_snapshots`
 
 ### Apuracao
 
