@@ -33,3 +33,5 @@ Data de referencia: 2026-07-15
 - O escritorio ativo deve ser resolvido deterministicamente a partir do payload observado de login.
 - O fixture mode do Sittax reutiliza os mesmos mappers do cliente real e nao acessa rede.
 - O script `check_sittax_connection` valida apenas login e listagem de empresas, sem persistencia e sem PII.
+- A homologacao real do S7.1 confirmou o fluxo `login -> escritorio -> empresas` em 2026-07-16.
+- O login real do portal Sittax foi aceito com `codigo = 200`; o cliente deve considerar `0` e `200` como sucessos observados de autenticacao.

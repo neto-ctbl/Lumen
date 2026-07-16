@@ -8,6 +8,9 @@ from backend.app.services.integrations.econtrole.mapper import normalize_cnpj
 from .errors import SittaxBusinessError, SittaxResponseError
 
 
+SUCCESS_LOGIN_CODES = {0, 200, "0", "200"}
+
+
 def _normalize_text(value: Any) -> str | None:
     if value is None:
         return None
@@ -41,7 +44,7 @@ def map_login_response(payload: dict[str, Any]) -> dict[str, Any]:
         raise SittaxResponseError("Unexpected Sittax login response format.")
 
     code = payload.get("codigo")
-    if code not in {0, "0"}:
+    if code not in SUCCESS_LOGIN_CODES:
         raise SittaxBusinessError(f"Sittax login rejected with business code {code!r}.")
 
     token = _normalize_text(payload.get("token"))

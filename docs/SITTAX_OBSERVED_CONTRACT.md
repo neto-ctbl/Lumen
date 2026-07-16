@@ -17,6 +17,7 @@ Data de referencia: 2026-07-15
 - S7.0 concluiu apenas documentacao, fixtures anonimizadas e schemas observados.
 - S7.1 implementa somente autenticacao read-only, sessao exclusiva local e listagem de empresas.
 - S7.1 nao implementa apuracao, DIFAL, documentos fiscais, painel da empresa, tarefas, sync, snapshots, endpoint manual ou health funcional.
+- Validacao real controlada executada em 2026-07-16 confirmou login, resolucao de escritorio e listagem de `157` empresas em tenant autorizado.
 
 ## Classificacoes usadas
 
@@ -58,6 +59,7 @@ Consequencias obrigatorias para a arquitetura do conector:
 - Riscos: vazamento de senha, JWT, cookies e contexto de escritorio
 - Uso previsto no Lumen: autenticacao futura e descoberta do escritorio/usuario
 - Implementacao atual do S7.1: login read-only com body observado `usuario` + `senha`, token somente em memoria e sem persistencia
+- Validacao real do S7.1: sucesso homologado com `codigo = 200`
 
 ### Empresas do escritorio
 

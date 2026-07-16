@@ -41,7 +41,7 @@ def test_client_authenticates_lists_companies_and_applies_bearer_header() -> Non
             return httpx.Response(
                 200,
                 json={
-                    "codigo": 0,
+                    "codigo": 200,
                     "token": "jwt-secret-token",
                     "usuario": {"id": "usr-1", "role": "ADMIN", "escritorio": {"id": "esc-1", "nome": "Esc"}},
                 },
@@ -92,7 +92,7 @@ def test_client_does_not_repeat_login_when_session_is_authenticated() -> None:
             return httpx.Response(
                 200,
                 json={
-                    "codigo": 0,
+                    "codigo": 200,
                     "token": "jwt-secret-token",
                     "usuario": {"id": "usr-1", "role": "ADMIN", "escritorio": {"id": "esc-1", "nome": "Esc"}},
                 },
@@ -163,7 +163,7 @@ def test_client_rejects_malformed_companies_response_and_closed_session() -> Non
             return httpx.Response(
                 200,
                 json={
-                    "codigo": 0,
+                    "codigo": 200,
                     "token": "jwt-secret-token",
                     "usuario": {"id": "usr-1", "role": "ADMIN", "escritorio": {"id": "esc-1", "nome": "Esc"}},
                 },
@@ -200,7 +200,7 @@ def test_client_sends_observed_login_body_keys_only() -> None:
             return httpx.Response(
                 200,
                 json={
-                    "codigo": 0,
+                    "codigo": 200,
                     "token": "jwt-secret-token",
                     "usuario": {"id": "usr-1", "role": "ADMIN", "escritorio": {"id": "esc-1", "nome": "Esc"}},
                 },

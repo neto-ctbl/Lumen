@@ -8,9 +8,10 @@ from backend.app.services.integrations.sittax.errors import SittaxBusinessError,
 from backend.app.services.integrations.sittax.mapper import map_companies_response, map_company_item, map_login_response
 
 
-def test_map_login_response_extracts_token_and_office() -> None:
+@pytest.mark.parametrize("success_code", [0, 200, "0", "200"])
+def test_map_login_response_extracts_token_and_office(success_code: int | str) -> None:
     payload = {
-        "codigo": 0,
+        "codigo": success_code,
         "token": "jwt-fixture",
         "usuario": {
             "id": "usr-1",
@@ -24,6 +25,11 @@ def test_map_login_response_extracts_token_and_office() -> None:
     assert mapped["token"] == "jwt-fixture"
     assert mapped["office"].id == "esc-1"
     assert mapped["user_id"] == "usr-1"
+
+
+def test_map_login_response_rejects_unexpected_business_code() -> None:
+    with pytest.raises(SittaxBusinessError, match="business code 401"):
+        map_login_response({"codigo": 401, "token": "jwt-fixture", "usuario": {"escritorio": {"id": "esc-1"}}})
 
 
 def test_map_company_item_normalizes_cnpj_and_empty_ie() -> None:

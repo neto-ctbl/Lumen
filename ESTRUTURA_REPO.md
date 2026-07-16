@@ -888,6 +888,8 @@ Decisoes materializadas no S7.1:
 - o escritorio e resolvido deterministicamente a partir do payload observado de login
 - fixture mode reutiliza os mesmos mappers do cliente real e nao acessa rede
 - o script `check_sittax_connection.py` nao imprime PII e nao persiste nada
+- a validacao real controlada do S7.1 foi concluida em `2026-07-16` com login aprovado, escritorio resolvido e `157` empresas retornadas
+- o contrato real do login confirmou sucesso com `codigo = 200`, mantendo compatibilidade de fixture com `codigo = 0`
 
 Ainda permanecem fora de escopo neste ponto:
 

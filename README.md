@@ -597,6 +597,9 @@ Fechamento tecnico do S7.1:
 - o card Sittax do E2E continua `Nao iniciada` / `Nao configurada`, sem botao de sync e sem chamada externa
 - nenhuma migration, nenhum model Sittax, nenhum sync e nenhum endpoint manual foram adicionados
 - o macro-stage S7 continua pendente
+- validacao real controlada do Sittax executada em `2026-07-16`: login real aprovado, escritorio resolvido e `157` empresas retornadas em modo read-only
+- a homologacao real confirmou os endpoints do S7.1 sem chamar apuracao, DIFAL, documentos, tarefas ou qualquer mutacao externa
+- o login real do portal retornou sucesso com `codigo = 200`, e o mapper do cliente foi ajustado para aceitar `0` e `200` como codigos de sucesso observados
 
 Fechamento final validado em 2026-07-15:
 

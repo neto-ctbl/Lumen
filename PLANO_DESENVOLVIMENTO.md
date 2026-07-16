@@ -1007,7 +1007,7 @@ Decisoes novas:
 
 ### Micro-stage S7.1 - Cliente base: autenticacao, sessao exclusiva e empresas
 
-Status: concluido em 2026-07-15
+Status: concluido em 2026-07-16
 
 Entregues:
 - `backend/app/services/integrations/sittax/__init__.py`
@@ -1029,6 +1029,8 @@ Validacao executada:
 - `.\.venv\Scripts\python.exe -m ruff check .\backend`
 - `cd .\frontend && npm run typecheck && npm run test:e2e`
 - `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini heads`
+- `.\.venv\Scripts\python.exe -m backend.scripts.check_sittax_connection --fixture`
+- `.\.venv\Scripts\python.exe -m backend.scripts.check_sittax_connection`
 
 Pendencias:
 - o macro-stage S7 continua pendente
@@ -1041,6 +1043,8 @@ Decisoes novas:
 - o escritorio e resolvido deterministicamente a partir do login observado
 - a listagem de empresas continua sem persistencia e sem reconciliacao neste micro-stage
 - fixture mode e script de conectividade validam apenas login e empresas
+- a validacao real confirmou `157` empresas retornadas no tenant autorizado
+- o login real do portal foi homologado com sucesso por `codigo = 200`; o mapper passou a aceitar `0` e `200` como sucesso observado
 
 ---
 
