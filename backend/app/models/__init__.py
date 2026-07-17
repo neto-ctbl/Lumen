@@ -14,6 +14,7 @@ from backend.app.models.integration_account import IntegrationAccount
 from backend.app.models.integration_sync_run import IntegrationSyncRun
 from backend.app.models.organization import Organization
 from backend.app.models.sittax_company_snapshot import SittaxCompanySnapshot
+from backend.app.models.sittax_apuracao_snapshot import SittaxApuracaoSnapshot
 from backend.app.models.user import User
 from backend.app.models.user_organization import UserOrganization
 from backend.app.models.watcher_file_event import WatcherFileEvent
@@ -35,6 +36,7 @@ __all__ = [
     "IntegrationSyncRun",
     "Organization",
     "SittaxCompanySnapshot",
+    "SittaxApuracaoSnapshot",
     "User",
     "UserOrganization",
     "WatcherFileEvent",

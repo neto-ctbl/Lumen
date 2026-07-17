@@ -4,6 +4,7 @@ from backend.app.services.integrations.sittax.errors import (
     SittaxAuthorizationError,
     SittaxBusinessError,
     SittaxConfigurationError,
+    SittaxContextMismatchError,
     SittaxError,
     SittaxRateLimitError,
     SittaxResponseError,
@@ -13,7 +14,9 @@ from backend.app.services.integrations.sittax.errors import (
 from backend.app.services.integrations.sittax.session import SittaxSession
 from backend.app.services.integrations.sittax.sync import (
     SittaxCompanySyncResult,
+    SittaxApuracaoSyncResult,
     build_fixture_sittax_client,
+    sync_sittax_apuracoes,
     sync_sittax_companies,
 )
 
@@ -24,13 +27,16 @@ __all__ = [
     "SittaxBusinessError",
     "SittaxClient",
     "SittaxConfigurationError",
+    "SittaxContextMismatchError",
     "SittaxError",
     "SittaxRateLimitError",
     "SittaxResponseError",
     "SittaxSession",
     "SittaxSessionError",
     "SittaxTransportError",
+    "SittaxApuracaoSyncResult",
     "SittaxCompanySyncResult",
     "build_fixture_sittax_client",
+    "sync_sittax_apuracoes",
     "sync_sittax_companies",
 ]

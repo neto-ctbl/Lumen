@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
+import re
 from typing import Any
 
 import httpx
@@ -9,7 +11,8 @@ import httpx
 from backend.app.core.config import Settings
 from backend.app.core.logging import get_logger
 from backend.app.core.security import redact_mapping
-from backend.app.schemas.sittax import SittaxCompanyItem
+from backend.app.schemas.sittax import SittaxApuracaoItem, SittaxCompanyItem
+from backend.app.services.integrations.econtrole.mapper import normalize_cnpj
 
 from .errors import (
     SittaxAuthenticationError,
@@ -20,11 +23,12 @@ from .errors import (
     SittaxSessionError,
     SittaxTransportError,
 )
-from .mapper import map_company_item, map_login_response
+from .mapper import map_apuracao_response, map_company_item, map_login_response
 from .session import SittaxSession
 
 
 logger = get_logger(__name__)
+PERIOD_RE = re.compile(r"^\d{4}-\d{2}$")
 
 
 class SittaxClient:
@@ -107,6 +111,35 @@ class SittaxClient:
     def list_companies(self) -> list[SittaxCompanyItem]:
         return [map_company_item(payload) for payload in self.list_companies_payloads()]
 
+    def get_apuracao(self, *, company_cnpj: str, period: str) -> SittaxApuracaoItem:
+        self.session.assert_exclusive()
+        if not self.session.is_authenticated:
+            raise SittaxSessionError("Sittax session is not authenticated.")
+
+        normalized_cnpj = self._normalize_company_cnpj(company_cnpj)
+        observed_period = self._normalize_interface_period(period)
+        self.session.clear_active_context()
+
+        try:
+            payload = self._request_json(
+                "GET",
+                f"{self.session.apuracao_base_url}/api/apuracao/retornar-apuracao-sittax",
+                params={"empresaCnpj": normalized_cnpj, "periodo": observed_period},
+            )
+            mapped = map_apuracao_response(
+                payload,
+                requested_company_cnpj=normalized_cnpj,
+                requested_period=period,
+            )
+            self.session.set_active_context(
+                company_cnpj=mapped.confirmed_company_cnpj or normalized_cnpj,
+                period=mapped.confirmed_period,
+            )
+            return mapped
+        except Exception:
+            self.session.clear_active_context()
+            raise
+
     def _request_json(
         self,
         method: str,
@@ -121,9 +154,31 @@ class SittaxClient:
             payload = response.json()
         except json.JSONDecodeError as exc:
             raise SittaxResponseError("Sittax returned invalid JSON.") from exc
+        if isinstance(payload, str):
+            try:
+                payload = json.loads(payload)
+            except json.JSONDecodeError as exc:
+                raise SittaxResponseError("Sittax returned invalid nested JSON.") from exc
         if not isinstance(payload, dict):
             raise SittaxResponseError("Unexpected Sittax response format.")
         return payload
+
+    @staticmethod
+    def _normalize_company_cnpj(company_cnpj: str) -> str:
+        normalized = normalize_cnpj(company_cnpj)
+        if normalized is None or len(normalized) != 14 or not normalized.isdigit():
+            raise SittaxResponseError("Sittax apuracao requires a valid company cnpj.")
+        return normalized
+
+    @staticmethod
+    def _normalize_interface_period(period: str) -> str:
+        if period != period.strip() or not PERIOD_RE.fullmatch(period):
+            raise SittaxResponseError("Sittax apuracao requires period in YYYY-MM format.")
+        year = int(period[:4])
+        month = int(period[5:7])
+        if month < 1 or month > 12:
+            raise SittaxResponseError("Sittax apuracao requires a valid period month.")
+        return f"{month:02d}/{year:04d}"
 
     def _request(
         self,
@@ -175,10 +230,12 @@ class FixtureSittaxClient(SittaxClient):
         session: SittaxSession,
         login_payload: dict[str, Any],
         companies_payload: dict[str, Any],
+        apuracao_payload: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(session=session)
         self._login_payload = login_payload
         self._companies_payload = companies_payload
+        self._apuracao_payload = apuracao_payload
 
     @classmethod
     def from_files(
@@ -186,12 +243,16 @@ class FixtureSittaxClient(SittaxClient):
         *,
         login_path: str | Path,
         companies_path: str | Path,
+        apuracao_path: str | Path | None = None,
         session: SittaxSession,
     ) -> "FixtureSittaxClient":
         return cls(
             session=session,
             login_payload=json.loads(Path(login_path).read_text(encoding="utf-8")),
             companies_payload=json.loads(Path(companies_path).read_text(encoding="utf-8")),
+            apuracao_payload=(
+                json.loads(Path(apuracao_path).read_text(encoding="utf-8")) if apuracao_path is not None else None
+            ),
         )
 
     def authenticate(self, *, username: str, password: str) -> None:
@@ -226,3 +287,51 @@ class FixtureSittaxClient(SittaxClient):
 
     def list_companies(self) -> list[SittaxCompanyItem]:
         return [map_company_item(payload) for payload in self.list_companies_payloads()]
+
+    def get_apuracao(self, *, company_cnpj: str, period: str) -> SittaxApuracaoItem:
+        self.session.assert_exclusive()
+        if not self.session.is_authenticated:
+            raise SittaxSessionError("Sittax session is not authenticated.")
+        if self._apuracao_payload is None:
+            raise SittaxResponseError("Sittax apuracao fixture payload is not configured.")
+
+        normalized_cnpj = self._normalize_company_cnpj(company_cnpj)
+        self._normalize_interface_period(period)
+        self.session.clear_active_context()
+        try:
+            payload = copy.deepcopy(self._apuracao_payload)
+            self._adapt_apuracao_fixture(payload=payload, company_cnpj=normalized_cnpj, period=period)
+            mapped = map_apuracao_response(
+                payload,
+                requested_company_cnpj=normalized_cnpj,
+                requested_period=period,
+            )
+            self.session.set_active_context(
+                company_cnpj=mapped.confirmed_company_cnpj or normalized_cnpj,
+                period=mapped.confirmed_period,
+            )
+            return mapped
+        except Exception:
+            self.session.clear_active_context()
+            raise
+
+    @staticmethod
+    def _adapt_apuracao_fixture(*, payload: dict[str, Any], company_cnpj: str, period: str) -> None:
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            return
+        data["empresaCnpj"] = company_cnpj
+        company_name = data.get("empresaNome")
+        if isinstance(data.get("periodoFiscal"), dict):
+            data["periodoFiscal"]["dataInicial"] = f"{period}-01T00:00:00"
+            data["periodoFiscal"]["dataFinal"] = f"{period}-28T23:59:59.999"
+        else:
+            data["periodoFiscal"] = f"{period[5:7]}/{period[:4]}"
+        companies = data.get("empresasApuracao")
+        if isinstance(companies, list):
+            for company in companies:
+                if not isinstance(company, dict):
+                    continue
+                company["cnpj"] = company_cnpj
+                if company_name and company.get("nome") is None:
+                    company["nome"] = company_name

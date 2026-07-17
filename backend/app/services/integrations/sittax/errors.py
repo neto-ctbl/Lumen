@@ -33,5 +33,9 @@ class SittaxBusinessError(SittaxError):
     pass
 
 
+class SittaxContextMismatchError(SittaxError):
+    pass
+
+
 class SittaxSessionError(SittaxError):
     pass

@@ -4,10 +4,13 @@
   "erros": [],
   "data": {
     "id": "apur-sint-2026-06-001",
-    "empresaCnpj": "12345678000195",
     "empresaNome": "EMPRESA EXEMPLO A LTDA",
     "escritorioNome": "ESCRITORIO EXEMPLO",
-    "periodoFiscal": "06/2026",
+    "periodoFiscal": {
+      "dataInicial": "2026-06-01T00:00:00",
+      "dataFinal": "2026-06-30T23:59:59.999",
+      "id": "periodo-sint-2026-06"
+    },
     "valorDas": 1834.77,
     "valorDasXml": 1834.77,
     "numeroDas": "DAS-SINT-202606-001",
@@ -19,6 +22,7 @@
     "receitaLiquida": 40221.76,
     "receitaProdutos": 15780.13,
     "receitaServicos": 24441.63,
+    "receitaDevolucao": 0,
     "folhaDePagamentos": true,
     "percentualFatorR": 31.42,
     "percentualImpostoSobreReceita": 6.15,
@@ -32,6 +36,38 @@
       }
     ],
     "inconsistencias": [],
+    "empresasApuracao": [
+      {
+        "cnpj": "12345678000195",
+        "nome": "EMPRESA EXEMPLO A LTDA",
+        "empresaTemFolha": true,
+        "empresaTributaIcms": true,
+        "empresaTributaIss": false,
+        "empresaTributaIpi": false,
+        "empresaTributaPisCofins": true,
+        "receitaLiquida": 40221.76,
+        "receitaProdutos": 15780.13,
+        "receitaServicos": 24441.63,
+        "receitaDevolucao": 0,
+        "atividades": ["6201501", "6202300"],
+        "resumoPorCfop": [
+          {
+            "cfop": "5102",
+            "valor": 24441.63
+          }
+        ],
+        "valoresXml": [
+          {
+            "anexoApuracao": {
+              "codigo": 3,
+              "nome": "Anexo III"
+            },
+            "valorDas": 1834.77,
+            "aliquotaDas": 6.15
+          }
+        ]
+      }
+    ],
     "resumosTributacaoSittax": [
       {
         "$id": "1",

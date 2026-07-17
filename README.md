@@ -2,7 +2,7 @@
 
 Data de referencia: 2026-07-14
 
-O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage S6.0, o Stage S6, o micro-stage S7.0, o micro-stage S7.1 e o micro-stage S7.2. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5, do frontend fiscal read-only do S5.1, da integracao oficial read-only com o Sistema Acessorias no S6 e da fundacao tecnica do cliente Sittax no S7.1, o projeto passou a persistir snapshot local read-only das empresas Sittax com reconciliacao por organizacao + CNPJ, idempotencia por organizacao + ID Sittax, dry-run e fixture mode, sem apuracao, sem contexto ativo e sem mutacao externa.
+O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage S6.0, o Stage S6, o micro-stage S7.0, o micro-stage S7.1, o micro-stage S7.2 e o micro-stage S7.3. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5, do frontend fiscal read-only do S5.1, da integracao oficial read-only com o Sistema Acessorias no S6 e do snapshot cadastral do Sittax no S7.2, o projeto passou a persistir snapshot local read-only da apuracao Sittax por empresa e competencia, com contexto ativo validado por `empresaCnpj + periodo`, execucao serial, dry-run, fixture mode e sem chamar DIFAL, documentos, painel, tarefas ou qualquer mutacao externa.
 
 ## Escopo real atual
 
@@ -248,6 +248,15 @@ Observacoes do S7.2:
 - `raw_payload` fica somente no snapshot da empresa; `integration_sync_runs` recebe apenas contadores, erros sanitizados e metadata segura
 - `--dry-run` autentica e reconcilia em memoria sem escrever snapshots nem `integration_sync_runs`
 - fixture mode reutiliza o mesmo mapper e o mesmo servico sem acessar rede
+
+Observacoes do S7.3:
+
+- o S7.3 cria `sittax_apuracao_snapshots`
+- a apuracao Sittax usa `empresaCnpj + periodo` como setter real do contexto de sessao
+- o contexto e limpo antes de cada consulta e so e confirmado apos resposta valida com CNPJ e competencia coerentes
+- a CLI operacional usa `--period YYYY-MM`, resolve a competencia em `fiscal_periods` e nao a cria implicitamente
+- o sync de apuracoes e serial por sessao, processa apenas snapshots `MATCHED` no lote e aceita `--company-id`, `--limit`, `--dry-run` e `--apuracao-fixture`
+- `integration_sync_runs` do S7.3 guardam apenas contadores, erros sanitizados e metadata segura
 
 Observacoes do S5:
 
@@ -625,6 +634,15 @@ Fechamento tecnico do S7.2:
 - validacao real controlada concluida em `2026-07-16` com `157` empresas recebidas, `157` validas, `155` reconciliadas como `MATCHED` e `2` como `UNMATCHED`
 - a primeira execucao real persistiu `157` snapshots; a segunda execucao serial confirmou idempotencia com `snapshots_created = 0` e `snapshots_unchanged = 157`
 - a consulta SQL final confirmou `157` linhas em `sittax_company_snapshots`, distribuicao `MATCHED = 155` e `UNMATCHED = 2`, e zero duplicidades por `organization_id + sittax_company_id`
+
+Fechamento tecnico do S7.3:
+
+- `backend/app/models/sittax_apuracao_snapshot.py` materializa o snapshot multi-tenant de apuracao Sittax por empresa e competencia
+- a migration `20260716_0006_create_sittax_apuracao_snapshots.py` cria apenas `sittax_apuracao_snapshots`
+- `backend/app/services/integrations/sittax/client.py` passa a consultar `GET /api/apuracao/retornar-apuracao-sittax` com validacao de contexto e limpeza obrigatoria de sessao antes de cada tentativa
+- `backend/app/services/integrations/sittax/sync.py` implementa resolucao de competencia em `fiscal_periods`, execucao serial, upsert idempotente e dry-run sem escrita para apuracao
+- `backend/scripts/sync_sittax_apuracoes.py` executa o sync operacional seguro por `--org-slug`, `--period`, `--company-id`, `--limit`, `--dry-run` e `--apuracao-fixture`
+- o sync continua read-only contra o Sittax, sem DIFAL, sem documentos fiscais, sem painel, sem tarefas e sem qualquer mutacao externa
 
 Fechamento final validado em 2026-07-15:
 

@@ -141,6 +141,17 @@ class SittaxSession:
         self.user_id = None
         self.user_role = None
         self._http_client.headers.pop("Authorization", None)
+        self.clear_active_context()
+
+    def clear_active_context(self) -> None:
+        self.assert_exclusive()
+        self.active_company_cnpj = None
+        self.active_period = None
+
+    def set_active_context(self, *, company_cnpj: str, period: str) -> None:
+        self.assert_exclusive()
+        self.active_company_cnpj = company_cnpj
+        self.active_period = period
 
     def close(self) -> None:
         if self._closed:

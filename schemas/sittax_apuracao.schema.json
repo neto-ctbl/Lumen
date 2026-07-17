@@ -3,7 +3,7 @@
   "$id": "https://lumen.local/schemas/sittax_apuracao.schema.json",
   "title": "SittaxObservedApuracao",
   "description": "Observed web payload for Sittax apuracao. Not an official public API schema.",
-  "type": "object",
+  "type": ["object", "string"],
   "additionalProperties": true,
   "required": [
     "ok",
@@ -64,7 +64,11 @@
           ]
         },
         "periodoFiscal": {
-          "type": "string"
+          "type": [
+            "string",
+            "object"
+          ],
+          "additionalProperties": true
         },
         "valorDas": {
           "type": "number"
@@ -166,6 +170,13 @@
           }
         },
         "resumosTributacaoXml": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "empresasApuracao": {
           "type": "array",
           "items": {
             "type": "object",

@@ -22,6 +22,7 @@ Data de referencia: 2026-07-15
 - E2E nao devem depender de credenciais reais nem de chamada externa nova.
 - O script de conectividade do Sittax so pode exibir contagem de empresas e identificador mascarado do escritorio.
 - O script `sync_sittax_companies` deve emitir apenas JSON seguro com contadores e erros sanitizados.
+- O script `sync_sittax_apuracoes` deve emitir apenas JSON seguro com contadores e erros sanitizados.
 
 ## Escopo permitido
 
@@ -30,3 +31,4 @@ Data de referencia: 2026-07-15
 - `recalcular=true` e proibido.
 - O health futuro do Sittax deve refletir apenas estado local, sem login ou consulta externa por request.
 - O S7.2 cria snapshot e script operacional, mas continua sem apuracao, sem contexto ativo, sem endpoint de frontend e sem integracao operacional no health.
+- O S7.3 cria snapshot read-only de apuracao e script operacional proprio, preservando `raw_payload` apenas em `sittax_apuracao_snapshots` e mantendo `integration_sync_runs` livres de payload bruto e valores fiscais.

@@ -932,3 +932,25 @@ Ainda permanecem fora de escopo neste ponto:
 - endpoint de frontend ou botao operacional
 - health funcional do Sittax por request
 - qualquer mutacao externa
+
+## Atualizacao S7.3 em 2026-07-16
+
+No estado real atual, foi materializada a apuracao read-only do Sittax com:
+
+- `backend/app/models/sittax_apuracao_snapshot.py`
+- `backend/alembic/versions/20260716_0006_create_sittax_apuracao_snapshots.py`
+- `backend/scripts/sync_sittax_apuracoes.py`
+- `backend/tests/test_sittax_apuracao_mapper.py`
+- `backend/tests/test_sittax_apuracao_client.py`
+- `backend/tests/test_sittax_apuracao_snapshot.py`
+- `backend/tests/test_sittax_apuracao_sync.py`
+- `backend/tests/test_sync_sittax_apuracoes_script.py`
+
+Decisoes materializadas no S7.3:
+
+- a apuracao usa `empresaCnpj + periodo` como setter real do contexto ativo da sessao
+- o contexto da sessao e limpo antes de cada chamada e so e confirmado apos resposta valida com CNPJ e competencia coerentes
+- a interface operacional aceita apenas `YYYY-MM`; a chamada ao Sittax converte para `MM/YYYY`
+- a competencia precisa existir em `fiscal_periods`; este micro-stage nao cria periodos automaticamente
+- o snapshot de apuracao usa idempotencia por `organization_id + sittax_company_snapshot_id + fiscal_period_id`
+- o sync de apuracoes e serial por sessao, processa apenas `MATCHED` no lote e continua sem chamar DIFAL, documentos, painel, tarefas ou qualquer mutacao externa

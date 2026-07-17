@@ -48,3 +48,14 @@ Data de referencia: 2026-07-15
 - `dry_run` autentica e reconcilia em memoria sem persistir snapshots, runs ou auditoria.
 - `integration_sync_runs` do S7.2 guardam apenas contadores, erros sanitizados e metadata segura.
 - O sync Sittax permanece restrito a `POST /api/auth/login` e `GET /api/empresa/listar-todas-escritorio-empresas-selecao`.
+
+## S7.3 - Apuracao Sittax por empresa e competencia
+
+- A apuracao do Sittax passa a ser consumida somente por `GET /api/apuracao/retornar-apuracao-sittax`.
+- O contexto ativo da sessao deve ser limpo antes de cada tentativa de apuracao.
+- O contexto ativo da sessao so pode ser confirmado apos resposta HTTP valida, JSON valido, envelope de negocio valido, CNPJ coerente e competencia coerente.
+- Qualquer falha na apuracao limpa o contexto ativo e bloqueia persistencia.
+- A CLI operacional recebe somente `YYYY-MM` e converte para `MM/YYYY` apenas na chamada externa.
+- A competencia precisa existir previamente em `fiscal_periods`.
+- O snapshot de apuracao usa idempotencia por `organization_id + sittax_company_snapshot_id + fiscal_period_id`.
+- O sync de apuracoes permanece serial, read-only e sem chamar DIFAL, documentos fiscais, painel, tarefas ou qualquer mutacao externa.

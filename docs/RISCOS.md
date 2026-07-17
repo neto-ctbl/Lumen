@@ -21,3 +21,5 @@ Data de referencia: 2026-07-15
 - Reutilizar a mesma sessao sem exclusao mutua local pode misturar autenticacao e contexto futuro entre threads.
 - Assumir qualquer escritorio fora do payload de login pode listar empresas erradas.
 - Ausencia de uma empresa na listagem Sittax nao pode ser tratada como delete local automatico.
+- Persistir apuracao sem conferir `empresaCnpj` e `periodoFiscal` pode contaminar snapshots entre empresas ou competencias.
+- Reaproveitar contexto de apuracao apos tentativa falha cria risco de chamadas contextuais com empresa ou competencia obsoletas.

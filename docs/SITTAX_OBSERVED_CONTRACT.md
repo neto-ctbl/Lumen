@@ -1,4 +1,4 @@
-# Sittax Observed Contract for Lumen S7.2
+# Sittax Observed Contract for Lumen S7.3
 
 Data de referencia: 2026-07-15
 
@@ -17,7 +17,8 @@ Data de referencia: 2026-07-15
 - S7.0 concluiu apenas documentacao, fixtures anonimizadas e schemas observados.
 - S7.1 implementou autenticacao read-only, sessao exclusiva local e listagem de empresas.
 - S7.2 implementa snapshot local read-only apenas para a listagem de empresas, com reconciliacao por `organization_id + cnpj`.
-- S7.2 nao implementa apuracao, DIFAL, documentos fiscais, painel da empresa, tarefas, contexto ativo, endpoint de frontend ou health funcional.
+- S7.3 implementa snapshot local read-only da apuracao por empresa e competencia, com contexto ativo confirmado apenas apos validacao de CNPJ e periodo.
+- S7.3 nao implementa DIFAL, documentos fiscais, painel da empresa, tarefas, endpoint de frontend ou health funcional.
 - Validacao real controlada executada em 2026-07-16 confirmou login, resolucao de escritorio e listagem de `157` empresas em tenant autorizado.
 - Validacao real final do S7.2 executada em 2026-07-16 confirmou `157` snapshots persistidos, distribuicao `MATCHED = 155` e `UNMATCHED = 2`, e segunda execucao serial idempotente sem criacao adicional.
 

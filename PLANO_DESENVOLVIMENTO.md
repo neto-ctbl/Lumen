@@ -1090,6 +1090,128 @@ Decisoes novas:
 - o sync Sittax continua limitado a login e listagem de empresas, sem apuracao, sem contexto ativo e sem mutacao externa
 - a validacao real final do S7.2 confirmou `157` snapshots, `155` `MATCHED`, `2` `UNMATCHED` e segunda execucao real com `snapshots_created = 0`
 
+### Micro-stage S7.3 - Apuracao Sittax por empresa e competencia
+
+Status: concluido em 2026-07-16
+
+Entregues:
+- `backend/app/models/sittax_apuracao_snapshot.py`
+- `backend/alembic/versions/20260716_0006_create_sittax_apuracao_snapshots.py`
+- `backend/scripts/sync_sittax_apuracoes.py`
+- `backend/tests/test_sittax_apuracao_mapper.py`
+- `backend/tests/test_sittax_apuracao_client.py`
+- `backend/tests/test_sittax_apuracao_snapshot.py`
+- `backend/tests/test_sittax_apuracao_sync.py`
+- `backend/tests/test_sync_sittax_apuracoes_script.py`
+
+Validacao executada:
+- `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_sittax_apuracao_mapper.py .\backend\tests\test_sittax_apuracao_client.py .\backend\tests\test_sittax_apuracao_snapshot.py .\backend\tests\test_sittax_apuracao_sync.py .\backend\tests\test_sync_sittax_apuracoes_script.py -q`
+- `.\.venv\Scripts\python.exe -m ruff check .\backend`
+
+Pendencias:
+- validacao real controlada de uma empresa e do lote pequeno ainda nao executadas neste fechamento
+- suites completas de backend e frontend ainda precisam ser rodadas no fechamento operacional completo
+
+Decisoes novas:
+- a apuracao usa `empresaCnpj + periodo` como setter real do contexto
+- o contexto e limpo antes de cada tentativa e so e confirmado apos resposta coerente
+- a competencia e resolvida obrigatoriamente em `fiscal_periods`
+- o sync de apuracoes permanece serial, read-only e sem chamadas de DIFAL, documentos, painel ou tarefas
+
+### Micro-stage S7.4 - DIFAL, documentos fiscais e tarefas do Sittax
+
+Status: pendente
+
+Objetivo:
+- completar o Sittax como fonte operacional read-only do Simples no Lumen, adicionando DIFAL, documentos fiscais e tarefas/transmissoes sobre o contexto ja definido pela apuracao
+
+Escopo:
+- consultar DIFAL somente apos apuracao valida da mesma empresa/competencia
+- consultar documentos fiscais de entrada e saida com paginacao controlada
+- consultar tarefas/transmissoes do Sittax em modo read-only
+- persistir snapshots locais multi-tenant para DIFAL, documentos e tarefas
+- manter execucao serial por sessao, sem paralelismo e sem mutacao externa
+- enriquecer sinais operacionais para Cockpit, Envios, Evidencias e Divergencias sem expor o frontend ainda
+
+Entregaveis de dados:
+- `backend/app/models/sittax_difal_snapshot.py`
+- `backend/app/models/sittax_fiscal_document_snapshot.py`
+- `backend/app/models/sittax_task_snapshot.py`
+- migration incremental apos o head vigente do S7.3
+
+Entregaveis de integracao:
+- expansao do cliente Sittax para:
+  - `GET /api/difal/obter-valores-difal?recalcular=false`
+  - `GET /api/nota-fiscal/lista-nota-fiscal-entrada-paginacao`
+  - `GET /api/nota-fiscal/lista-nota-fiscal-saida-paginacao`
+  - `GET /api/tarefa/paginacao`
+- mappers read-only especificos para DIFAL, documentos e tarefas
+- sync operacional serial reutilizando o contexto da apuracao dentro da mesma sessao exclusiva
+
+Regras obrigatorias:
+- toda consulta contextual comeca por apuracao valida da empresa/competencia solicitada
+- `recalcular=true` e proibido
+- nenhuma rota de transmissao, painel, upload, fechamento, exclusao ou escrita externa pode ser chamada
+- documentos devem respeitar paginacao deterministica e sem loops infinitos
+- tarefas nao devem ser tratadas como prova absoluta de entrega sem cruzamento futuro
+- erros e logs continuam sanitizados, sem CNPJ completo, payload bruto, token ou credenciais em `integration_sync_runs`
+
+Escopo detalhado por fonte:
+
+1. DIFAL
+- capturar possui guia, numeros DARE, valores por tipo, data de fechamento, data de transmissao, total de compras, mensagens e inconsistencias
+- persistir um snapshot por empresa/competencia
+- nao recalcular nem corrigir contexto automaticamente
+
+2. Documentos fiscais
+- capturar entrada e saida em snapshot unico com `document_direction = ENTRADA|SAIDA`
+- persistir chave de acesso, numero, modelo, status, datas relevantes, competencia, UF, CFOPs, valor total, origem/importacao, presenca de XML e payload bruto
+- iterar paginacao ate esgotar a lista, com limite defensivo de paginas por execucao
+
+3. Tarefas/transmissoes
+- capturar tipo/nome, descricao, empresa, periodo, datas de criacao/fim, usuario, status, arquivo e payload bruto
+- tratar como evidencia operacional de processamento, nao como mutacao do Lumen
+
+Contadores minimos:
+- companies_selected
+- companies_processed
+- apuracoes_received
+- difal_received
+- fiscal_documents_received
+- tasks_received
+- difal_snapshots_created
+- difal_snapshots_updated
+- document_snapshots_created
+- document_snapshots_updated
+- task_snapshots_created
+- task_snapshots_updated
+- snapshots_unchanged
+- context_mismatches
+- not_found
+- failures
+
+Testes obrigatorios:
+- cliente: contexto correto, `recalcular=false`, paginacao, nenhum endpoint proibido, limpeza de contexto em falhas
+- DIFAL: fixture, not found, payload malformado, contexto divergente
+- documentos: entrada, saida, varias paginas, lista vazia, XML presente/ausente
+- tarefas: lista vazia, status variados, campos opcionais
+- sync: uma empresa, lote pequeno, dry-run, fixture mode, idempotencia, `PARTIAL`, `FAILED`, erros sanitizados
+- script: argumentos obrigatorios, saida segura, codigos de saida e fechamento de sessao
+
+Validacao minima esperada:
+- dry-run real de uma empresa com apuracao + DIFAL + documentos + tarefas
+- persistencia real de uma empresa
+- repeticao real com `unchanged`
+- lote pequeno real serial
+- consultas SQL sem duplicidade por chave logica de cada snapshot
+
+Aceite:
+- Sittax passa a cobrir apuracao, DAS, DIFAL, documentos e tarefas em modo read-only
+- contexto de sessao continua seguro e serial
+- snapshots multi-tenant e idempotentes
+- nenhuma chamada proibida ocorre
+- o Lumen fica com dados suficientes para alimentar conciliacao futura sem depender apenas da teoria do contrato
+
 ---
 
 ## S8 - Econet: CNAE, atividade, Fator R e cache assistido
