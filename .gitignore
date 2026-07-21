@@ -44,6 +44,8 @@ agent/sessions/
 agent/.sessions/
 agent/cache/sessions/
 backend/storage/sessions/
+backend/storage/sessions/econet/
+agent/sessions/econet/
 sittax-network-log*.jsonl
 *.sittax-network.jsonl
 data/private/
@@ -129,6 +131,10 @@ logs/
 !scripts/scan/logs/
 scripts/scan/logs/*.har
 scripts/scan/logs/sittax-network-log*.jsonl
+# Econet raw diagnostic artifacts
+scripts/scan/logs/econet-network*.har
+scripts/scan/logs/econet-network-log*.jsonl
+scripts/scan/logs/econet-storage-*.json
 *.log
 *.log.*
 tmp/

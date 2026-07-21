@@ -377,6 +377,20 @@ lumen/
       └─ README.md
 ```
 
+## Materializado ate o S8.0
+
+Arquivos e diretorios efetivamente materializados neste micro-stage:
+
+- `docs/ECONET_OBSERVED_CONTRACT.md`
+- `backend/tests/fixtures/econet/`
+- `backend/tests/test_econet_fixture_safety.py`
+- `backend/tests/test_econet_observed_contract.py`
+- `backend/tests/econet_test_utils.py`
+
+Observacao importante:
+
+- os arquivos funcionais do S8.1+ para cliente, parser, cache, model, migration ou endpoint da Econet continuam apenas planejados e nao devem ser tratados como existentes no repositorio atual.
+
 ## Responsabilidades por pasta
 
 ### `backend/`

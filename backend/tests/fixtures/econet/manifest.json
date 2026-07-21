@@ -1,0 +1,73 @@
+{
+  "contract_version": "s8.0",
+  "source": "synthetic_or_sanitized_observed_html",
+  "network_access_required": false,
+  "fixtures": [
+    {
+      "file": "search_cnae_results.html",
+      "scenario": "SEARCH_RESULTS",
+      "endpoint_family": "buscaCnae.php",
+      "synthetic": true
+    },
+    {
+      "file": "cnae_detail.html",
+      "scenario": "CNAE_DETAIL",
+      "endpoint_family": "index.php?idcnae={econet_id_cnae}&acao=abrir",
+      "synthetic": true
+    },
+    {
+      "file": "tax_lucro_presumido.html",
+      "scenario": "TAX_LUCRO_PRESUMIDO",
+      "endpoint_family": "subAbas.php?aba=lucroPresumido&idCnae={id}",
+      "synthetic": true
+    },
+    {
+      "file": "tax_lucro_real_trimestral.html",
+      "scenario": "TAX_LUCRO_REAL_TRIMESTRAL",
+      "endpoint_family": "subAbas.php?aba=lucroRealTrimestral&idCnae={id}",
+      "synthetic": true
+    },
+    {
+      "file": "tax_lucro_real_estimativa.html",
+      "scenario": "TAX_LUCRO_REAL_ESTIMATIVA",
+      "endpoint_family": "subAbas.php?aba=lucroRealEstimativa&idCnae={id}",
+      "synthetic": true
+    },
+    {
+      "file": "tax_simples_nacional.html",
+      "scenario": "TAX_SIMPLES_NACIONAL",
+      "endpoint_family": "subAbas.php?aba=simplesNacionalTributacao&idCnae={id}",
+      "synthetic": true
+    },
+    {
+      "file": "tax_empreendedor_individual.html",
+      "scenario": "TAX_EMPREENDEDOR_INDIVIDUAL",
+      "endpoint_family": "subAbas.php?aba=empreendedorIndividual&idCnae={id}",
+      "synthetic": true
+    },
+    {
+      "file": "obligations_tabs.html",
+      "scenario": "OBLIGATIONS_TABS",
+      "endpoint_family": "abas.php?aba=obrigacoes&idCnae={id}",
+      "synthetic": true
+    },
+    {
+      "file": "obligations_pj_geral.html",
+      "scenario": "OBLIGATIONS_PJ_GERAL",
+      "endpoint_family": "subAbas.php?aba=pjGeral&idCnae={id}",
+      "synthetic": true
+    },
+    {
+      "file": "obligations_simples_prohibited.html",
+      "scenario": "OBLIGATIONS_SIMPLES_PROHIBITED",
+      "endpoint_family": "subAbas.php?aba=optanteSimplesNacional&idCnae={id}",
+      "synthetic": true
+    },
+    {
+      "file": "obligations_simei_not_allowed.html",
+      "scenario": "OBLIGATIONS_SIMEI_NOT_ALLOWED",
+      "endpoint_family": "subAbas.php?aba=optanteSimei&idCnae={id}",
+      "synthetic": true
+    }
+  ]
+}

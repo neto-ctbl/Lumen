@@ -35,3 +35,14 @@ Data de referencia: 2026-07-15
 - O S7.2 cria snapshot e script operacional, mas continua sem apuracao, sem contexto ativo, sem endpoint de frontend e sem integracao operacional no health.
 - O S7.3 cria snapshot read-only de apuracao e script operacional proprio, preservando `raw_payload` apenas em `sittax_apuracao_snapshots` e mantendo `integration_sync_runs` livres de payload bruto e valores fiscais.
 - O S7.4 mantem o health estritamente local e trata o handoff de contexto entre hosts como validacao operacional, nunca como consulta disparada pelo frontend.
+
+## Regras adicionais da Econet
+
+- HAR, JSONL e snapshots de storage da Econet sao proibidos no Git.
+- Cookies da Econet nao podem ser logados.
+- CAPTCHA da Econet nao pode ser automatizado.
+- A sessao futura da Econet deve preferir armazenamento apenas em memoria.
+- Cookies da Econet nao podem ser persistidos em `integration_sync_runs`.
+- Nenhum token da Econet deve ser salvo no banco no MVP.
+- Redaction e obrigatoria em qualquer diagnostico da Econet.
+- Fixtures da Econet nao podem conter PII, CNPJ real ou dado operacional.

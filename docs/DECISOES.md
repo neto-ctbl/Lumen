@@ -76,3 +76,15 @@ Data de referencia: 2026-07-20
 - Os cookies `CnpjDaEmpresaSelecionada`, `DataInicialSelecionada`, `IdEscritorioSelecionado` e `IdGrupoDeEmpresaSelecionado` passam a ser tratados como contexto observado relevante do host `api`.
 - O handoff stateful `login -> empresas -> apuracao -> valor-auditoria -> painelprincipal -> DIFAL/documentos` foi validado na pratica em 2026-07-20.
 - Ainda nao foi comprovado endpoint explicito de "selecionar empresa" no host `api`; a implementacao deve continuar usando apenas a sequencia observada e a sessao stateful validada.
+
+## S8.0 - Contrato observado da Econet
+
+- A Econet sera tratada como fonte indicativa de CNAE, tributacao e obrigacoes, nao como fonte oficial de regime e entregas.
+- O Acessorias permanece como fonte oficial de regime e entregas.
+- O login da Econet continuara manual.
+- CAPTCHA nao sera automatizado nem contornado.
+- Artefatos brutos da Econet nao serao versionados.
+- Fixtures da Econet devem ser sinteticas ou rigorosamente sanitizadas.
+- O cache futuro da Econet sera orientado por CNAE.
+- A consulta futura da Econet nao deve ocorrer a cada abertura de tela.
+- O S8.0 nao cria decisao fiscal automatica.

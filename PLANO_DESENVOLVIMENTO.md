@@ -2127,3 +2127,50 @@ Ao final, informe arquivos alterados, comandos de validação e pendências.
 
 ```
 ```
+### Micro-stage S8.0 - Contrato observado, seguranca e fixtures anonimizadas
+
+Status: concluido em 2026-07-21
+
+Objetivo:
+
+* Formalizar o contrato HTML observado da consulta por CNAE da Econet sem iniciar integracao funcional.
+* Proteger o repositorio contra versionamento de HAR, JSONL, storages, cookies e artefatos brutos reais.
+* Preparar o terreno tecnico do S8.1 com fixtures offline seguras e reproduziveis.
+
+Entregaveis:
+
+* `docs/ECONET_OBSERVED_CONTRACT.md`
+* `backend/tests/fixtures/econet/README.md`
+* `backend/tests/fixtures/econet/manifest.json`
+* fixtures HTML sinteticas para busca, detalhe, subabas tributarias e obrigacoes
+* `backend/tests/econet_test_utils.py`
+* `backend/tests/test_econet_fixture_safety.py`
+* `backend/tests/test_econet_observed_contract.py`
+* endurecimento do `.gitignore` para artefatos brutos da Econet
+
+Validacoes:
+
+* `git ls-files | Select-String -Pattern "econet-network|econet-storage|\\.har"` sem artefatos brutos rastreados da Econet
+* `git check-ignore -v` confirmando cobertura dos padroes `econet-network*.har`, `econet-network-log*.jsonl` e `econet-storage-*.json`
+* `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_econet_fixture_safety.py .\backend\tests\test_econet_observed_contract.py -q`
+* `.\.venv\Scripts\python.exe -m pytest .\backend\tests -q`
+* `.\.venv\Scripts\python.exe -m ruff check .\backend`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini heads`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini current`
+* `cd .\frontend && npm run typecheck`
+* `cd .\frontend && npm run test:e2e`
+
+Decisoes:
+
+* Econet permanece como fonte indicativa e nao oficial.
+* Login continua manual e CAPTCHA nao sera automatizado.
+* Fixtures da Econet devem ser sempre sinteticas ou rigorosamente sanitizadas.
+* O contrato observado do S8.0 distingue fatos confirmados, inferencias e lacunas.
+* O S8.0 nao autoriza decisao fiscal automatica, persistencia de sessao ou parser produtivo.
+
+Limitacoes:
+
+* nao foi criada fixture dedicada de Fator R, porque o HTML especifico nao ficou comprovado o suficiente nos artefatos analisados para este micro-stage;
+* nao houve cliente HTTP, parser produtivo, migration, model ou sync;
+* o macro-stage S8 continua pendente;
+* o S8.1 ainda nao foi iniciado.

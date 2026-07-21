@@ -29,3 +29,17 @@ Data de referencia: 2026-07-20
 - Reordenar o fluxo validado `login -> empresas -> apuracao -> valor-auditoria -> painelprincipal -> DIFAL/documentos` cria risco de contexto parcial no host `api`.
 - Ausencia de endpoint explicito de selecao de empresa no host API continua sendo risco documental; o conector depende da sequencia observada e da sessao persistente, nao de um setter oficial documentado.
 - Datas retornadas pelo Sittax podem vir com fracao de segundos curta ou longa; parser rigido cria falha operacional mesmo com payload semanticamente valido.
+
+## Econet
+
+- A sessao autenticada pode expirar no meio do uso futuro.
+- O HTML observado pode mudar sem aviso.
+- Os IDs internos da Econet podem mudar ou variar por busca.
+- O conteudo pode variar conforme o CNAE consultado.
+- Mensagens negativas de negocio podem ser confundidas com erro tecnico.
+- Lista indicativa de obrigacoes pode ser confundida com obrigacao definitivamente exigivel.
+- HAR, JSONL, cookies e storages podem vazar segredo se forem versionados.
+- Fixtures excessivamente acopladas ao HTML podem quebrar com mudancas cosmeticas.
+- Encoding incorreto pode deformar nomes de regimes e obrigacoes.
+- Nao existe contrato oficial JSON confirmado para a funcionalidade observada.
+- O uso futuro depende de sessao autenticada manualmente.
