@@ -43,6 +43,10 @@ def iter_fixture_paths() -> list[Path]:
     return sorted(FIXTURES_DIR.glob("*.html"))
 
 
+def fixture_path(name: str) -> Path:
+    return FIXTURES_DIR / name
+
+
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 

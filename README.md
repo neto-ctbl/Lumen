@@ -2,7 +2,7 @@
 
 Data de referencia: 2026-07-21
 
-O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage S6.0, o Stage S6, o micro-stage S7.0, o micro-stage S7.1, o micro-stage S7.2, o micro-stage S7.3, o micro-stage S7.4 e o micro-stage S8.0. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5, do frontend fiscal read-only do S5.1, da integracao oficial read-only com o Sistema Acessorias no S6 e dos snapshots cadastral e de apuracao do Sittax, o projeto passou a suportar DIFAL, documentos fiscais, tarefas/transmissoes, endpoint manual de sync, persistencia operacional multi-tenant, handoff stateful validado do host `api.sittax.com.br` e contrato observado da Econet documentado com fixtures anonimizadas e testes de seguranca.
+O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage S6.0, o Stage S6, o micro-stage S7.0, o micro-stage S7.1, o micro-stage S7.2, o micro-stage S7.3, o micro-stage S7.4, o micro-stage S8.0 e o micro-stage S8.1. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5, do frontend fiscal read-only do S5.1, da integracao oficial read-only com o Sistema Acessorias no S6 e dos snapshots cadastral e de apuracao do Sittax, o projeto passou a suportar DIFAL, documentos fiscais, tarefas/transmissoes, endpoint manual de sync, persistencia operacional multi-tenant, handoff stateful validado do host `api.sittax.com.br`, contrato observado da Econet documentado com fixtures anonimizadas e a fundacao offline da Econet com model, migration, parser HTML puro e cache idempotente por CNAE.
 
 ## Escopo real atual
 
@@ -168,7 +168,17 @@ No S4.1, foram materializados seeds logicos de regras-base e competencias, sem c
 O S4.1 foi tratado como micro-stage complementar de fechamento tecnico e nao como stage originalmente enumerado no `PLANO_DESENVOLVIMENTO.md`.
 No S5, foi materializada apenas a integracao cadastral MVP do eControle.
 No S5.1, foram materializados os endpoints read-only `/api/v1/lumen/*`, o frontend fiscal funcional e os estados vazios honestos quando tabelas operacionais ainda estiverem vazias.
-No S8.0, foram materializados apenas contrato observado da Econet, protecao de artefatos brutos no Git, fixtures HTML sinteticas/sanitizadas e testes offline. Nenhuma chamada externa nova, nenhuma migration e nenhuma integracao funcional foram adicionadas. O macro-stage S8 continua pendente e o S8.1 ainda nao foi iniciado.
+No S8.0, foram materializados apenas contrato observado da Econet, protecao de artefatos brutos no Git, fixtures HTML sinteticas/sanitizadas e testes offline. No S8.1, foram materializados `econet_cnae_cache`, a migration incremental `20260721_0009`, o parser HTML puro offline, o servico de cache idempotente por CNAE e a suite de testes dedicada. Nenhuma chamada externa nova, nenhuma sessao assistida, nenhum endpoint funcional e nenhuma alteracao funcional no frontend foram adicionados. O macro-stage S8 continua pendente e o S8.2 ainda nao foi iniciado.
+
+Observacoes do S8.1:
+
+- o cache da Econet e global por CNAE normalizado, nao por empresa nem por organizacao
+- `econet_id_cnae` permanece separado do CNAE canonico e nunca e calculado localmente
+- percentuais tributarios da Econet usam `Decimal`, nunca `float`
+- obrigacoes desconhecidas ficam em `unmapped_obligations`; nao ha mapeamento por aproximacao
+- Fator R nao e inferido sem texto observado
+- o payload normalizado nao guarda HTML bruto, cookie, token, header nem sessao
+- o parser e offline e funciona apenas sobre HTML local fornecido ao servico
 
 ## Setup local no Windows PowerShell
 

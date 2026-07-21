@@ -2,6 +2,7 @@ from backend.app.models.acessorias_company_snapshot import AcessoriasCompanySnap
 from backend.app.models.acessorias_delivery_snapshot import AcessoriasDeliverySnapshot
 from backend.app.models.audit_log import AuditLog
 from backend.app.models.company_activity_type import CompanyActivityType
+from backend.app.models.econet_cnae_cache import EconetCnaeCache
 from backend.app.models.external_company import ExternalCompany
 from backend.app.models.fiscal_alert import FiscalAlert
 from backend.app.models.fiscal_evidence import FiscalEvidence
@@ -27,6 +28,7 @@ __all__ = [
     "AcessoriasDeliverySnapshot",
     "AuditLog",
     "CompanyActivityType",
+    "EconetCnaeCache",
     "ExternalCompany",
     "FiscalAlert",
     "FiscalEvidence",

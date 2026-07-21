@@ -88,3 +88,18 @@ Data de referencia: 2026-07-20
 - O cache futuro da Econet sera orientado por CNAE.
 - A consulta futura da Econet nao deve ocorrer a cada abertura de tela.
 - O S8.0 nao cria decisao fiscal automatica.
+
+## S8.1 - Parser offline e cache por CNAE
+
+- O cache do S8.1 foi materializado como global por `cnae` normalizado, nao por organizacao.
+- O resultado do S8.1 continua indicativo; ele nao altera regime oficial, nao cria pendencia fiscal e nao gera `fiscal_obligation_statuses`.
+- O parser da Econet no S8.1 e puro e offline; ele nao faz request, nao conhece cookie e nao conhece credencial.
+- `econet_id_cnae` continua separado do CNAE e nunca deve ser calculado localmente.
+- Percentuais tributarios da Econet usam `Decimal`, nunca `float`.
+- O parser so faz mapping de obrigacoes quando o alias e explicitamente seguro: `DCTFWeb`, `EFD-Contribuicoes` e `EFD-Reinf`.
+- Obrigacoes desconhecidas nao serao mapeadas por aproximacao; elas permanecem em `unmapped_obligations`.
+- Fator R nao deve ser inferido sem texto observado; ausencia de prova permanece `NOT_OBSERVED`.
+- Mensagens negativas de Simples ou SIMEI sao resultados validos de negocio, nao erro tecnico do parser.
+- O TTL padrao do cache da Econet ficou em `180` dias como constante de dominio local do servico.
+- Persistencia com `content_hash` identico continua `UNCHANGED`, mas renova `retrieved_at` e `expires_at`.
+- O payload normalizado do S8.1 nao guarda HTML bruto, token, cookie, header ou sessao.

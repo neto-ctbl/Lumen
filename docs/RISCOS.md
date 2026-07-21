@@ -43,3 +43,11 @@ Data de referencia: 2026-07-20
 - Encoding incorreto pode deformar nomes de regimes e obrigacoes.
 - Nao existe contrato oficial JSON confirmado para a funcionalidade observada.
 - O uso futuro depende de sessao autenticada manualmente.
+- O parser do S8.1 pode ficar excessivamente acoplado a texto ou estrutura localmente observada e precisar revalidacao quando a Econet alterar microcopys.
+- Resultados parciais entre abas podem gerar cache semanticamente incompleto se o carregamento futuro do HTML nao entregar todas as secoes esperadas.
+- Divergencias entre as abas de tributacao e obrigacoes podem produzir payload coerente tecnicamente, mas contraditorio do ponto de vista fiscal.
+- TTL de `180` dias pode ficar longo ou curto demais para determinados CNAEs; isso pode gerar cache desatualizado ou revalidacoes desnecessarias.
+- Novos nomes de obrigacao podem surgir sem alias seguro e aumentar `unmapped_obligations`.
+- Mudanca no formato de `econet_id_cnae` pode quebrar lookup, mesmo mantendo o CNAE visivel.
+- Falso positivo de pagina de login ou CAPTCHA pode bloquear parse de HTML valido que contenha termos parecidos.
+- Cache global por CNAE pode divergir entre assinaturas ou ambientes da Econet se a plataforma passar a exibir conteudo contextual por perfil.

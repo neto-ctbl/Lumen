@@ -2174,3 +2174,91 @@ Limitacoes:
 * nao houve cliente HTTP, parser produtivo, migration, model ou sync;
 * o macro-stage S8 continua pendente;
 * o S8.1 ainda nao foi iniciado.
+
+### Micro-stage S8.1 - Model, migration, parser HTML puro e cache por CNAE
+
+Status: concluido em 2026-07-21
+
+Objetivo:
+
+* Criar a fundacao persistente e offline da integracao Econet sem qualquer chamada externa.
+* Materializar model, migration, parser HTML puro, payload normalizado e cache idempotente por CNAE.
+* Preparar o repositorio para o S8.2 sem iniciar sessao assistida, cliente HTTP real, endpoint manual ou sync funcional.
+
+Entregaveis:
+
+* `backend/app/models/econet_cnae_cache.py`
+* `backend/alembic/versions/20260721_0009_create_econet_cnae_cache.py`
+* `backend/app/services/integrations/econet/__init__.py`
+* `backend/app/services/integrations/econet/errors.py`
+* `backend/app/services/integrations/econet/parser.py`
+* `backend/app/services/integrations/econet/cache.py`
+* export do model em `backend/app/models/__init__.py`
+* enums `EconetSemanticStatus` e `EconetCacheWriteStatus` em `backend/app/core/enums.py`
+* `backend/tests/test_econet_parser.py`
+* `backend/tests/test_econet_cache.py`
+* `backend/tests/test_econet_cnae_cache_model.py`
+* reforco controlado das fixtures sinteticas de tributacao/MEI para explicitar cenarios de parser cobertos
+
+Schema e contrato interno materializados:
+
+* tabela `econet_cnae_cache` global por `cnae` normalizado
+* `cnae` com 7 digitos e `cnae_formatted` em `0000-0/00`
+* `econet_id_cnae` persistido como chave externa textual separada do CNAE
+* percentuais tributarios em `Numeric(5,2)`
+* blocos `simples`, `mei`, `presumed_profit`, `actual_profit` e `obligations_*` normalizados em JSONB
+* `normalized_payload` sem HTML bruto, sem cookie, sem token e sem sessao
+* `content_hash` SHA-256 deterministico sobre o payload canonicamente serializado
+
+Decisoes:
+
+* o cache da Econet no S8.1 e global por CNAE, nao multi-tenant por organizacao
+* a Econet continua estritamente indicativa; o cache nao cria status fiscal, nao altera regime oficial e nao gera obrigacao automatica
+* o parser do S8.1 e puro e offline; ele nao faz request, nao conhece cookie e nao conhece credencial
+* `econet_id_cnae` nao e calculado localmente e precisa vir do HTML de busca/detalhe observado
+* percentuais tributarios usam `Decimal`; `float` continua proibido
+* Fator R continua `NOT_OBSERVED` quando o HTML nao comprova limiar ou regra textual
+* obrigacoes desconhecidas continuam em `unmapped_obligations`; nao ha matching por aproximacao neste micro-stage
+* mensagens negativas da Econet sao resultados de negocio validos, nao erro tecnico do parser
+* TTL padrao do cache ficou em `180` dias como constante de dominio do servico
+* persistencias com hash identico retornam `UNCHANGED`, mas renovam `retrieved_at` e `expires_at`
+
+Validacoes:
+
+* `docker compose -f .\infra\docker-compose.yml up -d postgres redis`
+* `docker compose -f .\infra\docker-compose.yml ps`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini heads`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini current`
+* `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_econet_fixture_safety.py .\backend\tests\test_econet_observed_contract.py .\backend\tests\test_econet_parser.py .\backend\tests\test_econet_cache.py .\backend\tests\test_econet_cnae_cache_model.py -q`
+* `.\.venv\Scripts\python.exe -m pytest .\backend\tests -q`
+* `.\.venv\Scripts\python.exe -m ruff check .\backend`
+* `docker compose -f .\infra\docker-compose.yml exec -T postgres psql -U lumen -d lumen -c "\d+ econet_cnae_cache"`
+* `docker compose -f .\infra\docker-compose.yml exec -T postgres psql -U lumen -d lumen -c "select table_name from information_schema.tables where table_schema = 'public' and table_name = 'econet_cnae_cache';"`
+* `docker compose -f .\infra\docker-compose.yml exec -T postgres psql -U lumen -d lumen -c "select indexname, indexdef from pg_indexes where schemaname = 'public' and tablename = 'econet_cnae_cache' order by indexname;"`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini downgrade -1`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini current`
+* `docker compose -f .\infra\docker-compose.yml exec -T postgres psql -U lumen -d lumen -c "select to_regclass('public.econet_cnae_cache');"`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini current`
+* `cd .\frontend && npm run typecheck`
+* `cd .\frontend && npm run test:e2e`
+* `git diff --check`
+* `git diff --stat`
+* `git status --short`
+
+Rollback:
+
+* downgrade isolado de `20260721_0009`
+* remocao de `backend/app/models/econet_cnae_cache.py`
+* remocao de `backend/app/services/integrations/econet/`
+* remocao dos testes dedicados `test_econet_parser.py`, `test_econet_cache.py` e `test_econet_cnae_cache_model.py`
+* restore dos documentos atualizados e do export em `backend/app/models/__init__.py`
+
+Pendencias:
+
+* o macro-stage S8 continua pendente
+* o S8.2 ainda nao foi iniciado
+* nao existe sessao assistida, cliente HTTP stateful, endpoint manual, sync funcional ou health operacional da Econet
+* o cruzamento entre `external_companies` e `econet_cnae_cache` segue para stage posterior
+* `activity_types` permanece vazio ate evidencia HTML suficiente ou regra posterior segura

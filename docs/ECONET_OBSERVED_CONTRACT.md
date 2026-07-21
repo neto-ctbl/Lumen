@@ -148,3 +148,128 @@ Observacoes de alto nivel:
 - sync funcional;
 - endpoint funcional de integracao;
 - qualquer mutacao fiscal ou decisao automatica por empresa.
+
+## Contrato interno normalizado do S8.1
+
+O S8.1 nao cria cliente HTTP nem consulta externa. Ele cria um contrato interno de normalizacao para persistir somente o resultado semantico derivado de HTML local:
+
+```json
+{
+  "contract_version": "s8.1",
+  "parser_version": "1",
+  "cnae": {
+    "normalized": "0000000",
+    "formatted": "0000-0/00",
+    "description": "ATIVIDADE SINTETICA PARA TESTE",
+    "econet_id_cnae": "999999"
+  },
+  "activity_types": [],
+  "simples": {
+    "status": "ALLOWED",
+    "allowed": true,
+    "annex_default": "III",
+    "annex_conditional": null,
+    "factor_r_applicable": null,
+    "factor_r_threshold": null,
+    "factor_r_status": "NOT_OBSERVED"
+  },
+  "mei": {
+    "status": "ALLOWED",
+    "allowed": true,
+    "occupation": "OCUPACAO SINTETICA"
+  },
+  "presumed_profit": {
+    "status": "ALLOWED",
+    "allowed": true,
+    "irpj_rate": "8",
+    "csll_rate": "12"
+  },
+  "actual_profit": {
+    "status": "MANDATORY|NOT_MANDATORY|ALLOWED|UNKNOWN|NOT_OBSERVED",
+    "mandatory": true
+  },
+  "obligations": {
+    "general": {},
+    "simples": {},
+    "simei": {}
+  },
+  "unmapped_obligations": [
+    "DIRBI",
+    "DME",
+    "ECD",
+    "ECF",
+    "e-Social"
+  ]
+}
+```
+
+Campos efetivamente persistidos no cache:
+
+- `cnae`
+- `cnae_formatted`
+- `description`
+- `econet_id_cnae`
+- `activity_types`
+- `simples_*`
+- `mei_*`
+- `presumed_profit_*`
+- `actual_profit_*`
+- `obligations_general`
+- `obligations_simples`
+- `obligations_simei`
+- `unmapped_obligations`
+- `normalized_payload`
+- `parse_status`
+- `parser_version`
+- `content_hash`
+- `retrieved_at`
+- `expires_at`
+
+## Estados semanticos do S8.1
+
+Os estados semanticos centralizados em `backend/app/core/enums.py` e usados pelo parser/cache sao:
+
+- `ALLOWED`
+- `PROHIBITED`
+- `NOT_ALLOWED`
+- `NOT_MANDATORY`
+- `MANDATORY`
+- `PARSED`
+- `NOT_OBSERVED`
+- `UNKNOWN`
+- `PARSE_ERROR`
+- `REGIME_PROHIBITED`
+- `REGIME_NOT_ALLOWED`
+- `EMPTY`
+
+Regras de interpretacao documentadas:
+
+- mensagem negativa de Simples e resultado valido de negocio: `PROHIBITED`
+- mensagem negativa de SIMEI e resultado valido de negocio: `NOT_ALLOWED` ou `REGIME_NOT_ALLOWED`
+- ausencia de evidencia de Fator R continua `NOT_OBSERVED`
+- tabela vazia de obrigacoes continua `EMPTY`, nao erro tecnico
+
+## Hashes, parser version e limites
+
+- `parser_version = "1"` no S8.1
+- `contract_version = "s8.1"` no payload normalizado
+- `content_hash` usa `SHA-256` sobre JSON canonico com chaves ordenadas
+- timestamps nao entram no hash
+- espacos, ordem arbitraria de dicionarios e detalhes decorativos de HTML nao entram no hash
+
+Limitacoes explicitas do payload normalizado:
+
+- nao guarda HTML bruto
+- nao guarda cookies
+- nao guarda token
+- nao guarda headers
+- nao guarda URL completa com parametros sensiveis
+- nao guarda sessao autenticada
+
+## Diferenca entre HTML observado e payload normalizado
+
+- o HTML observado e fonte local, parcial e estruturalmente fragil
+- o payload normalizado e a traducao semantica minima que o Lumen consegue persistir com seguranca
+- obrigacoes so recebem `mapped_code` quando o alias e explicitamente seguro
+- nomes nao mapeados continuam preservados em `unmapped_obligations`
+- `econet_id_cnae` permanece como chave externa textual observada, separada do CNAE canonico

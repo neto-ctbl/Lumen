@@ -46,3 +46,8 @@ Data de referencia: 2026-07-15
 - Nenhum token da Econet deve ser salvo no banco no MVP.
 - Redaction e obrigatoria em qualquer diagnostico da Econet.
 - Fixtures da Econet nao podem conter PII, CNPJ real ou dado operacional.
+- O parser da Econet no S8.1 nunca recebe cookie, token ou sessao como entrada.
+- O cache `econet_cnae_cache` nao guarda HTML bruto, cookie, token, header nem URL com parametro sensivel.
+- O `normalized_payload` da Econet contem apenas campos semanticos normalizados e hashes.
+- Erros do parser da Econet nao devem incluir HTML integral nem trechos suficientes para reconstruir credencial ou sessao.
+- Futuras sessoes assistidas da Econet continuam fora do S8.1 e devem permanecer isoladas da persistencia do cache.
