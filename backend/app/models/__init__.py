@@ -13,6 +13,9 @@ from backend.app.models.fiscal_period import FiscalPeriod
 from backend.app.models.integration_account import IntegrationAccount
 from backend.app.models.integration_sync_run import IntegrationSyncRun
 from backend.app.models.organization import Organization
+from backend.app.models.sittax_difal_snapshot import SittaxDifalSnapshot
+from backend.app.models.sittax_fiscal_document_snapshot import SittaxFiscalDocumentSnapshot
+from backend.app.models.sittax_task_snapshot import SittaxTaskSnapshot
 from backend.app.models.sittax_company_snapshot import SittaxCompanySnapshot
 from backend.app.models.sittax_apuracao_snapshot import SittaxApuracaoSnapshot
 from backend.app.models.user import User
@@ -35,6 +38,9 @@ __all__ = [
     "IntegrationAccount",
     "IntegrationSyncRun",
     "Organization",
+    "SittaxDifalSnapshot",
+    "SittaxFiscalDocumentSnapshot",
+    "SittaxTaskSnapshot",
     "SittaxCompanySnapshot",
     "SittaxApuracaoSnapshot",
     "User",

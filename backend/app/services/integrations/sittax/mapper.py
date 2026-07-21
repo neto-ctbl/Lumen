@@ -1,10 +1,21 @@
 from __future__ import annotations
 
+import hashlib
+import re
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any
 
 from backend.app.core.security import mask_value
-from backend.app.schemas.sittax import SittaxApuracaoItem, SittaxCompanyItem, SittaxOfficeReference
+from backend.app.schemas.sittax import (
+    SittaxApuracaoItem,
+    SittaxCompanyItem,
+    SittaxDifalItem,
+    SittaxFiscalDocumentItem,
+    SittaxFiscalDocumentPage,
+    SittaxOfficeReference,
+    SittaxTaskItem,
+    SittaxTaskPage,
+)
 from backend.app.services.integrations.econtrole.mapper import normalize_cnpj
 
 from .errors import SittaxBusinessError, SittaxContextMismatchError, SittaxResponseError
@@ -12,6 +23,7 @@ from .errors import SittaxBusinessError, SittaxContextMismatchError, SittaxRespo
 
 SUCCESS_LOGIN_CODES = {0, 200, "0", "200"}
 DECIMAL_2_PLACES = Decimal("0.01")
+ZERO_DATETIME_PREFIXES = ("0001-01-01", "0000-00-00")
 
 
 def _normalize_text(value: Any) -> str | None:
@@ -95,7 +107,58 @@ def _normalize_optional_bool(payload: dict[str, Any], *keys: str) -> bool | None
 
 def _normalize_datetime_text(value: Any) -> str | None:
     text = _normalize_text(value)
+    if text is not None and text.startswith(ZERO_DATETIME_PREFIXES):
+        return None
     return text or None
+
+
+def _normalize_int(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        raise SittaxResponseError("Sittax payload contains invalid integer boolean value.")
+    try:
+        return int(str(value).strip())
+    except ValueError as exc:
+        raise SittaxResponseError("Sittax payload contains invalid integer value.") from exc
+
+
+def _normalize_optional_int(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        return _normalize_int(value)
+    except SittaxResponseError:
+        return None
+
+
+def _normalize_string_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [item.strip() for item in value.split(",") if item.strip()]
+    if not isinstance(value, list):
+        raise SittaxResponseError("Sittax payload contains an invalid string list block.")
+    normalized: list[str] = []
+    for item in value:
+        text = _normalize_text(item)
+        if text is not None:
+            normalized.append(text)
+    return normalized
+
+
+def _normalize_extension(value: Any) -> str | None:
+    text = _normalize_text(value)
+    if text is None:
+        return None
+    if text.startswith("."):
+        return text.lower()
+    return None
+
+
+def _hash_key(parts: list[str]) -> str:
+    digest = hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()
+    return digest[:32]
 
 
 def _resolve_company_context(data: dict[str, Any], *, requested_company_cnpj: str) -> tuple[str | None, dict[str, Any] | None]:
@@ -218,6 +281,7 @@ def map_login_response(payload: dict[str, Any]) -> dict[str, Any]:
     office = SittaxOfficeReference(
         id=_stringify_required(escritorio, "id"),
         name=_normalize_text(escritorio.get("nome")),
+        cnpj=normalize_cnpj(escritorio.get("cnpj")),
     )
     return {
         "token": token,
@@ -382,3 +446,202 @@ def map_apuracao_response(
         risks=risks,
         raw_payload=data,
     )
+
+
+def map_difal_response(payload: dict[str, Any]) -> SittaxDifalItem:
+    if not isinstance(payload, dict):
+        raise SittaxResponseError("Unexpected Sittax DIFAL response format.")
+    if payload.get("sucesso") is not True:
+        raise SittaxBusinessError("Sittax DIFAL response returned sucesso=false.")
+    difal = payload.get("difal")
+    if not isinstance(difal, dict):
+        raise SittaxResponseError("Sittax DIFAL response is missing difal object.")
+
+    dare_numbers = [
+        dare
+        for dare in [
+            _normalize_text(difal.get("numeroDareGuiaRevenda")),
+            _normalize_text(difal.get("numeroDareGuiaUsoConsumoImobilizado")),
+        ]
+        if dare is not None
+    ]
+    inconsistencies = _normalize_json_list(difal.get("creditos"))
+    total_amount = sum(
+        (
+            amount
+            for amount in [
+                _normalize_decimal(difal.get("valorGuiaRevenda")),
+                _normalize_decimal(difal.get("totalGuiaUsoConsumoImobilizado")),
+                _normalize_decimal(difal.get("totalGuiaIndustrializacao")),
+            ]
+            if amount is not None
+        ),
+        start=Decimal("0.00"),
+    )
+    return SittaxDifalItem(
+        difal_id=_normalize_text(difal.get("id")) or "difal",
+        has_guide=difal.get("possuiGuia") if isinstance(difal.get("possuiGuia"), bool) else None,
+        dare_numbers=dare_numbers,
+        total_amount=total_amount,
+        resale_amount=_normalize_decimal(difal.get("valorGuiaRevendaUtilizandoCredito"))
+        or _normalize_decimal(difal.get("valorGuiaRevenda")),
+        use_consumption_fixed_asset_amount=_normalize_decimal(difal.get("valorGuiaUsoConsumoImobilizadoUtilizandoCredito"))
+        or _normalize_decimal(difal.get("totalGuiaUsoConsumoImobilizado")),
+        total_purchases=_normalize_decimal(difal.get("totalTodasCompras")),
+        closing_date=_normalize_datetime_text(difal.get("dataFechamento")),
+        transmission_date=_normalize_datetime_text(difal.get("dataTransmissao")),
+        message=_normalize_text(payload.get("mensagem")),
+        notes_without_type_or_reference=(
+            difal.get("temNotasComReferenciaSemTipo")
+            if isinstance(difal.get("temNotasComReferenciaSemTipo"), bool)
+            else None
+        ),
+        inconsistencies=inconsistencies,
+        raw_payload=difal,
+    )
+
+
+def map_fiscal_document_page(payload: dict[str, Any], *, direction: str, page_number: int, page_size: int) -> SittaxFiscalDocumentPage:
+    if not isinstance(payload, dict):
+        raise SittaxResponseError("Unexpected Sittax fiscal document response format.")
+    if payload.get("sucesso") is not True:
+        raise SittaxBusinessError("Sittax fiscal document response returned sucesso=false.")
+    lista = payload.get("lista")
+    if not isinstance(lista, list):
+        raise SittaxResponseError("Sittax fiscal document response is missing lista.")
+
+    items = [map_fiscal_document_item(item, direction=direction) for item in lista if isinstance(item, dict)]
+    return SittaxFiscalDocumentPage(
+        page_number=page_number,
+        page_size=page_size,
+        total=_normalize_int(payload.get("total")),
+        total_filtered=_normalize_int(payload.get("totalFiltrado")),
+        items=items,
+        raw_payload=payload,
+    )
+
+
+def map_fiscal_document_item(payload: dict[str, Any], *, direction: str) -> SittaxFiscalDocumentItem:
+    if direction not in {"ENTRADA", "SAIDA"}:
+        raise SittaxResponseError("Sittax fiscal document direction is invalid.")
+
+    sittax_document_id = _normalize_text(payload.get("id"))
+    access_key = _normalize_text(payload.get("chave_acesso"))
+    document_number = _normalize_text(payload.get("numero"))
+    model = _normalize_text(payload.get("modelo"))
+    issue_date = _normalize_datetime_text(payload.get("data_emissao"))
+    period_reference = _normalize_period_reference(payload.get("data_competencia"))
+    cfops = _normalize_string_list(payload.get("cfops"))
+
+    source_document_key = sittax_document_id or access_key
+    if source_document_key is None:
+        source_document_key = _hash_key(
+            [
+                direction,
+                period_reference,
+                document_number or "",
+                model or "",
+                issue_date or "",
+                _normalize_text(payload.get("status")) or "",
+                _normalize_text(payload.get("emitente_nome") or payload.get("destinatario_nome")) or "",
+            ]
+        )
+
+    return SittaxFiscalDocumentItem(
+        source_document_key=source_document_key,
+        sittax_document_id=sittax_document_id,
+        document_direction=direction,
+        access_key=access_key,
+        model=model,
+        document_number=document_number,
+        status=_normalize_text(payload.get("status")),
+        issue_date=issue_date,
+        entry_date=_normalize_datetime_text(payload.get("data_entrada")),
+        period_reference=period_reference,
+        issuer_name=_normalize_text(payload.get("emitente_nome")),
+        issuer_state=_normalize_text(payload.get("emitente_uf")),
+        recipient_name=_normalize_text(payload.get("destinatario_nome")),
+        recipient_state=_normalize_text(payload.get("destinatario_uf")),
+        issuer_document=_normalize_text(payload.get("emitente_cpf_cnpj")),
+        cfops=cfops,
+        total_amount=_normalize_decimal(payload.get("valor_total")),
+        import_source=_normalize_text(payload.get("tipo_importacao")),
+        imported=payload.get("importada") if isinstance(payload.get("importada"), bool) else None,
+        has_xml=payload.get("tem_xml") if isinstance(payload.get("tem_xml"), bool) else None,
+        raw_payload=payload,
+    )
+
+
+def map_task_page(payload: dict[str, Any], *, page_number: int, page_size: int) -> SittaxTaskPage:
+    if not isinstance(payload, dict):
+        raise SittaxResponseError("Unexpected Sittax task response format.")
+    if payload.get("sucesso") is not True:
+        raise SittaxBusinessError("Sittax task response returned sucesso=false.")
+    lista = payload.get("lista")
+    if not isinstance(lista, list):
+        raise SittaxResponseError("Sittax task response is missing lista.")
+
+    items = [map_task_item(item) for item in lista if isinstance(item, dict)]
+    return SittaxTaskPage(
+        page_number=page_number,
+        page_size=page_size,
+        total=_normalize_int(payload.get("total")),
+        total_filtered=_normalize_int(payload.get("totalFiltrado")),
+        items=items,
+        raw_payload=payload,
+    )
+
+
+def map_task_item(payload: dict[str, Any]) -> SittaxTaskItem:
+    sittax_task_id = _normalize_text(payload.get("id"))
+    guid = _normalize_text(payload.get("guid"))
+    task_name = _normalize_text(payload.get("titulo"))
+    status_code = _normalize_optional_int(payload.get("status"))
+    file_extension_code = _normalize_optional_int(payload.get("extensaoArquivo"))
+    file_name = _normalize_text(payload.get("nomeArquivo"))
+    file_extension = _normalize_extension(payload.get("extensaoArquivo"))
+    if file_extension is None and file_name and "." in file_name:
+        file_extension = "." + file_name.rsplit(".", 1)[-1].lower()
+    period_reference = _normalize_period_reference(payload.get("periodo")) if payload.get("periodo") else None
+    source_task_key = sittax_task_id or guid
+    if source_task_key is None:
+        source_task_key = _hash_key(
+            [
+                task_name or "",
+                period_reference or "",
+                _normalize_text(payload.get("nomeEmpresa")) or "",
+                _normalize_text(payload.get("dataCriacao")) or "",
+            ]
+        )
+
+    return SittaxTaskItem(
+        source_task_key=source_task_key,
+        sittax_task_id=sittax_task_id,
+        task_type=_normalize_text(payload.get("tipo") or payload.get("tipoNome")) or task_name,
+        task_name=task_name,
+        description=_normalize_text(payload.get("descricaoString")),
+        company_name=_normalize_text(payload.get("nomeEmpresa")),
+        company_cnpj=normalize_cnpj(payload.get("empresaCnpj")),
+        period_reference=period_reference,
+        source_created_at=_normalize_datetime_text(payload.get("dataCriacao")),
+        source_finished_at=_normalize_datetime_text(payload.get("dataFimProcessamento")),
+        source_user_id=_normalize_text(payload.get("usuarioId")),
+        source_user_name=_normalize_text(payload.get("usuarioNome")),
+        status=_normalize_text(payload.get("status")),
+        status_code=status_code,
+        has_file=payload.get("possuiArquivo") if isinstance(payload.get("possuiArquivo"), bool) else None,
+        file_name=file_name,
+        file_extension=file_extension,
+        file_extension_code=file_extension_code,
+        processing_time_seconds=_normalize_decimal(payload.get("tempoProcessamento")),
+        raw_payload=payload,
+    )
+
+
+def sanitize_contract_message(value: Any) -> str | None:
+    text = _normalize_text(value)
+    if text is None:
+        return None
+    text = re.sub(r"\d", "#", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:120]

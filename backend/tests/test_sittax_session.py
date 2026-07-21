@@ -112,3 +112,33 @@ def test_closed_session_rejects_further_use() -> None:
     with pytest.raises(SittaxSessionError, match="closed"):
         with session.exclusive():
             pass
+
+
+def test_session_materializes_and_clears_observed_context_cookies() -> None:
+    session = build_session()
+
+    with session.exclusive():
+        session.mark_authenticated(
+            token="secret-token",
+            office_id="esc-1",
+            office_name="Escritorio Exemplo",
+            office_cnpj="07872563000119",
+            user_id="usr-1",
+            user_role="ADMIN",
+        )
+        session.set_apuracao_context(company_cnpj="12345678000195", period="2026-06")
+        session.set_api_context(company_cnpj="12345678000195", period="2026-06")
+
+        assert session.http_client.cookies.get("IdEscritorioSelecionado") == "esc-1"
+        assert session.http_client.cookies.get("CnpjDoEscritorioSelecionado") == "07872563000119"
+        assert session.http_client.cookies.get("CnpjDaEmpresaSelecionada") == "12345678000195"
+        assert session.http_client.cookies.get("DataInicialSelecionada") == "2026-06-01T00:00:00"
+
+        session.clear_api_context()
+        assert session.http_client.cookies.get("CnpjDaEmpresaSelecionada") is None
+        assert session.http_client.cookies.get("DataInicialSelecionada") is None
+        assert session.http_client.cookies.get("IdEscritorioSelecionado") == "esc-1"
+
+        session.clear_authentication()
+        assert session.http_client.cookies.get("IdEscritorioSelecionado") is None
+        assert session.http_client.cookies.get("CnpjDoEscritorioSelecionado") is None

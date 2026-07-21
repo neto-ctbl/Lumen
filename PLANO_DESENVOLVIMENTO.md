@@ -1122,6 +1122,11 @@ Decisoes novas:
 
 Status: pendente
 
+Observacao de 2026-07-17:
+- a validacao real confirmou que a apuracao funciona no host `apuracao.sittax.com.br`, mas o host `api.sittax.com.br` continua sem empresa ativa no replay HTTP hoje conhecido
+- o conector ja foi corrigido para separar contexto por host, bloquear DIFAL/documentos sem contexto de API e falhar cedo com diagnostico sanitizado
+- a conclusao do micro-stage depende da comprovacao do mecanismo real de handoff da empresa para o host API
+
 Objetivo:
 - completar o Sittax como fonte operacional read-only do Simples no Lumen, adicionando DIFAL, documentos fiscais e tarefas/transmissoes sobre o contexto ja definido pela apuracao
 
@@ -1211,6 +1216,37 @@ Aceite:
 - snapshots multi-tenant e idempotentes
 - nenhuma chamada proibida ocorre
 - o Lumen fica com dados suficientes para alimentar conciliacao futura sem depender apenas da teoria do contrato
+
+Fechamento tecnico S7.4 em 2026-07-21
+Registro complementar de fechamento do stage S7.4:
+
+- observacao documental: o S7.4 consolidou o fechamento tecnico da integracao operacional read-only com o Sittax, incluindo apuracao, handoff contextual do host `api`, DIFAL, documentos fiscais, tarefas, persistencia local, endpoint interno do Lumen e validacao manual controlada do comportamento real da sessao web
+- status confirmado como concluido em 2026-07-21
+- entregues: cliente stateful do Sittax em `backend/app/services/integrations/sittax/client.py`, sessao exclusiva e contextual em `backend/app/services/integrations/sittax/session.py`, mapeadores observados em `backend/app/services/integrations/sittax/mapper.py`, sync operacional em `backend/app/services/integrations/sittax/sync.py`, snapshots operacionais, endpoint `POST /api/v1/integrations/sittax/sync`, testes operacionais e documentacao tecnica consolidada em `docs/SITTAX_CONTEXT_HANDOFF.md` e `docs/SITTAX_OBSERVED_CONTRACT.md`
+- validacoes registradas: `.\.venv\Scripts\python.exe -m pytest backend/tests/test_sittax_session.py backend/tests/test_sittax_context_handoff.py backend/tests/test_sittax_operational_client.py backend/tests/test_sittax_operational_sync.py -q`, `.\.venv\Scripts\python.exe -m backend.scripts.check_sittax_connection`, `Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/v1/integrations/sittax/sync -Headers $headers -ContentType "application/json" -Body $body` com `dry_run = true`, `Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/v1/integrations/sittax/sync -Headers $headers -ContentType "application/json" -Body $body` com `dry_run = false`, replay manual controlado com `WebRequestSession` em `autenticacao.sittax.com.br`, `api.sittax.com.br` e `apuracao.sittax.com.br`, alem de consultas SQL de conferencia em snapshots e `integration_sync_runs`
+- resultado real confirmado no Lumen: `dry_run = SUCCESS` e execucao com escrita `status = SUCCESS`, `run_id = 39`, `context_mismatches = 0`, `failures = 0`, `apuracoes_received = 1`, `difal_received = 1`, `document_snapshots_created = 39`, `task_snapshots_created = 16`
+- confirmacao central do contrato real: o host `api.sittax.com.br` nao se comporta como API stateless pura; ele depende de sessao HTTP persistente, `cookie jar`, JWT Bearer reutilizado e afinidade de backend
+- descoberta tecnica principal: apuracao valida no host `apuracao.sittax.com.br` nao basta, sozinha, para liberar DIFAL e documentos no host `api.sittax.com.br`
+- sequencia funcional real validada em 2026-07-20: `POST /api/auth/login` -> `GET /api/empresa/listar-todas-escritorio-empresas-selecao?idEscritorio=...` -> `GET /api/apuracao/retornar-apuracao-sittax?empresaCnpj=...&periodo=MM/YYYY` -> materializacao de sessao com cookies de contexto -> `POST /api/v2/painel-contador/valor-auditoria` -> `GET /api/painelprincipal/retornar-dados-por-empresa` -> `GET /api/difal/obter-valores-difal?recalcular=false` -> `GET /api/nota-fiscal/lista-nota-fiscal-entrada-paginacao` -> `GET /api/nota-fiscal/lista-nota-fiscal-saida-paginacao` -> `GET /api/tarefa/paginacao`
+- cookies minimos observados como relevantes no replay stateful funcional: `sittax-api-affinity`, `CnpjDaEmpresaSelecionada`, `DataInicialSelecionada`, `IdEscritorioSelecionado` e `IdGrupoDeEmpresaSelecionado`
+- especificacao consolidada do handoff: o contexto de `apuracao.sittax.com.br` e o contexto de `api.sittax.com.br` continuam separados conceitualmente, mas o host `api` exige sessao persistente com cookies e afinidade; por isso o cliente do Lumen deve permanecer stateful por sessao e nao pode ser reescrito como cliente stateless por request
+- confirmacao explicita: replay manual simplificado com `Authorization: Bearer ...` e header `Cookie` montado manualmente em chamada avulsa falhou e nao e equivalente ao portal real
+- erros reais reproduzidos e agora documentados para evitar recorrencia futura: `Favor Selecionar a Empresa` em `painelprincipal` e documentos quando a sessao contextual do host `api` nao foi materializada corretamente; `Informe o período fiscal.` no DIFAL quando o periodo ativo do host `api` nao foi efetivamente confirmado; `Invalid isoformat string: '2026-07-20T20:20:01.53'` durante persistencia de tarefas por parser rigido de datetime
+- correcao tecnica incorporada ao backend: o parser de datas do Sittax passou a aceitar fracoes curtas e longas de segundos, incluindo formatos como `.53` e `.1456358`, evitando nova quebra em `datetime.fromisoformat`
+- campos e especificacoes observadas como estaveis o suficiente para o conector atual:
+- empresas do escritorio: `id`, `cnpj`, `nome`, `fantasia`, `uf`, `inscricaoEstadual`, `homologada`, `usaRegimeDeCaixa`
+- apuracao: `id`, `periodoFiscal`, `empresasApuracao`, `valorDas`, `valorDasXml`, `receitaLiquida`, `receitaProdutos`, `receitaServicos`, `receitaDevolucao`, `rbt12`, `rba`, `folhaDePagamentos`, `percentualFatorR`, `dataHoraTransmissao`, `mensagens`, `inconsistencias`, `resumosTributacaoSittax`, `resumosTributacaoXml`
+- painel principal: `nome`, `email`, `alertas`, com alertas contendo `id`, `tipoDoAlerta`, `tipoStatusAlerta`, `mensagem`, `ciente`, `historicoDoAlerta`
+- DIFAL: `id`, `possuiGuia`, `numeroDareGuiaRevenda`, `numeroDareGuiaUsoConsumoImobilizado`, `valorGuiaRevenda`, `valorGuiaRevendaUtilizandoCredito`, `valorGuiaUsoConsumoImobilizadoUtilizandoCredito`, `totalTodasCompras`, `totalReceitaRevendaInterestadual`, `totalReceitaUsoConsumoImobilizado`, `dataFechamento`, `dataTransmissao`, `creditos`, `temNotasComReferenciaSemTipo`
+- documentos de entrada: `id`, `chave_acesso`, `numero`, `modelo`, `status`, `data_emissao`, `data_entrada`, `data_competencia`, `emitente_nome`, `emitente_uf`, `cfops`, `valor_total`, `tem_xml`, `tipo_importacao`, `importada`
+- documentos de saida: `id`, `numero`, `modelo`, `status`, `data_emissao`, `data_competencia`, `destinatario_nome`, `destinatario_uf`, `emitente_cpf_cnpj`, `valor_total`, `valor_base_calculo`, `valor_deducoes`, `desconto_condicionado`, `desconto_incondicionado`, `tem_xml`
+- tarefas: `id`, `guid`, `titulo`, `descricaoString`, `nomeEmpresa`, `periodo`, `status`, `usuarioId`, `usuarioNome`, `dataCriacao`, `dataFimProcessamento`, `tempoProcessamento`, `possuiArquivo`, `nomeArquivo`, `extensaoArquivo`
+- confirmacao explicita do escopo operacional: o conector do S7.4 continua estritamente read-only, nao executa transmissao, nao recalcula apuracao, nao chama `recalcular=true`, nao usa endpoints ambiguos como `POST /api/v2/painel-contador/transmissao` e nao trata o portal como fonte oficial de mutacao fiscal
+- confirmacao arquitetural: o processamento continua serial por sessao, com exclusao mutua local, sem alternancia de empresas ou competencias dentro da mesma sessao operacional
+- persistencias locais confirmadas como parte do stage: `sittax_company_snapshots`, `sittax_apuracao_snapshots`, `sittax_difal_snapshots`, `sittax_fiscal_document_snapshots`, `sittax_task_snapshots` e `integration_sync_runs`
+- pendencia futura registrada: se houver nova regressao no host `api`, o diagnostico deve sempre partir de replay stateful com sessao persistente e inspecao do `cookie jar`, nunca de request stateless isolado
+- pendencia documental registrada: caso o portal exponha futuramente endpoint explicito de selecao de empresa no host `api`, o contrato deve ser revisado, mas ate nova evidencia o comportamento oficial do conector permanece baseado na sessao stateful validada em 2026-07-20
+- confirmacao final: o S7.4 encerra com contrato tecnico suficientemente validado para operacao read-only do Lumen sobre a funcionalidade real da API observada do Sittax, com os erros historicos principais mapeados, reproduzidos, explicados e mitigados documentalmente
 
 ---
 

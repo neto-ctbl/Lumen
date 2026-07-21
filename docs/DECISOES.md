@@ -1,6 +1,6 @@
 # Decisoes Tecnicas do Lumen
 
-Data de referencia: 2026-07-15
+Data de referencia: 2026-07-20
 
 ## S7.0 - Sittax observado
 
@@ -59,3 +59,20 @@ Data de referencia: 2026-07-15
 - A competencia precisa existir previamente em `fiscal_periods`.
 - O snapshot de apuracao usa idempotencia por `organization_id + sittax_company_snapshot_id + fiscal_period_id`.
 - O sync de apuracoes permanece serial, read-only e sem chamar DIFAL, documentos fiscais, painel, tarefas ou qualquer mutacao externa.
+
+## S7.4 - Handoff de contexto entre hosts
+
+- O contexto de `apuracao.sittax.com.br` e o contexto de `api.sittax.com.br` sao tratados separadamente na sessao local.
+- Sucesso da apuracao nao autoriza mais, por si so, chamadas de DIFAL e documentos.
+- O host `api.sittax.com.br` deve ser confirmado antes de DIFAL e documentos por uma chamada observada em rede e validada por envelope.
+- `POST /api/v2/painel-contador/valor-auditoria` foi aceito como bootstrap observado de periodo no host API.
+- `GET /api/painelprincipal/retornar-dados-por-empresa` foi aceito como validacao do contexto do host API, nao como sucesso silencioso presumido.
+- Falha no handoff do host API limpa apenas o contexto da API e interrompe a cadeia contextual da empresa.
+- Nao e permitido chamar DIFAL ou documentos depois de um `SittaxContextMismatchError` do host API.
+- O replay stateless com `Bearer` isolado ou com header `Cookie` montado manualmente nao e considerado equivalente ao comportamento do portal.
+- O replay stateful validado em 2026-07-20 confirmou que o host `api.sittax.com.br` depende de sessao web persistente com `cookie jar`.
+- O conector oficial do Lumen deve permanecer stateful por sessao e preservar cookies entre chamadas.
+- O cookie `sittax-api-affinity` passa a ser tratado como parte relevante da sessao observada.
+- Os cookies `CnpjDaEmpresaSelecionada`, `DataInicialSelecionada`, `IdEscritorioSelecionado` e `IdGrupoDeEmpresaSelecionado` passam a ser tratados como contexto observado relevante do host `api`.
+- O handoff stateful `login -> empresas -> apuracao -> valor-auditoria -> painelprincipal -> DIFAL/documentos` foi validado na pratica em 2026-07-20.
+- Ainda nao foi comprovado endpoint explicito de "selecionar empresa" no host `api`; a implementacao deve continuar usando apenas a sequencia observada e a sessao stateful validada.

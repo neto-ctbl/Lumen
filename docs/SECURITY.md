@@ -23,6 +23,8 @@ Data de referencia: 2026-07-15
 - O script de conectividade do Sittax so pode exibir contagem de empresas e identificador mascarado do escritorio.
 - O script `sync_sittax_companies` deve emitir apenas JSON seguro com contadores e erros sanitizados.
 - O script `sync_sittax_apuracoes` deve emitir apenas JSON seguro com contadores e erros sanitizados.
+- O modo `--diagnostic-contract` do Sittax so pode exibir host, status HTTP, tipo do JSON, nomes de chaves, flags de sucesso, mensagem sanitizada, nomes de cookies e estado booleano de contexto.
+- O diagnostico do handoff entre hosts nao pode imprimir body bruto, token, `Authorization`, cookie values, CNPJ completo, documento fiscal, valor fiscal ou payload integral.
 
 ## Escopo permitido
 
@@ -32,3 +34,4 @@ Data de referencia: 2026-07-15
 - O health futuro do Sittax deve refletir apenas estado local, sem login ou consulta externa por request.
 - O S7.2 cria snapshot e script operacional, mas continua sem apuracao, sem contexto ativo, sem endpoint de frontend e sem integracao operacional no health.
 - O S7.3 cria snapshot read-only de apuracao e script operacional proprio, preservando `raw_payload` apenas em `sittax_apuracao_snapshots` e mantendo `integration_sync_runs` livres de payload bruto e valores fiscais.
+- O S7.4 mantem o health estritamente local e trata o handoff de contexto entre hosts como validacao operacional, nunca como consulta disparada pelo frontend.

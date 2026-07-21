@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Generator
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,6 +13,7 @@ from backend.app.models.external_company import ExternalCompany
 from backend.app.models.fiscal_obligation import FiscalObligation
 from backend.app.models.fiscal_obligation_status import FiscalObligationStatus
 from backend.app.models.fiscal_period import FiscalPeriod
+from backend.app.models.integration_sync_run import IntegrationSyncRun
 from backend.app.models.organization import Organization
 from backend.app.models.user import User
 from backend.app.models.user_organization import UserOrganization
@@ -117,6 +119,36 @@ def seed_obligation(db_session, *, code: str = "SPED-FISCAL", department: str = 
     db_session.add(obligation)
     db_session.flush()
     return obligation
+
+
+def seed_run(
+    db_session,
+    *,
+    organization_id: int,
+    provider: str = "SITTAX",
+    job_name: str = "sync_sittax_operational",
+    status: str,
+    started_at: datetime | None = None,
+    finished_at: datetime | None = None,
+) -> IntegrationSyncRun:
+    run = IntegrationSyncRun(
+        organization_id=organization_id,
+        integration_account_id=None,
+        provider=provider,
+        job_name=job_name,
+        status=status,
+        started_at=started_at,
+        finished_at=finished_at,
+        processed_count=1,
+        created_count=0,
+        updated_count=0,
+        error_count=0 if status == "SUCCESS" else 1,
+        summary={},
+        run_metadata={},
+    )
+    db_session.add(run)
+    db_session.flush()
+    return run
 
 
 def test_lumen_endpoints_require_authentication(client: TestClient) -> None:
@@ -248,3 +280,49 @@ def test_dashboard_is_isolated_by_organization(client: TestClient, db_session) -
     assert response.status_code == 200
     assert response.json()["kpis"]["obligations_total"] == 1
     assert response.json()["kpis"]["delivered_total"] == 0
+
+
+def test_integrations_health_uses_last_terminal_run_and_flags_stale_running(client: TestClient, db_session, monkeypatch) -> None:
+    user, organization, password = seed_auth_context(db_session, role=ROLE_VIEW, slug="org-health")
+    now = datetime.now(timezone.utc)
+    seed_run(
+        db_session,
+        organization_id=organization.id,
+        status="SUCCESS",
+        started_at=now - timedelta(minutes=30),
+        finished_at=now - timedelta(minutes=29),
+    )
+    seed_run(
+        db_session,
+        organization_id=organization.id,
+        status="RUNNING",
+        started_at=now - timedelta(minutes=20),
+        finished_at=None,
+    )
+    headers = login_headers(client, email=user.email, password=password)
+
+    def _boom(*args, **kwargs):
+        raise AssertionError("health must not instantiate Sittax session")
+
+    monkeypatch.setattr("backend.app.services.integrations.sittax.session.SittaxSession.from_settings", _boom)
+    response = client.get("/api/v1/lumen/integrations/health", headers=headers)
+
+    assert response.status_code == 200
+    sittax = next(item for item in response.json()["items"] if item["provider"] == "SITTAX")
+    assert sittax["status"] == "SUCCESS"
+    assert sittax["last_run_status"] == "SUCCESS"
+    assert sittax["active_run_status"] == "RUNNING"
+    assert sittax["stale_warning"] is not None
+
+
+def test_integrations_health_without_runs_returns_nao_iniciada(client: TestClient, db_session) -> None:
+    user, _, password = seed_auth_context(db_session, role=ROLE_VIEW, slug="org-health-empty")
+    headers = login_headers(client, email=user.email, password=password)
+
+    response = client.get("/api/v1/lumen/integrations/health", headers=headers)
+
+    assert response.status_code == 200
+    sittax = next(item for item in response.json()["items"] if item["provider"] == "SITTAX")
+    assert sittax["last_run_status"] is None
+    assert sittax["active_run_status"] is None
+    assert sittax["stale_warning"] is None

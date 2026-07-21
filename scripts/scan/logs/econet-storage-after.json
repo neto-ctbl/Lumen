@@ -1,0 +1,161 @@
+{
+  "label": "after",
+  "capturedAt": "2026-07-21T12:05:53.362Z",
+  "page": {
+    "url": "https://www.econeteditora.com.br/novo/index.php",
+    "origin": "https://www.econeteditora.com.br",
+    "title": "Novo Site Econet",
+    "localStorage": {
+      "token": "1275a12628031611157d7000c495a0993e180097579e02f1e29f696af650b1eac02cabdf26b5b789df364ffbb2c1db3d8426cc94453a3f96b3df317a63196ab2640200a86ba94513dbe9acc92235a710e546651dd1525f4c1f0a7838428d2449055eadeaca41e367cc96d95014fbc488bca5fb319f1ed6d08830277d4a64150497a0e49c0fdd5c3c18f8b9eabbdb55ef4a5c3f2083d630ccb44ffdfddb966a2e0e88853f8c68a17268c40babf07fb22ba07d43fba3c9f049356854bcc8cd421d91c4cf4c34239cbb8d39a319d457b6fd6a0bcaaef771f6b15bc69c0ec5bef7cf283faa11fc5d8137171f0eb5f264df400af0e20b085bdf7c4519a15dbb5134642718a3338c1f93471bb0a5d69049654b969ba7fc022dbb3219b135c876f459fbc6922bbeff309704bcb2ffaf5a780afa282c79363a5ca375470a392a658015d78b477ef82057d8353d31a7edf4c2316117bb840d3f8152ba0f094a43f41b61706f2324582d4fa2bc629176ff41aea314629fe1d78118ef3bbf2dabc38f2d73ffbf846619aad2803a4befbfaf11cb436d618303b543887d1337ed911730089757",
+      "chatWidgetEntranceLastRun": "2026-07-21",
+      "_grecaptcha": "09AKhCRwh5DvGDDsct5yb8jWeHO3NWqhWq7QbAjqJYHBK6AX4fJYGA_EBx_whklAFU54SayEsWNMrIo5w1NEhDyNhQkWMFSGRiIOOhYrS4LAetUPDfWPoCi7KMPmfX-diD"
+    },
+    "sessionStorage": {}
+  },
+  "indexedDb": {
+    "supported": true,
+    "databases": []
+  },
+  "cookies": [
+    {
+      "name": "_ga_5TXVL9JD46",
+      "valueMasked": "[MASKED:54]",
+      "domain": ".econeteditora.com.br",
+      "path": "/",
+      "expires": 1819195449.793397,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ga",
+      "valueMasked": "[MASKED:27]",
+      "domain": ".econeteditora.com.br",
+      "path": "/",
+      "expires": 1819195376.297738,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_hjSession_3916732",
+      "valueMasked": "[MASKED:148]",
+      "domain": ".econeteditora.com.br",
+      "path": "/",
+      "expires": 1784637330,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_hjSessionUser_3916732",
+      "valueMasked": "[MASKED:116]",
+      "domain": ".econeteditora.com.br",
+      "path": "/",
+      "expires": 1816171449,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "AWSALB",
+      "valueMasked": "[MASKED:124]",
+      "domain": "eco-assistente-api.econeteditora.com.br",
+      "path": "/",
+      "expires": 1785240250.535795,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "AWSALBCORS",
+      "valueMasked": "[MASKED:124]",
+      "domain": "eco-assistente-api.econeteditora.com.br",
+      "path": "/",
+      "expires": 1785240250.535926,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "bG0naW4",
+      "valueMasked": "[MASKED:32]",
+      "domain": ".econeteditora.com.br",
+      "path": "/",
+      "expires": 1784689240.264944,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "bG9naW4",
+      "valueMasked": "[MASKED:738]",
+      "domain": ".econeteditora.com.br",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "cookiesession1",
+      "valueMasked": "[MASKED:32]",
+      "domain": "www.econeteditora.com.br",
+      "path": "/",
+      "expires": 1816171375.265169,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "cross-site-cookie",
+      "valueMasked": "[MASKED:4]",
+      "domain": "www.econeteditora.com.br",
+      "path": "/ferramentas/regimes_cnae",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "operacional",
+      "valueMasked": "[MASKED:832]",
+      "domain": "www.econeteditora.com.br",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "PHPSESSID",
+      "valueMasked": "[MASKED:33]",
+      "domain": "www.econeteditora.com.br",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "spy_copia",
+      "valueMasked": "[MASKED:89]",
+      "domain": "www.econeteditora.com.br",
+      "path": "/",
+      "expires": 1816171543,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "usuariocopia",
+      "valueMasked": "[MASKED:8]",
+      "domain": ".econeteditora.com.br",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ]
+}

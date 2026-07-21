@@ -1,6 +1,6 @@
 # Estrutura inicial esperada do repositório Lumen
 
-Data de referência: 2026-07-03
+Data de referência: 2026-07-21
 
 Este documento descreve a organização inicial recomendada para o monorepo do Lumen. A estrutura foi pensada para facilitar trabalho incremental com Codex, separando backend, frontend, agente local, infra, documentação e scripts operacionais.
 
@@ -102,8 +102,13 @@ lumen/
 │  │  │  ├─ integration_sync_run.py
 │  │  │  ├─ watcher_file_event.py
 │  │  │  ├─ econet_cnae_cache.py
-│  │  │  ├─ sittax_snapshots.py
-│  │  │  ├─ acessorias_snapshots.py
+│  │  │  ├─ sittax_company_snapshot.py
+│  │  │  ├─ sittax_apuracao_snapshot.py
+│  │  │  ├─ sittax_difal_snapshot.py
+│  │  │  ├─ sittax_fiscal_document_snapshot.py
+│  │  │  ├─ sittax_task_snapshot.py
+│  │  │  ├─ acessorias_company_snapshot.py
+│  │  │  ├─ acessorias_delivery_snapshot.py
 │  │  │  ├─ dominio_payroll.py
 │  │  │  └─ audit_log.py
 │  │  │
@@ -145,6 +150,7 @@ lumen/
 │  │  │     ├─ econtrole/
 │  │  │     │  ├─ client.py
 │  │  │     │  ├─ mapper.py
+│  │  │     │  ├─ errors.py
 │  │  │     │  └─ sync.py
 │  │  │     ├─ acessorias/
 │  │  │     │  ├─ client.py
@@ -183,11 +189,16 @@ lumen/
 │  │        └─ generate_fiscal_alerts.py
 │  │
 │  ├─ scripts/
+│  │  ├─ check_sittax_connection.py
 │  │  ├─ create_initial_admin.py
 │  │  ├─ seed_obligations.py
+│  │  ├─ seed_obligation_rules.py
 │  │  ├─ seed_periods.py
-│  │  ├─ run_reconciliation_once.py
-│  │  └─ run_file_scan_once.py
+│  │  ├─ sync_acessorias_deliveries.py
+│  │  ├─ sync_econtrole_companies.py
+│  │  ├─ sync_sittax_companies.py
+│  │  ├─ sync_sittax_apuracoes.py
+│  │  └─ sync_sittax_operational.py
 │  │
 │  └─ tests/
 │     ├─ conftest.py
@@ -335,20 +346,12 @@ lumen/
 │     └─ run_econtrole_reconcile.ps1
 │
 ├─ docs/
-│  ├─ BASELINE_LUMEN.md
+│  ├─ ACESSORIAS_CONTRACT.md
 │  ├─ DECISOES.md
 │  ├─ RISCOS.md
-│  ├─ INTEGRATION_CONTRACTS.md
-│  ├─ API_CONTRACTS.md
-│  ├─ DATA_MODEL.md
-│  ├─ FRONTEND_STYLE_GUIDE.md
-│  ├─ WATCHER_GUIDE.md
-│  ├─ PDF_PARSERS.md
-│  ├─ RECONCILIATION_RULES.md
-│  ├─ DCTFWEB_RULES.md
-│  ├─ FATOR_R_RULES.md
 │  ├─ SECURITY.md
-│  ├─ RUNBOOK_LOCAL.md
+│  ├─ SITTAX_CONTEXT_HANDOFF.md
+│  ├─ SITTAX_OBSERVED_CONTRACT.md
 │  └─ examples/
 │     ├─ README.md
 │     ├─ sample_acessorias_delivery.json
@@ -360,6 +363,11 @@ lumen/
 │  ├─ econtrole_company.schema.json
 │  ├─ acessorias_delivery.schema.json
 │  ├─ sittax_apuracao.schema.json
+│  ├─ sittax_company.schema.json
+│  ├─ sittax_company_panel.schema.json
+│  ├─ sittax_difal.schema.json
+│  ├─ sittax_fiscal_document_page.schema.json
+│  ├─ sittax_task_page.schema.json
 │  ├─ watcher_event.schema.json
 │  └─ fiscal_evidence.schema.json
 │
@@ -435,6 +443,12 @@ Scripts com credenciais locais devem usar `.env` ou arquivo `.local.*` ignorado 
 ### `docs/`
 
 Contém documentação viva do projeto. Toda decisão relevante tomada durante desenvolvimento deve entrar em `docs/DECISOES.md`.
+
+Observações do estado atual em 2026-07-21:
+
+- `docs/SITTAX_CONTEXT_HANDOFF.md` e `docs/SITTAX_OBSERVED_CONTRACT.md` registram a validação final do comportamento real do Sittax.
+- O host `api.sittax.com.br` ficou comprovado como sessão web stateful, dependente de `cookie jar`, afinidade e ordem correta das chamadas.
+- A documentação antiga que registrava ausência de cookies funcionais no Sittax ficou superada pela validação stateful de 2026-07-20.
 
 ### `schemas/`
 
@@ -954,3 +968,10 @@ Decisoes materializadas no S7.3:
 - a competencia precisa existir em `fiscal_periods`; este micro-stage nao cria periodos automaticamente
 - o snapshot de apuracao usa idempotencia por `organization_id + sittax_company_snapshot_id + fiscal_period_id`
 - o sync de apuracoes e serial por sessao, processa apenas `MATCHED` no lote e continua sem chamar DIFAL, documentos, painel, tarefas ou qualquer mutacao externa
+
+Atualizacao parcial do S7.4 em 2026-07-17:
+
+- a sessao Sittax passou a manter contexto separado por host: `active_apuracao_*` e `active_api_*`
+- `backend/app/services/integrations/sittax/client.py` exige confirmacao do host API antes de DIFAL e documentos
+- `docs/SITTAX_CONTEXT_HANDOFF.md` registra a sequencia real validada, a dependencia de sessao stateful, os cookies de contexto e a divergencia entre replay stateless e comportamento real do portal
+- o handoff real da empresa no host API permanece pendente de evidencia adicional; o macro-stage S7 segue aberto

@@ -1,26 +1,27 @@
-# Sittax Observed Contract for Lumen S7.3
+# Sittax Observed Contract for Lumen S7.4
 
-Data de referencia: 2026-07-15
+Data de referencia: 2026-07-20
 
 ## Natureza do contrato
 
 - Os endpoints abaixo foram observados no portal web do Sittax durante navegacao autorizada.
-- Este material nao representa uma API publica oficial documentada.
-- O portal e os payloads podem mudar sem aviso.
+- Este material nao representa API publica oficial documentada.
+- O portal, os cookies e os envelopes podem mudar sem aviso.
 - O contrato depende de autorizacao legitima de uso.
-- O Lumen utilizara apenas leitura.
+- O Lumen utiliza apenas leitura.
 - Nao havera transmissao, recalculo ou qualquer mutacao externa.
-- O contrato deve ser revalidado quando o portal mudar.
+- O contrato deve ser revalidado quando o portal mudar ou quando o replay stateful deixar de reproduzir o comportamento do portal.
 
 ## Estado atual de implementacao
 
-- S7.0 concluiu apenas documentacao, fixtures anonimizadas e schemas observados.
+- S7.0 concluiu documentacao inicial, fixtures anonimizadas e schemas observados.
 - S7.1 implementou autenticacao read-only, sessao exclusiva local e listagem de empresas.
-- S7.2 implementa snapshot local read-only apenas para a listagem de empresas, com reconciliacao por `organization_id + cnpj`.
-- S7.3 implementa snapshot local read-only da apuracao por empresa e competencia, com contexto ativo confirmado apenas apos validacao de CNPJ e periodo.
-- S7.3 nao implementa DIFAL, documentos fiscais, painel da empresa, tarefas, endpoint de frontend ou health funcional.
+- S7.2 implementou snapshot local read-only da listagem de empresas.
+- S7.3 implementou snapshot local read-only da apuracao por empresa e competencia.
+- S7.4 implementou DIFAL, documentos, tarefas, runs operacionais e handoff stateful do host `api`.
 - Validacao real controlada executada em 2026-07-16 confirmou login, resolucao de escritorio e listagem de `157` empresas em tenant autorizado.
-- Validacao real final do S7.2 executada em 2026-07-16 confirmou `157` snapshots persistidos, distribuicao `MATCHED = 155` e `UNMATCHED = 2`, e segunda execucao serial idempotente sem criacao adicional.
+- Validacao real do sync operacional executada em 2026-07-20 confirmou `dry_run = SUCCESS` e `write run = SUCCESS` no endpoint local `POST /api/v1/integrations/sittax/sync`.
+- Replay manual stateful executado em 2026-07-20 confirmou `painelprincipal`, DIFAL, documentos de entrada, documentos de saida e tarefas na mesma sessao HTTP.
 
 ## Classificacoes usadas
 
@@ -32,18 +33,36 @@ Data de referencia: 2026-07-15
 - `TELEMETRY_IGNORE`
 - `OUT_OF_SCOPE`
 
-## Contexto persistente por empresa e competencia
+## Modelo real de sessao
 
-A consulta de apuracao define o contexto ativo por `empresaCnpj` e `periodo`.
-Todos os endpoints contextuais seguintes utilizam esse ultimo contexto ate
-que uma nova consulta de apuracao o substitua.
+### Regra principal
 
-Consequencias obrigatorias para a arquitetura do conector:
+O Sittax, para o host `api.sittax.com.br`, comporta-se como sessao web stateful e nao como API stateless pura.
 
-- uma sessao deve ser exclusiva por empresa/competencia durante o processamento;
-- a primeira implementacao deve ser serial por sessao;
-- nao e permitido alternar Empresa A, depois Empresa B, e voltar a consultar dados contextuais de Empresa A na mesma sessao;
-- paralelismo futuro so sera aceitavel com sessoes totalmente isoladas.
+### Componentes da sessao observada
+
+- JWT Bearer retornado pelo login
+- cookie de afinidade do host `api`
+- cookies de contexto em `.sittax.com.br`
+- ordem correta das chamadas
+- reutilizacao do mesmo cliente HTTP
+
+### Cookies relevantes observados em 2026-07-20
+
+- `sittax-api-affinity`
+- `CnpjDaEmpresaSelecionada`
+- `DataInicialSelecionada`
+- `IdEscritorioSelecionado`
+- `IdGrupoDeEmpresaSelecionado`
+
+### Consequencias obrigatorias para o conector
+
+- uma sessao deve ser exclusiva por empresa e competencia durante o processamento
+- a implementacao deve permanecer serial por sessao
+- nao e permitido alternar Empresa A, depois Empresa B, e voltar a consultar dados contextuais de Empresa A na mesma sessao
+- paralelismo futuro so sera aceitavel com sessoes totalmente isoladas
+- falha no handoff do host `api` deve interromper a cadeia contextual da empresa antes de DIFAL e documentos
+- o cliente deve preservar o `cookie jar` e nao reconstruir chamadas contextuais como requests isolados
 
 ## Endpoints observados
 
@@ -53,16 +72,15 @@ Consequencias obrigatorias para a arquitetura do conector:
 - Metodo: `POST`
 - Path: `/api/auth/login`
 - Autenticacao: nao aplicavel; este endpoint gera o JWT
-- Parametros: body observado fora do Git; nao deve ser logado nem versionado
+- Parametros observados: body com `usuario`, `senha`
 - Envelope observado: objeto com `codigo`, `primeiroAcesso`, `token`, `usuario`
 - Campos relevantes: `token`, `usuario.id`, `usuario.email`, `usuario.nome`, `usuario.escritorio`, `usuario.role`
 - Paginacao: nao
 - Classificacao: `CORE_READ_ONLY`
 - Dependencia de contexto: nao
 - Riscos: vazamento de senha, JWT, cookies e contexto de escritorio
-- Uso previsto no Lumen: autenticacao futura e descoberta do escritorio/usuario
-- Implementacao atual do S7.1: login read-only com body observado `usuario` + `senha`, token somente em memoria e sem persistencia
-- Validacao real do S7.1: sucesso homologado com `codigo = 200`
+- Uso previsto no Lumen: autenticacao e descoberta do escritorio/usuario
+- Validacao real: sucesso em 2026-07-20 no replay manual stateful e no cliente do Lumen
 
 ### Empresas do escritorio
 
@@ -78,7 +96,7 @@ Consequencias obrigatorias para a arquitetura do conector:
 - Dependencia de contexto: nao
 - Riscos: depende do escritorio selecionado; IDs internos nao devem ser tratados como estaveis
 - Uso previsto no Lumen: conciliacao com `external_companies` e cache de empresa Sittax
-- Implementacao atual do S7.2: listagem read-only por `idEscritorio` resolvido no login, com persistencia local apenas em `sittax_company_snapshots`
+- Validacao real: sucesso em 2026-07-20
 
 ### Apuracao
 
@@ -91,9 +109,42 @@ Consequencias obrigatorias para a arquitetura do conector:
 - Paginacao: nao
 - Autenticacao: JWT Bearer observado no portal
 - Classificacao: `CORE_READ_ONLY`, `CONTEXT_SETTER`
-- Dependencia de contexto: define o contexto ativo
+- Dependencia de contexto: define o contexto do host `apuracao`
 - Riscos: consulta altera o contexto ativo da sessao e pode invalidar leituras contextuais anteriores
-- Uso previsto no Lumen: snapshot principal de apuracao e definicao de contexto da sessao
+- Uso previsto no Lumen: snapshot principal de apuracao e definicao do contexto da sessao
+- Validacao real: sucesso em 2026-07-20
+
+### Bootstrap de periodo do host API
+
+- Host: `api.sittax.com.br`
+- Metodo: `POST`
+- Path: `/api/v2/painel-contador/valor-auditoria`
+- Parametros observados: body com `periodo`
+- Envelope observado: objeto com `ok`, `status`, `erros`, `data`
+- Paginacao: nao
+- Autenticacao: JWT Bearer observado no portal
+- Classificacao: `SUPPORTING_READ_ONLY`
+- Dependencia de contexto: depende da sessao certa; sozinho nao garante empresa ativa
+- Riscos: replay stateless pode devolver `ok = true` sem materializar o contexto completo
+- Uso previsto no Lumen: parte obrigatoria do handoff para o host `api`
+- Validacao real: sucesso em 2026-07-20 tanto no cliente do Lumen quanto no replay stateful
+
+### Painel da empresa
+
+- Host: `api.sittax.com.br`
+- Metodo: `GET`
+- Path: `/api/painelprincipal/retornar-dados-por-empresa`
+- Parametros observados: nenhum na chamada observada
+- Envelope observado em sucesso: objeto com `$id`, `sucesso`, `nome`, `email`, `alertas`
+- Envelope observado em falha: objeto com `$id`, `mensagem`, `sucesso`, `status`, `stack`, `details`
+- Campos relevantes por alerta: `id`, `tipoDoAlerta`, `tipoStatusAlerta`, `mensagem`, `ciente`, `historicoDoAlerta`
+- Paginacao: nao
+- Autenticacao: JWT Bearer observado no portal
+- Classificacao: `CONTEXT_DEPENDENT`
+- Dependencia de contexto: depende de empresa ativa e periodo ativo materializados no host `api`
+- Riscos: em replay stateless falhou com `Favor Selecionar a Empresa`; so funcionou com sessao persistente
+- Uso previsto no Lumen: validacao forte do contexto do host `api` antes de DIFAL e documentos; enriquecimento com alertas
+- Validacao real: sucesso em 2026-07-20 com `WebRequestSession`
 
 ### DIFAL
 
@@ -106,9 +157,10 @@ Consequencias obrigatorias para a arquitetura do conector:
 - Paginacao: nao
 - Autenticacao: JWT Bearer observado no portal
 - Classificacao: `CONTEXT_DEPENDENT`
-- Dependencia de contexto: usa a ultima empresa/competencia definida pela apuracao
-- Riscos: nao chamar antes da apuracao; `recalcular=true` e proibido
+- Dependencia de contexto: exige sessao stateful com contexto ativo confirmado no host `api`
+- Riscos: `recalcular=true` continua proibido; replay stateless devolveu `Informe o periodo fiscal.`
 - Uso previsto no Lumen: snapshot de DIFAL read-only
+- Validacao real: sucesso em 2026-07-20 com `sucesso = true`
 
 ### Documentos fiscais de entrada
 
@@ -117,13 +169,14 @@ Consequencias obrigatorias para a arquitetura do conector:
 - Path: `/api/nota-fiscal/lista-nota-fiscal-entrada-paginacao`
 - Parametros observados: `filtros`, `ordenacao`, `pageSize`, `pagina`, `total`
 - Envelope observado: objeto com `$id`, `sucesso`, `total`, `totalFiltrado`, `lista`
-- Campos relevantes por item: `id`, `chave_acesso`, `numero`, `modelo`, `data_emissao`, `data_entrada`, `data_competencia`, `emitente_nome`, `emitente_uf`, `cfops`, `valor_total`, `tem_xml`, `status`, `tipo_importacao`, `importada`
+- Campos relevantes por item: `id`, `chave_acesso`, `numero`, `modelo`, `status`, `data_emissao`, `data_entrada`, `data_competencia`, `emitente_nome`, `emitente_uf`, `cfops`, `valor_total`, `tem_xml`, `tipo_importacao`, `importada`
 - Paginacao: sim
 - Autenticacao: JWT Bearer observado no portal
 - Classificacao: `CONTEXT_DEPENDENT`
-- Dependencia de contexto: usa a ultima empresa/competencia definida pela apuracao
+- Dependencia de contexto: exige sessao stateful com contexto ativo confirmado no host `api`
 - Riscos: primeira pagina nao representa o conjunto completo; filtros observados podem mudar
 - Uso previsto no Lumen: snapshot paginado de notas de entrada
+- Validacao real: sucesso em 2026-07-20 com `sucesso = true`, `total = 273`, `totalFiltrado = 31`
 
 ### Documentos fiscais de saida
 
@@ -132,45 +185,32 @@ Consequencias obrigatorias para a arquitetura do conector:
 - Path: `/api/nota-fiscal/lista-nota-fiscal-saida-paginacao`
 - Parametros observados: `filtros`, `ordenacao`, `pageSize`, `pagina`, `total`
 - Envelope observado: objeto com `$id`, `sucesso`, `total`, `totalFiltrado`, `lista`
-- Campos relevantes por item: `id`, `chave_acesso`, `numero`, `modelo`, `data_emissao`, `data_competencia`, `destinatario_nome`, `destinatario_uf`, `emitente_cpf_cnpj`, `valor_total`, `valor_base_calculo`, `valor_deducoes`, `desconto_condicionado`, `desconto_incondicionado`, `tem_xml`, `status`
+- Campos relevantes por item: `id`, `numero`, `modelo`, `status`, `data_emissao`, `data_competencia`, `destinatario_nome`, `destinatario_uf`, `emitente_cpf_cnpj`, `valor_total`, `valor_base_calculo`, `valor_deducoes`, `desconto_condicionado`, `desconto_incondicionado`, `tem_xml`
 - Paginacao: sim
 - Autenticacao: JWT Bearer observado no portal
 - Classificacao: `CONTEXT_DEPENDENT`
-- Dependencia de contexto: usa a ultima empresa/competencia definida pela apuracao
+- Dependencia de contexto: exige sessao stateful com contexto ativo confirmado no host `api`
 - Riscos: primeira pagina nao representa o conjunto completo
 - Uso previsto no Lumen: snapshot paginado de notas de saida
-
-### Painel da empresa
-
-- Host: `api.sittax.com.br`
-- Metodo: `GET`
-- Path: `/api/painelprincipal/retornar-dados-por-empresa`
-- Parametros observados: nenhum na chamada observada
-- Envelope observado: objeto com `$id`, `sucesso`, `nome`, `email`, `alertas`
-- Campos relevantes por alerta: `id`, `tipoDoAlerta`, `tipoStatusAlerta`, `mensagem`, `ciente`, `historicoDoAlerta`
-- Paginacao: nao
-- Autenticacao: JWT Bearer observado no portal
-- Classificacao: `CONTEXT_DEPENDENT`
-- Dependencia de contexto: usa a ultima empresa/competencia definida pela apuracao
-- Riscos: sem contexto valido pode refletir empresa/competencia erradas
-- Uso previsto no Lumen: enriquecimento de alertas e dados auxiliares da empresa
+- Validacao real: sucesso em 2026-07-20 com `sucesso = true`, `total = 137`, `totalFiltrado = 8`
 
 ### Tarefas
 
 - Host: `api.sittax.com.br`
 - Metodo: `GET`
 - Path: `/api/tarefa/paginacao`
-- Parametros observados: nao conclusivos no log capturado
+- Parametros observados: nao conclusivos no primeiro log; chamadas reais sem query tambem responderam
 - Envelope observado: objeto com `$id`, `sucesso`, `total`, `totalFiltrado`, `lista`
 - Campos relevantes por item: `id`, `guid`, `titulo`, `descricaoString`, `nomeEmpresa`, `periodo`, `status`, `usuarioId`, `usuarioNome`, `dataCriacao`, `dataFimProcessamento`, `tempoProcessamento`, `possuiArquivo`, `nomeArquivo`, `extensaoArquivo`
 - Paginacao: sim
 - Autenticacao: JWT Bearer observado no portal
 - Classificacao: `SUPPORTING_READ_ONLY`
-- Dependencia de contexto: nao comprovada no log capturado
-- Riscos: comportamento contextual nao deve ser presumido sem nova observacao
+- Dependencia de contexto: nao exigiu o mesmo contexto forte de empresa
+- Riscos: datas reais vieram com fracao de segundos heterogenea, incluindo `2026-07-20T20:20:01.53`; o parser local deve continuar aceitando fracao curta e longa
 - Uso previsto no Lumen: snapshot read-only de fila operacional e transmissao/tarefa observada
+- Validacao real: sucesso em 2026-07-20
 
-### Endpoints auxiliares de leitura
+## Endpoints auxiliares de leitura
 
 - `GET /api/escritorio/lista-escritorios-para-selecionar`
   - Classificacao: `SUPPORTING_READ_ONLY`
@@ -192,7 +232,6 @@ Consequencias obrigatorias para a arquitetura do conector:
 - Outros endpoints `painel-contador`
   - `POST /api/v2/painel-contador/apuracao`
   - `POST /api/v2/painel-contador/auditoria`
-  - `POST /api/v2/painel-contador/valor-auditoria`
   - `POST /api/v2/painel-contador/lista-apuracao-transmitido`
   - Classificacao inicial: `AMBIGUOUS_DEFERRED`
 

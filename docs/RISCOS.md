@@ -1,6 +1,6 @@
 # Riscos Tecnicos do Lumen
 
-Data de referencia: 2026-07-15
+Data de referencia: 2026-07-20
 
 ## Sittax
 
@@ -23,3 +23,9 @@ Data de referencia: 2026-07-15
 - Ausencia de uma empresa na listagem Sittax nao pode ser tratada como delete local automatico.
 - Persistir apuracao sem conferir `empresaCnpj` e `periodoFiscal` pode contaminar snapshots entre empresas ou competencias.
 - Reaproveitar contexto de apuracao apos tentativa falha cria risco de chamadas contextuais com empresa ou competencia obsoletas.
+- O host `api.sittax.com.br` exige sessao stateful; tratar as chamadas como requests stateless cria risco de falso negativo local e de conclusao arquitetural errada.
+- Perder o cookie `sittax-api-affinity` no meio da cadeia contextual pode quebrar o handoff mesmo com JWT valido e cookies de contexto presentes.
+- Reconstituir manualmente apenas o header `Cookie` sem preservar o `cookie jar` completo pode produzir comportamento diferente do portal e do cliente do Lumen.
+- Reordenar o fluxo validado `login -> empresas -> apuracao -> valor-auditoria -> painelprincipal -> DIFAL/documentos` cria risco de contexto parcial no host `api`.
+- Ausencia de endpoint explicito de selecao de empresa no host API continua sendo risco documental; o conector depende da sequencia observada e da sessao persistente, nao de um setter oficial documentado.
+- Datas retornadas pelo Sittax podem vir com fracao de segundos curta ou longa; parser rigido cria falha operacional mesmo com payload semanticamente valido.

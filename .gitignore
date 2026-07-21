@@ -127,6 +127,7 @@ logs/
 !scripts/
 !scripts/scan/
 !scripts/scan/logs/
+scripts/scan/logs/*.har
 scripts/scan/logs/sittax-network-log*.jsonl
 *.log
 *.log.*

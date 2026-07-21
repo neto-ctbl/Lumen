@@ -1,0 +1,161 @@
+{
+  "label": "after",
+  "capturedAt": "2026-07-20T19:37:34.455Z",
+  "page": {
+    "url": "https://app.sittax.com.br/documentosFiscais/notafiscal/entrada",
+    "origin": "https://app.sittax.com.br",
+    "title": "Entrar",
+    "localStorage": {
+      "currentUser": "{\"codigo\":200,\"token\":\"[MASKED]\",\"usuario\":{\"id\":\"2fef0968-8c6d-4d73-a51b-8b7084cebf00\",\"nome\":\"MARIA\",\"ativo\":true,\"sobrenome\":\"CLARA\",\"email\":\"fiscal02@netocontabilidade.com.br\",\"phoneNumber\":\"62994822087\",\"emailConfirmed\":false,\"imagemDoUsuario\":null,\"eUsuarioEmpresa\":false,\"role\":{\"nivel\":3,\"sistema\":0,\"id\":\"c4823217-1b56-401e-8085-0f367b604316\",\"name\":\"ADMINISTRADOR DO ESCRITORIO\",\"normalizedName\":null,\"concurrencyStamp\":null},\"claimsAtivasInativas\":[{\"id\":\"9pJMxJmveQ\",\"claimType\":\"ACESSOS\",\"claimValue\":\"EXCLUIR_PERFIL\",\"nivel\":9,\"ativo\":true},{\"id\":\"YPZ4a2JMqg\",\"claimType\":\"ACESSOS\",\"claimValue\":\"EXCLUIR_ACESSO_PERFIL\",\"nivel\":9,\"ativo\":true},{\"id\":\"E9Ovjm9Kye\",\"claimType\":\"EXCECAO_PADRAO_PIS_COFINS\",\"claimValue\":\"LISTAR\",\"nivel\":9,\"ativo\":true},{\"id\":\"ok8v1QbvDW\",\"claimType\":\"EXCECAO_PIS_COFINS\",\"claimValue\":\"IMPORTAR_EXCECAO_PADRAO\",\"nivel\":9,\"ativo\":true},{\"id\":\"8qXv7nLK2D\",\"claimType\":\"PAINEL\",\"claimValue\":\"VISUALIZAR\",\"nivel\":10,\"ativo\":true},{\"id\":\"9pJMxOJ4eQ\",\"claimType\":\"ACESSOS\",\"claimValue\":\"ALTERAR_ACESSOS_PERFIL\",\"nivel\":9,\"ativo\":true},{\"id\":\"9pJMx9mKeQ\",\"claimType\":\"EMPRESA\",\"claimValue\":\"ABA_NOTAS\",\"nivel\":10,\"ativo\":false},{\"id\":\"qzEKJqkMod\",\"claimType\":\"ESCRITORIO\",\"claimValue\":\"DADOS_INTEGRACAO_ACESSORIAS\",\"nivel\":5,\"ativo\":true},{\"id\":\"10o4qqo4Jq\",\"claimType\":\"NOTA_FISCAL_SAIDA\",\"claimValue\":\"ALTERAR_DATA_EMISSAO_COMPETENCIA\",\"nivel\":5,\"ativo\":true},{\"id\":\"jOoKDGOMe3\",\"claimType\":\"NOTA_FISCAL_SAIDA\",\"claimValue\":\"ALTERAR_ISS_RETIDO_NAO_RETIDO\",\"nivel\":5,\"ativo\":true},{\"id\":\"6JyvPWPKd7\",\"claimType\":\"ESCRITORIO\",\"claimValue\":\"ABA_FINANCEIRO\",\"nivel\":6,\"ativo\":true},{\"id\":\"P9jKB864Qo\",\"claimType\":\"ESCRITORIO\",\"claimValue\":\"ABA_FINANCEIRO_HISTORICO_PAGAMENTOS\",\"nivel\":6,\"ativo\":true}],\"escritorio\":{\"id\":\"zEKJyyBMod\",\"nome\":\"NETO CONTABILIDADE LTDA\",\"cnpj\":\"07872563000119\",\"fantasia\":\"NETO CONTABILIDADE\",\"permiteRetroagir\":false,\"ehGrupoEscritorio\":false,\"ehGrupoEmpresas\":false,\"empresaPesquisaPorRazaoSocial\":true,\"emHomologacao\":false,\"fusoHorarioGmt\":-3,\"apiKeyAcessorias\":\"[MASKED]\",\"dataAvisoInadimplencia\":null,\"inadimplencia\":false,\"emAuditoria\":false,\"revenda\":{\"cnpj\":\"47726644000206\",\"nome\":\"SITTAX SISTEMA DE INTELIGENCIA TRIBUTARIA LTDA\",\"fantasia\":\"SITTAX\",\"apelido\":\"SITTAX\",\"id\":\"olXMOz4rEk\",\"usuarioAlteracao\":null},\"qtdeDiasInadimplencia\":0},\"termoPendente\":false,\"temQueVotarNps\":false,\"idNps\":null,\"nivel\":3,\"eUsuarioGrupoEmpresas\":false,\"revendaId\":\"olXMOz4rEk\",\"ehImplantacao\":true,\"estaEmHomologacaoSemEmpresa\":false,\"whatsappVerificado\":false,\"emailVerificado\":true},\"primeiroAcesso\":false}",
+      "chatWidgetWindowStateCE732CBE87584E11A429D9B83FB71561": "false",
+      "widgetType": "1"
+    },
+    "sessionStorage": {
+      "__openreplay_tabid": "a8ba4c2d3915",
+      "__openreplay_pageno": "0",
+      "_cltk": "1r2ns2k"
+    }
+  },
+  "indexedDb": {
+    "supported": true,
+    "databases": []
+  },
+  "cookies": [
+    {
+      "name": "_clck",
+      "valueMasked": "[MASKED:27]",
+      "domain": ".sittax.com.br",
+      "path": "/",
+      "expires": 1816112131,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_clsk",
+      "valueMasked": "[MASKED:56]",
+      "domain": ".sittax.com.br",
+      "path": "/",
+      "expires": 1784662623,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ga_ECZNFYHHV6",
+      "valueMasked": "[MASKED:45]",
+      "domain": ".sittax.com.br",
+      "path": "/",
+      "expires": 1819136223.303363,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ga",
+      "valueMasked": "[MASKED:27]",
+      "domain": ".sittax.com.br",
+      "path": "/",
+      "expires": 1819136071.228408,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "chatWidgetWindowStateCE732CBE87584E11A429D9B83FB71561",
+      "valueMasked": "[MASKED:5]",
+      "domain": "app.sittax.com.br",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "CnpjDaEmpresaSelecionada",
+      "valueMasked": "[MASKED:14]",
+      "domain": ".sittax.com.br",
+      "path": "/",
+      "expires": 1784583369,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "CnpjDoEscritorioSelecionado",
+      "valueMasked": "[MASKED:14]",
+      "domain": ".sittax.com.br",
+      "path": "/",
+      "expires": 1784583324,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "DataInicialSelecionada",
+      "valueMasked": "[MASKED:24]",
+      "domain": ".sittax.com.br",
+      "path": "/",
+      "expires": 1784583371,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "IdEscritorioSelecionado",
+      "valueMasked": "[MASKED:10]",
+      "domain": ".sittax.com.br",
+      "path": "/",
+      "expires": 1784583324,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "IdGrupoDeEmpresaSelecionado",
+      "valueMasked": "",
+      "domain": ".sittax.com.br",
+      "path": "/",
+      "expires": 1784583324,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "sittax-api-affinity",
+      "valueMasked": "[MASKED:16]",
+      "domain": "api.sittax.com.br",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    }
+  ],
+  "jwtCandidates": [
+    {
+      "source": "cookies[10].domain",
+      "type": "jwt-inline",
+      "fingerprint": "api.sittax.com",
+      "length": 14
+    },
+    {
+      "source": "cookies[4].domain",
+      "type": "jwt-inline",
+      "fingerprint": "app.sittax.com",
+      "length": 14
+    },
+    {
+      "source": "localStorage.currentUser.$parsed.usuario.email",
+      "type": "jwt-inline",
+      "fingerprint": "netocont...e.com.br",
+      "length": 24
+    },
+    {
+      "source": "cookies[9].domain",
+      "type": "jwt-inline",
+      "fingerprint": "sittax.com.br",
+      "length": 13
+    }
+  ]
+}

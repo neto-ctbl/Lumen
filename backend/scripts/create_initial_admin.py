@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 from sqlalchemy.orm import Session
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from backend.app.core.config import Settings, get_settings
 from backend.app.db.session import SessionLocal

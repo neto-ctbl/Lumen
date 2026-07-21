@@ -1,8 +1,8 @@
 # Lumen - Fiscal Cockpit
 
-Data de referencia: 2026-07-14
+Data de referencia: 2026-07-21
 
-O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage S6.0, o Stage S6, o micro-stage S7.0, o micro-stage S7.1, o micro-stage S7.2 e o micro-stage S7.3. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5, do frontend fiscal read-only do S5.1, da integracao oficial read-only com o Sistema Acessorias no S6 e do snapshot cadastral do Sittax no S7.2, o projeto passou a persistir snapshot local read-only da apuracao Sittax por empresa e competencia, com contexto ativo validado por `empresaCnpj + periodo`, execucao serial, dry-run, fixture mode e sem chamar DIFAL, documentos, painel, tarefas ou qualquer mutacao externa.
+O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage S6.0, o Stage S6, o micro-stage S7.0, o micro-stage S7.1, o micro-stage S7.2, o micro-stage S7.3 e o micro-stage S7.4. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5, do frontend fiscal read-only do S5.1, da integracao oficial read-only com o Sistema Acessorias no S6 e dos snapshots cadastral e de apuracao do Sittax, o projeto passou a suportar DIFAL, documentos fiscais, tarefas/transmissoes, endpoint manual de sync, persistencia operacional multi-tenant e handoff stateful validado do host `api.sittax.com.br`.
 
 ## Escopo real atual
 
@@ -257,6 +257,18 @@ Observacoes do S7.3:
 - a CLI operacional usa `--period YYYY-MM`, resolve a competencia em `fiscal_periods` e nao a cria implicitamente
 - o sync de apuracoes e serial por sessao, processa apenas snapshots `MATCHED` no lote e aceita `--company-id`, `--limit`, `--dry-run` e `--apuracao-fixture`
 - `integration_sync_runs` do S7.3 guardam apenas contadores, erros sanitizados e metadata segura
+
+Observacoes do S7.4:
+
+- o cliente operacional separa contexto de apuracao e contexto do host `api.sittax.com.br`
+- DIFAL e documentos nao sao chamados sem confirmacao previa do host API
+- o handoff falho do host API gera `SittaxContextMismatchError` sanitizado e interrompe a cadeia da empresa sem erro secundario derivado
+- o diagnostico `--diagnostic-contract` mostra apenas estrutura sanitizada do contrato e estado booleano do contexto
+- a validacao final de `2026-07-20` comprovou que o host `api.sittax.com.br` depende de sessao HTTP stateful, `cookie jar`, afinidade e ordem correta das chamadas
+- o replay manual stateless com `Bearer` isolado ou header `Cookie` montado manualmente nao e equivalente ao comportamento real do portal
+- o replay manual stateful com `WebRequestSession` confirmou `painelprincipal`, DIFAL, documentos e tarefas na mesma sessao
+- os cookies relevantes observados foram `sittax-api-affinity`, `CnpjDaEmpresaSelecionada`, `DataInicialSelecionada`, `IdEscritorioSelecionado` e `IdGrupoDeEmpresaSelecionado`
+- o endpoint manual do S7.4 e `POST /api/v1/integrations/sittax/sync` com RBAC `ADMIN|DEV`
 
 Observacoes do S5:
 
@@ -643,6 +655,22 @@ Fechamento tecnico do S7.3:
 - `backend/app/services/integrations/sittax/sync.py` implementa resolucao de competencia em `fiscal_periods`, execucao serial, upsert idempotente e dry-run sem escrita para apuracao
 - `backend/scripts/sync_sittax_apuracoes.py` executa o sync operacional seguro por `--org-slug`, `--period`, `--company-id`, `--limit`, `--dry-run` e `--apuracao-fixture`
 - o sync continua read-only contra o Sittax, sem DIFAL, sem documentos fiscais, sem painel, sem tarefas e sem qualquer mutacao externa
+
+Fechamento tecnico do S7.4:
+
+- `backend/app/models/sittax_difal_snapshot.py`, `sittax_fiscal_document_snapshot.py` e `sittax_task_snapshot.py` materializam os snapshots operacionais multi-tenant do Sittax
+- o cliente Sittax passou a cobrir `GET /api/difal/obter-valores-difal?recalcular=false`, `GET /api/nota-fiscal/lista-nota-fiscal-entrada-paginacao`, `GET /api/nota-fiscal/lista-nota-fiscal-saida-paginacao` e `GET /api/tarefa/paginacao`
+- `backend/app/services/integrations/sittax/session.py` preserva sessao stateful, `cookie jar`, contexto observado e exclusao mutua por `session.exclusive()`
+- `backend/app/services/integrations/sittax/client.py` passou a preservar o handoff stateful do host `api`, incluindo `valor-auditoria`, validacao de `painelprincipal` e reutilizacao de cookies
+- `backend/app/services/integrations/sittax/sync.py` implementa sync operacional serial e read-only para DIFAL, documentos e tarefas, com persistencia idempotente e `integration_sync_runs`
+- `backend/scripts/sync_sittax_operational.py` executa o sync operacional por `--org-slug`, `--period`, `--company-id`, `--limit`, `--scope`, `--max-pages`, `--dry-run` e `--diagnostic-contract`
+- `backend/app/api/v1/endpoints/integrations/sittax.py` expoe `POST /api/v1/integrations/sittax/sync` com RBAC `ADMIN|DEV`
+- `docs/SITTAX_CONTEXT_HANDOFF.md` e `docs/SITTAX_OBSERVED_CONTRACT.md` consolidam a descoberta final de que o host `api.sittax.com.br` e stateful e nao deve ser tratado como API stateless pura
+- a validacao real do sync local concluiu `dry_run = SUCCESS` e `write run = SUCCESS` em `2026-07-20`, com `run_id = 39`, `context_mismatches = 0`, `failures = 0`, `apuracoes_received = 1`, `difal_received = 1`, `document_snapshots_created = 39` e `task_snapshots_created = 16`
+- o replay manual stateful com `WebRequestSession` validou a sequencia `login -> empresas -> apuracao -> valor-auditoria -> painelprincipal -> DIFAL -> documentos -> tarefas`
+- o replay manual stateless ficou documentado como abordagem incorreta para o host `api`, pois devolveu `Favor Selecionar a Empresa` e `Informe o periodo fiscal.` mesmo com JWT valido
+- o parser de datas do Sittax foi ajustado para aceitar fracoes curtas e longas de segundos, incluindo formatos como `2026-07-20T20:20:01.53` e `2026-06-11T19:12:41.1456358`
+- o sync continua estritamente read-only: nao transmite, nao recalcula, nao chama `recalcular=true`, nao usa endpoints ambiguos como `POST /api/v2/painel-contador/transmissao` e nao muta estado fiscal externo
 
 Fechamento final validado em 2026-07-15:
 

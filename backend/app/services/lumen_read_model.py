@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 from sqlalchemy import Select, func, or_, select
@@ -19,6 +19,10 @@ from backend.app.models.fiscal_obligation_status import FiscalObligationStatus
 from backend.app.models.fiscal_period import FiscalPeriod
 from backend.app.models.integration_account import IntegrationAccount
 from backend.app.models.integration_sync_run import IntegrationSyncRun
+from backend.app.models.sittax_apuracao_snapshot import SittaxApuracaoSnapshot
+from backend.app.models.sittax_difal_snapshot import SittaxDifalSnapshot
+from backend.app.models.sittax_fiscal_document_snapshot import SittaxFiscalDocumentSnapshot
+from backend.app.models.sittax_task_snapshot import SittaxTaskSnapshot
 from backend.app.schemas.cockpit import CockpitCompanyRow, CockpitResponse
 from backend.app.schemas.company import (
     CompanyDetailResponse,
@@ -39,6 +43,10 @@ from backend.app.schemas.evidence import EvidenceItem, EvidenceListResponse
 from backend.app.schemas.installment import InstallmentItem, InstallmentListResponse
 from backend.app.schemas.integration import IntegrationHealthItem, IntegrationHealthResponse
 from backend.app.schemas.period import PeriodItem, PeriodListResponse
+
+
+STALE_RUN_MINUTES = 15
+TERMINAL_RUN_STATUSES = {"SUCCESS", "PARTIAL", "FAILED"}
 
 
 PROVIDER_LABELS = {
@@ -643,31 +651,58 @@ def get_integrations_health(db: Session, *, organization_id: int) -> Integration
     ).all()
     accounts_by_provider = {row.provider.upper(): row for row in account_rows}
 
-    run_rows = db.execute(
-        select(
-            IntegrationSyncRun.provider,
-            func.max(IntegrationSyncRun.finished_at),
+    terminal_runs = db.scalars(
+        select(IntegrationSyncRun)
+        .where(
+            IntegrationSyncRun.organization_id == organization_id,
+            IntegrationSyncRun.status.in_(TERMINAL_RUN_STATUSES),
         )
-        .where(IntegrationSyncRun.organization_id == organization_id)
-        .group_by(IntegrationSyncRun.provider)
+        .order_by(
+            func.upper(IntegrationSyncRun.provider).asc(),
+            IntegrationSyncRun.finished_at.desc().nulls_last(),
+            IntegrationSyncRun.id.desc(),
+        )
     ).all()
-    latest_run_lookup = {str(provider).upper(): finished_at for provider, finished_at in run_rows}
+    latest_terminal_by_provider: dict[str, IntegrationSyncRun] = {}
+    for run in terminal_runs:
+        provider = run.provider.upper()
+        if provider not in latest_terminal_by_provider:
+            latest_terminal_by_provider[provider] = run
+
+    active_runs = db.scalars(
+        select(IntegrationSyncRun)
+        .where(
+            IntegrationSyncRun.organization_id == organization_id,
+            IntegrationSyncRun.status == "RUNNING",
+        )
+        .order_by(
+            func.upper(IntegrationSyncRun.provider).asc(),
+            IntegrationSyncRun.started_at.desc().nulls_last(),
+            IntegrationSyncRun.id.desc(),
+        )
+    ).all()
+    active_run_by_provider: dict[str, IntegrationSyncRun] = {}
+    for run in active_runs:
+        provider = run.provider.upper()
+        if provider not in active_run_by_provider:
+            active_run_by_provider[provider] = run
 
     items: list[IntegrationHealthItem] = []
     for provider, label in PROVIDER_LABELS.items():
         account = accounts_by_provider.get(provider)
-        finished_at = latest_run_lookup.get(provider)
-        last_run = None
-        if finished_at is not None:
-            last_run = db.scalar(
-                select(IntegrationSyncRun)
-                .where(
-                    IntegrationSyncRun.organization_id == organization_id,
-                    func.upper(IntegrationSyncRun.provider) == provider,
-                    IntegrationSyncRun.finished_at == finished_at,
+        last_run = latest_terminal_by_provider.get(provider)
+        active_run = active_run_by_provider.get(provider)
+        stale_warning = None
+        if active_run is not None and active_run.started_at is not None:
+            cutoff = datetime.now(timezone.utc) - timedelta(minutes=STALE_RUN_MINUTES)
+            started_at = active_run.started_at
+            if started_at.tzinfo is None:
+                started_at = started_at.replace(tzinfo=timezone.utc)
+            if started_at < cutoff:
+                stale_warning = (
+                    f"Run RUNNING sem finalizacao ha mais de {STALE_RUN_MINUTES} minutos; "
+                    "health usa o ultimo run terminal."
                 )
-                .order_by(IntegrationSyncRun.id.desc())
-            )
 
         if provider == "ECONTROLE":
             note = "Espelho cadastral ativo no S5; leituras fiscais ainda sao read-only."
@@ -680,9 +715,46 @@ def get_integrations_health(db: Session, *, organization_id: int) -> Integration
                 if last_run is not None
                 else ("CONFIGURAR" if not configured else "NAO_INICIADA")
             )
+        elif provider == "SITTAX":
+            configured = bool(settings.sittax_email and settings.sittax_password)
+            note = "Health local do S7.4 baseado em configuracao, ultimo run terminal e snapshots read-only."
+            status_value = (
+                last_run.status
+                if last_run is not None
+                else ("CONFIGURAR" if not configured else "NAO_INICIADA")
+            )
         else:
             note = "Nao iniciado neste stage S5.1."
             status_value = account.status if account is not None else "NAO_INICIADA"
+
+        snapshot_counts = None
+        if provider == "SITTAX":
+            snapshot_counts = {
+                "apuracoes": db.scalar(
+                    select(func.count()).select_from(SittaxApuracaoSnapshot).where(
+                        SittaxApuracaoSnapshot.organization_id == organization_id
+                    )
+                )
+                or 0,
+                "difal": db.scalar(
+                    select(func.count()).select_from(SittaxDifalSnapshot).where(
+                        SittaxDifalSnapshot.organization_id == organization_id
+                    )
+                )
+                or 0,
+                "documents": db.scalar(
+                    select(func.count()).select_from(SittaxFiscalDocumentSnapshot).where(
+                        SittaxFiscalDocumentSnapshot.organization_id == organization_id
+                    )
+                )
+                or 0,
+                "tasks": db.scalar(
+                    select(func.count()).select_from(SittaxTaskSnapshot).where(
+                        SittaxTaskSnapshot.organization_id == organization_id
+                    )
+                )
+                or 0,
+            }
 
         items.append(
             IntegrationHealthItem(
@@ -699,6 +771,10 @@ def get_integrations_health(db: Session, *, organization_id: int) -> Integration
                 processed_count=last_run.processed_count if last_run is not None else 0,
                 error_count=last_run.error_count if last_run is not None else 0,
                 note=note,
+                snapshot_counts=snapshot_counts,
+                active_run_status=active_run.status if active_run is not None else None,
+                active_run_started_at=_iso_date(active_run.started_at if active_run is not None else None),
+                stale_warning=stale_warning,
             )
         )
 

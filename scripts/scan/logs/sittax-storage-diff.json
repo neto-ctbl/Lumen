@@ -1,0 +1,142 @@
+{
+  "generatedAt": "2026-07-20T19:37:39.257Z",
+  "beforeCapturedAt": "2026-07-20T19:35:40.279Z",
+  "afterCapturedAt": "2026-07-20T19:37:34.455Z",
+  "pageUrlBefore": "https://app.sittax.com.br/painel-contador",
+  "pageUrlAfter": "https://app.sittax.com.br/documentosFiscais/notafiscal/entrada",
+  "localStorage": {
+    "added": [],
+    "removed": [],
+    "changed": []
+  },
+  "sessionStorage": {
+    "added": [],
+    "removed": [],
+    "changed": []
+  },
+  "indexedDb": {
+    "added": [],
+    "removed": [],
+    "changed": []
+  },
+  "cookies": {
+    "added": [
+      {
+        "name": "CnpjDaEmpresaSelecionada",
+        "valueMasked": "[MASKED:14]",
+        "domain": ".sittax.com.br",
+        "path": "/",
+        "expires": 1784583369,
+        "httpOnly": false,
+        "secure": false,
+        "sameSite": "Lax"
+      }
+    ],
+    "removed": [],
+    "changed": [
+      {
+        "before": {
+          "name": "DataInicialSelecionada",
+          "valueMasked": "[MASKED:24]",
+          "domain": ".sittax.com.br",
+          "path": "/",
+          "expires": 1784583322,
+          "httpOnly": false,
+          "secure": false,
+          "sameSite": "Lax"
+        },
+        "after": {
+          "name": "DataInicialSelecionada",
+          "valueMasked": "[MASKED:24]",
+          "domain": ".sittax.com.br",
+          "path": "/",
+          "expires": 1784583371,
+          "httpOnly": false,
+          "secure": false,
+          "sameSite": "Lax"
+        }
+      },
+      {
+        "before": {
+          "name": "_clsk",
+          "valueMasked": "[MASKED:56]",
+          "domain": ".sittax.com.br",
+          "path": "/",
+          "expires": 1784662532,
+          "httpOnly": false,
+          "secure": false,
+          "sameSite": "Lax"
+        },
+        "after": {
+          "name": "_clsk",
+          "valueMasked": "[MASKED:56]",
+          "domain": ".sittax.com.br",
+          "path": "/",
+          "expires": 1784662623,
+          "httpOnly": false,
+          "secure": false,
+          "sameSite": "Lax"
+        }
+      },
+      {
+        "before": {
+          "name": "_ga_ECZNFYHHV6",
+          "valueMasked": "[MASKED:44]",
+          "domain": ".sittax.com.br",
+          "path": "/",
+          "expires": 1819136124.120929,
+          "httpOnly": false,
+          "secure": false,
+          "sameSite": "Lax"
+        },
+        "after": {
+          "name": "_ga_ECZNFYHHV6",
+          "valueMasked": "[MASKED:45]",
+          "domain": ".sittax.com.br",
+          "path": "/",
+          "expires": 1819136223.303363,
+          "httpOnly": false,
+          "secure": false,
+          "sameSite": "Lax"
+        }
+      }
+    ]
+  },
+  "jwtCandidates": {
+    "added": [],
+    "removed": [],
+    "changed": [
+      {
+        "key": "jwt-inline:api.sittax.com:14",
+        "before": {
+          "source": "cookies[9].domain",
+          "type": "jwt-inline",
+          "fingerprint": "api.sittax.com",
+          "length": 14
+        },
+        "after": {
+          "source": "cookies[10].domain",
+          "type": "jwt-inline",
+          "fingerprint": "api.sittax.com",
+          "length": 14
+        }
+      },
+      {
+        "key": "jwt-inline:sittax.com.br:13",
+        "before": {
+          "source": "cookies[8].domain",
+          "type": "jwt-inline",
+          "fingerprint": "sittax.com.br",
+          "length": 13
+        },
+        "after": {
+          "source": "cookies[9].domain",
+          "type": "jwt-inline",
+          "fingerprint": "sittax.com.br",
+          "length": 13
+        }
+      }
+    ]
+  },
+  "hasChanges": true
+}
