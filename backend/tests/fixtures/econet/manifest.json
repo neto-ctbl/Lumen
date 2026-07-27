@@ -1,5 +1,5 @@
 {
-  "contract_version": "s8.0",
+  "contract_version": "s8.3",
   "source": "synthetic_or_sanitized_observed_html",
   "network_access_required": false,
   "fixtures": [
@@ -40,6 +40,24 @@
       "synthetic": true
     },
     {
+      "file": "tax_simples_factor_r_positive.html",
+      "scenario": "TAX_SIMPLES_FACTOR_R_POSITIVE",
+      "endpoint_family": "subAbas.php?aba=simplesNacionalTributacao&idCnae={id}",
+      "synthetic": true
+    },
+    {
+      "file": "tax_simples_factor_r_negative.html",
+      "scenario": "TAX_SIMPLES_FACTOR_R_NEGATIVE",
+      "endpoint_family": "subAbas.php?aba=simplesNacionalTributacao&idCnae={id}",
+      "synthetic": true
+    },
+    {
+      "file": "tax_simples_annex_iv.html",
+      "scenario": "TAX_SIMPLES_ANNEX_IV",
+      "endpoint_family": "subAbas.php?aba=simplesNacionalTributacao&idCnae={id}",
+      "synthetic": true
+    },
+    {
       "file": "tax_empreendedor_individual.html",
       "scenario": "TAX_EMPREENDEDOR_INDIVIDUAL",
       "endpoint_family": "subAbas.php?aba=empreendedorIndividual&idCnae={id}",
@@ -60,6 +78,12 @@
     {
       "file": "obligations_simples_prohibited.html",
       "scenario": "OBLIGATIONS_SIMPLES_PROHIBITED",
+      "endpoint_family": "subAbas.php?aba=optanteSimplesNacional&idCnae={id}",
+      "synthetic": true
+    },
+    {
+      "file": "obligations_simples_allowed.html",
+      "scenario": "OBLIGATIONS_SIMPLES_ALLOWED",
       "endpoint_family": "subAbas.php?aba=optanteSimplesNacional&idCnae={id}",
       "synthetic": true
     },

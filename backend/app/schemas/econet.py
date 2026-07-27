@@ -53,7 +53,7 @@ class EconetEnrichmentRequest(BaseModel):
     organization_slug: str | None = None
     company_ids: list[int] | None = None
     cnaes: list[str] | None = None
-    limit: int | None = None
+    limit: int | None = Field(default=None, ge=1, le=50)
     dry_run: bool = False
     cache_only: bool = False
     force_refresh: bool = False

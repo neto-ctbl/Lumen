@@ -1,0 +1,16 @@
+{
+  "source_layout": "NFSE_ABRASF_204",
+  "document_key": "ABRASF-0002",
+  "issued_at": "2026-07-03T10:00:00-03:00",
+  "service_period": "2026-07",
+  "service_amount": "500.00",
+  "cnae": "8630503",
+  "provider": {
+    "document": "19163109000178",
+    "name": "Prestador Sintetico Ltda"
+  },
+  "cancellation": {
+    "cancelled": true,
+    "substituted_by_key": null
+  }
+}

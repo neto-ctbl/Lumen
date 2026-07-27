@@ -17,11 +17,17 @@ Cenarios cobertos:
 - abas e subabas de obrigacoes acessorias;
 - mensagens negativas validas para Simples Nacional e SIMEI.
 
+Cenarios cobertos no S8.3:
+
+- Fator R positivo com Anexo V e migracao condicional para Anexo III em 28%;
+- Fator R negativo com Anexo III;
+- Anexo IV sem inferencia de Anexo III/V;
+- obrigacoes positivas do Simples Nacional com preservacao de nomes nao mapeados.
+
 Cenarios ainda nao cobertos:
 
-- qualquer fluxo autenticado;
+- qualquer fluxo autenticado de navegador;
 - CAPTCHA;
-- comportamento de sessao;
-- Fator R em fixture dedicada, porque esse HTML especifico nao foi comprovado de forma suficiente nos artefatos analisados para este micro-stage;
-- parser de negocio;
-- integracao funcional.
+- XML real de NFS-e;
+- watcher;
+- parser XML produtivo.

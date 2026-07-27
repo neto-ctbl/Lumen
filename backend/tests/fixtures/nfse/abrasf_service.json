@@ -1,0 +1,22 @@
+{
+  "source_layout": "NFSE_ABRASF_204",
+  "document_key": "ABRASF-0001",
+  "issued_at": "2026-07-01T10:00:00-03:00",
+  "service_period": "2026-07",
+  "service_amount": "1000.00",
+  "cnae": "8630503",
+  "municipal_tax_code": "8630503",
+  "municipal_tax_description": "8630-5/03 - Atividade sintetica",
+  "provider": {
+    "document": "19163109000178",
+    "name": "Prestador Sintetico Ltda"
+  },
+  "taker": {
+    "document": "12345678000199",
+    "name": "Tomador Sintetico Ltda"
+  },
+  "cancellation": {
+    "cancelled": false,
+    "substituted_by_key": null
+  }
+}

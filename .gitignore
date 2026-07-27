@@ -45,6 +45,7 @@ agent/.sessions/
 agent/cache/sessions/
 backend/storage/sessions/
 backend/storage/sessions/econet/
+backend/storage/sessions/econet/manual-storage-state.json
 agent/sessions/econet/
 sittax-network-log*.jsonl
 *.sittax-network.jsonl

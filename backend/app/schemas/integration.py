@@ -25,6 +25,7 @@ class IntegrationHealthItem(BaseModel):
     session_expires_at: str | None = None
     cache_items: int | None = None
     cache_expired_items: int | None = None
+    cache_outdated_parser_items: int | None = None
     cache_last_refresh: str | None = None
 
 

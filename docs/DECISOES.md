@@ -103,3 +103,26 @@ Data de referencia: 2026-07-20
 - O TTL padrao do cache da Econet ficou em `180` dias como constante de dominio local do servico.
 - Persistencia com `content_hash` identico continua `UNCHANGED`, mas renova `retrieved_at` e `expires_at`.
 - O payload normalizado do S8.1 nao guarda HTML bruto, token, cookie, header ou sessao.
+
+## S8.2 - Sessao manual assistida e health local
+
+- A sessao assistida da Econet fica somente em memoria do processo da API.
+- O S8.2 importa apenas cookies allowlisted e descarta analytics.
+- O S8.2 nao usa `localStorage`, Redis, banco, `integration_sync_runs` ou arquivo carregado automaticamente no boot.
+- O probe da Econet e explicito e administrativo; o health local nao faz chamada externa.
+- O cliente HTTP da Econet ficou restrito ao host `www.econeteditora.com.br` e aos endpoints observados de `regimes_cnae`.
+- O helper operacional exporta somente cookies permitidos para arquivo temporario ignorado no Git.
+
+## S8.3 - Catalogo CNAE, Fator R potencial e NFS-e canonica
+
+- `company_cnaes` e a representacao relacional canonica dos CNAEs da empresa.
+- `0000-0/00` e placeholder invalido e nao pode permanecer ativo no catalogo relacional.
+- A Econet nao cria o CNAE da empresa; ela apenas enriquece CNAEs cadastrados.
+- Potencial cadastral de Fator R nao equivale a uso efetivo por competencia.
+- O CNAE efetivamente usado sera determinado no S10 pela NFS-e normalizada.
+- ABRASF usa `CodigoCnae`; o layout nacional usa `cTribMun` com validacao adicional.
+- Ausencia de texto de Fator R no HTML nao equivale a `false`.
+- HTML bruto da Econet nao e persistido.
+- O client da Econet deve decodificar HTML a partir de bytes allowlisted e nunca confiar apenas em `response.text`.
+- Mudanca no parser invalida cache anterior por `parser_version`; cache fresco exige versao igual a atual.
+- O backend administrativo da Econet aceita ate `50` CNAEs por lote; o uso normal/futuro portal deve ficar em `25`.

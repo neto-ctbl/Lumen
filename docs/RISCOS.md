@@ -51,3 +51,21 @@ Data de referencia: 2026-07-20
 - Mudanca no formato de `econet_id_cnae` pode quebrar lookup, mesmo mantendo o CNAE visivel.
 - Falso positivo de pagina de login ou CAPTCHA pode bloquear parse de HTML valido que contenha termos parecidos.
 - Cache global por CNAE pode divergir entre assinaturas ou ambientes da Econet se a plataforma passar a exibir conteudo contextual por perfil.
+- Em ambiente com multiplos workers, a sessao assistida fica local a cada processo e pode existir em um worker e faltar em outro.
+- Mudanca em nomes de cookies allowlisted pode invalidar a importacao ate novo diagnostico direcionado.
+- Dependencia futura de `localStorage` ou header nao observado quebraria o probe mesmo com cookies validos.
+- O operador pode esquecer o arquivo temporario de exportacao e precisar remove-lo manualmente apos o uso.
+
+## S8.3
+
+- CNAE removido da empresa pode permanecer ativo se a reconciliacao nao rodar.
+- Cache vencido ou parcial pode degradar o potencial cadastral para `PARTIAL`.
+- Cache com `parser_version` antigo pode aparentar cobertura completa e esconder necessidade de refresh.
+- CNAE sem resultado exato na Econet exige revisao manual.
+- Mudanca no HTML da Econet pode invalidar o parser de Fator R e anexos.
+- Charset ausente ou incorreto pode gerar mojibake, `U+FFFD` ou threshold fiscal perdido se o decode confiar em `response.text`.
+- Percentual fora do contexto de Fator R pode ser capturado incorretamente se o parser usar regex ampla demais.
+- Downgrade de `TEXT` para `VARCHAR(255)` em `mei_occupation` pode falhar quando existirem ocupacoes maiores que 255 caracteres.
+- Sessao manual pode expirar no meio do reprocessamento integral e deixar parte do cache em versao antiga.
+- `cTribMun` pode nao representar CNAE em alguns municipios.
+- XML real pode conter certificado, assinatura e dados pessoais e nao pode virar fixture.

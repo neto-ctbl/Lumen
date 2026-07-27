@@ -132,7 +132,6 @@ Observacoes de alto nivel:
 
 ## Ainda nao confirmado
 
-- fixture dedicada de Fator R com HTML comprovado para este micro-stage;
 - estabilidade do mesmo conjunto de abas para todos os CNAEs;
 - existencia de contrato oficial, versionado e publico em JSON;
 - comportamento completo de expiracao de sessao;
@@ -156,7 +155,7 @@ O S8.1 nao cria cliente HTTP nem consulta externa. Ele cria um contrato interno 
 ```json
 {
   "contract_version": "s8.1",
-  "parser_version": "1",
+  "parser_version": "econet-html-v2",
   "cnae": {
     "normalized": "0000000",
     "formatted": "0000-0/00",
@@ -252,6 +251,7 @@ Regras de interpretacao documentadas:
 ## Hashes, parser version e limites
 
 - `parser_version = "1"` no S8.1
+- `parser_version = "econet-html-v2"` no complemento corretivo do S8.3
 - `contract_version = "s8.1"` no payload normalizado
 - `content_hash` usa `SHA-256` sobre JSON canonico com chaves ordenadas
 - timestamps nao entram no hash
@@ -273,3 +273,27 @@ Limitacoes explicitas do payload normalizado:
 - obrigacoes so recebem `mapped_code` quando o alias e explicitamente seguro
 - nomes nao mapeados continuam preservados em `unmapped_obligations`
 - `econet_id_cnae` permanece como chave externa textual observada, separada do CNAE canonico
+
+## Sessao assistida do S8.2
+
+- a importacao publica aceita somente `cookies` em formato compativel com `storageState`
+- `origins`, `localStorage`, `sessionStorage`, `indexedDB` e `token` nao entram no contrato do backend
+- os dominios permitidos no S8.2 sao `.econeteditora.com.br` e `www.econeteditora.com.br`
+- o backend aceita apenas cookies allowlisted da ferramenta e exclui analytics
+- o probe do S8.2 usa `GET /ferramentas/regimes_cnae/index.php`
+- redirects nao sao seguidos automaticamente
+- redirect para login, HTML de autenticacao ou CAPTCHA marcam a sessao como `EXPIRED`
+- o health local da Econet no S8.2 consulta apenas estado em memoria e resumo do cache
+
+## Atualizacao S8.3
+
+- o parser passa a distinguir Fator R positivo, negativo e nao observado;
+- a ausencia de texto de Fator R continua `NOT_OBSERVED`;
+- respostas HTML da Econet podem declarar charset ausente, generico ou incorreto; o decode confiavel deve partir dos bytes;
+- `response.text` isolado nao e fonte confiavel para a Econet; o client usa `response.content` com ordem deterministica de charsets permitidos;
+- o decode seguro tenta `Content-Type`, `meta charset`, `meta http-equiv`, `UTF-8`, `windows-1252` e `iso-8859-1`, sem `errors="replace"` e sem aceitar `U+FFFD`;
+- Fator R positivo observado pode trazer `Anexo V`, `Anexo III` condicional e limiar `28%` no mesmo contexto textual;
+- anexo repetido, como `IV / IV`, nao representa condicao e deve ser normalizado para `annex_conditional = null`;
+- o enriquecimento continua serial, por CNAE, e sem persistencia de HTML bruto;
+- o catalogo `company_cnaes` vira a fonte interna para enriquecimento e cobertura cadastral;
+- cache antigo com `parser_version` desatualizado nao deve ser tratado como fresco nem como cobertura completa em `cache_only`.

@@ -51,3 +51,18 @@ Data de referencia: 2026-07-15
 - O `normalized_payload` da Econet contem apenas campos semanticos normalizados e hashes.
 - Erros do parser da Econet nao devem incluir HTML integral nem trechos suficientes para reconstruir credencial ou sessao.
 - Futuras sessoes assistidas da Econet continuam fora do S8.1 e devem permanecer isoladas da persistencia do cache.
+- No S8.2, o body de importacao da sessao da Econet nao deve ser logado.
+- Os cookies de importacao da Econet usam `repr=False` nos schemas publicos.
+- O arquivo `backend/storage/sessions/econet/manual-storage-state.json` e sensivel, temporario e ignorado pelo Git.
+- A exclusao do arquivo temporario da Econet continua manual e operacional, nunca automatica pelo backend.
+- O probe da Econet nao retorna HTML e nao deve expor cookies, headers completos ou valores de sessao.
+
+## S8.3
+
+- XML fiscal real continua fora de fixtures e fora do endpoint.
+- Scans brutos da Econet continuam fora do Git.
+- Tokens de storage, cookies e HTML bruto nao sao copiados para codigo, fixture ou resposta.
+- Endpoints read-only de catalogo e Fator R potencial nao chamam rede.
+- Erros de decoding da Econet nao retornam HTML, bytes, cookies, headers completos nem payload bruto.
+- O client da Econet usa `response.content` e decode centralizado; `errors="replace"` permanece proibido.
+- Cookies e arquivo temporario de sessao continuam apenas em memoria ou em artefato operacional ignorado pelo Git.

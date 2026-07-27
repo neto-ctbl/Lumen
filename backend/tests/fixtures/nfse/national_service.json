@@ -1,0 +1,22 @@
+{
+  "source_layout": "NFSE_NACIONAL_101",
+  "document_key": "NACIONAL-0001",
+  "issued_at": "2026-07-02T10:00:00-03:00",
+  "service_period": "2026-07",
+  "service_amount": "2500.00",
+  "cnae": "7311-4/00",
+  "municipal_tax_code": "7311400",
+  "municipal_tax_description": "7311-4/00 - Agencias de publicidade",
+  "provider": {
+    "document": "19163109000178",
+    "name": "Prestador Sintetico Ltda"
+  },
+  "taker": {
+    "document": "12345678000199",
+    "name": "Tomador Sintetico Ltda"
+  },
+  "cancellation": {
+    "cancelled": false,
+    "substituted_by_key": null
+  }
+}

@@ -148,7 +148,7 @@ def test_econet_health_includes_cache_counts(client: TestClient, db_session, mon
             unmapped_obligations=[],
             normalized_payload={},
             parse_status="PARSED",
-            parser_version="1",
+            parser_version="econet-html-v2",
             content_hash="a" * 64,
             retrieved_at=now,
             expires_at=now - timedelta(days=1),
@@ -160,6 +160,51 @@ def test_econet_health_includes_cache_counts(client: TestClient, db_session, mon
     item = _econet_item(response.json())
     assert item["cache_items"] == 1
     assert item["cache_expired_items"] == 1
+    assert item["cache_outdated_parser_items"] == 0
+
+
+def test_econet_health_counts_outdated_parser_items(client: TestClient, db_session, monkeypatch) -> None:
+    monkeypatch.setenv("ECONET_ASSISTED_SESSION_ENABLED", "true")
+    get_settings.cache_clear()
+    now = datetime.now(timezone.utc)
+    db_session.add(
+        EconetCnaeCache(
+            cnae="7020400",
+            cnae_formatted="7020-4/00",
+            description="Desc antiga",
+            econet_id_cnae="123",
+            activity_types=[],
+            simples_status="ALLOWED",
+            simples_allowed=True,
+            simples_annex_default="V",
+            simples_annex_conditional="III",
+            factor_r_applicable=True,
+            factor_r_threshold=None,
+            mei_status="NOT_ALLOWED",
+            mei_allowed=False,
+            mei_occupation=None,
+            presumed_profit_status="ALLOWED",
+            presumed_profit_allowed=True,
+            presumed_profit_irpj_rate=None,
+            presumed_profit_csll_rate=None,
+            actual_profit_status="UNKNOWN",
+            actual_profit_mandatory=None,
+            obligations_general={},
+            obligations_simples={},
+            obligations_simei={},
+            unmapped_obligations=[],
+            normalized_payload={},
+            parse_status="PARSED",
+            parser_version="1",
+            content_hash="b" * 64,
+            retrieved_at=now,
+            expires_at=now + timedelta(days=1),
+        )
+    )
+    db_session.flush()
+    user, password = seed_auth_context(db_session, slug="econet-health-outdated-cache")
+    response = client.get("/api/v1/lumen/integrations/health", headers=login_headers(client, email=user.email, password=password))
+    assert _econet_item(response.json())["cache_outdated_parser_items"] == 1
 
 
 def test_econet_health_does_not_call_external_network(client: TestClient, db_session, monkeypatch) -> None:

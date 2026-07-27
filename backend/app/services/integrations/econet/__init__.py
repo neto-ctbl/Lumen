@@ -9,12 +9,16 @@ from backend.app.services.integrations.econet.cache import (
     DEFAULT_ECONET_CACHE_TTL_DAYS,
     EconetCacheOperation,
     EconetCacheWriteResult,
+    is_cache_entry_fresh,
+    is_current_parser_version,
     upsert_econet_cnae_cache,
 )
 from backend.app.services.integrations.econet.client import EconetClient
+from backend.app.services.integrations.econet.encoding import decode_econet_html
 from backend.app.services.integrations.econet.errors import (
     EconetAuthenticationPageDetectedError,
     EconetCnaeValidationError,
+    EconetHtmlDecodingError,
     EconetParserError,
     EconetSessionDisabledError,
     EconetSessionError,
@@ -28,6 +32,7 @@ from backend.app.services.integrations.econet.errors import (
     EconetUnexpectedResponseError,
 )
 from backend.app.services.integrations.econet.parser import (
+    CURRENT_ECONET_PARSER_VERSION,
     PARSER_VERSION,
     EconetActualProfitResult,
     EconetCnaeDetail,
@@ -60,6 +65,7 @@ __all__ = [
     "ALLOWED_COOKIE_DOMAINS",
     "ALLOWED_COOKIE_NAMES",
     "DEFAULT_ECONET_CACHE_TTL_DAYS",
+    "CURRENT_ECONET_PARSER_VERSION",
     "EconetAssistedSession",
     "PARSER_VERSION",
     "EconetActualProfitResult",
@@ -69,6 +75,7 @@ __all__ = [
     "EconetClient",
     "EconetCnaeDetail",
     "EconetCnaeValidationError",
+    "EconetHtmlDecodingError",
     "EconetMeiResult",
     "EconetNormalizedCnaeResult",
     "EconetObligationResult",
@@ -90,8 +97,11 @@ __all__ = [
     "EconetUnexpectedResponseError",
     "build_normalized_cnae_result",
     "compute_content_hash",
+    "decode_econet_html",
     "format_cnae",
     "get_econet_assisted_session",
+    "is_cache_entry_fresh",
+    "is_current_parser_version",
     "normalize_cnae",
     "parse_cnae_detail",
     "parse_empreendedor_individual",

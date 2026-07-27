@@ -10,10 +10,13 @@ from backend.app.models.econet_cnae_cache import EconetCnaeCache
 from backend.app.services.integrations.econet.cache import (
     DEFAULT_ECONET_CACHE_TTL_DAYS,
     EconetCacheOperation,
+    is_cache_entry_fresh,
     upsert_econet_cnae_cache,
 )
 from backend.app.services.integrations.econet.parser import (
+    CURRENT_ECONET_PARSER_VERSION,
     build_normalized_cnae_result,
+    compute_content_hash,
     parse_cnae_detail,
     parse_empreendedor_individual,
     parse_lucro_presumido,
@@ -75,6 +78,25 @@ def test_cache_unchanged_when_hash_matches(db_session) -> None:
     assert write.operation == EconetCacheOperation.UNCHANGED
 
 
+def test_current_parser_version_cache_is_fresh(db_session) -> None:
+    result = _build_result()
+    upsert_econet_cnae_cache(db_session, normalized_result=result)
+    row = db_session.scalar(select(EconetCnaeCache).where(EconetCnaeCache.cnae == result.cnae))
+    assert row is not None
+    assert row.parser_version == CURRENT_ECONET_PARSER_VERSION
+    assert is_cache_entry_fresh(row) is True
+
+
+def test_old_parser_version_requires_refresh(db_session) -> None:
+    result = _build_result()
+    upsert_econet_cnae_cache(db_session, normalized_result=result)
+    row = db_session.scalar(select(EconetCnaeCache).where(EconetCnaeCache.cnae == result.cnae))
+    assert row is not None
+    row.parser_version = "1"
+    db_session.flush()
+    assert is_cache_entry_fresh(row) is False
+
+
 def test_cache_does_not_duplicate_cnae(db_session) -> None:
     result = _build_result()
     upsert_econet_cnae_cache(db_session, normalized_result=result)
@@ -112,3 +134,18 @@ def test_cache_dry_run_does_not_write(db_session) -> None:
     write = upsert_econet_cnae_cache(db_session, normalized_result=result, dry_run=True)
     assert write.operation == EconetCacheOperation.WOULD_CREATE
     assert db_session.scalar(select(EconetCnaeCache).where(EconetCnaeCache.cnae == result.cnae)) is None
+
+
+def test_cache_accepts_long_mei_occupation(db_session) -> None:
+    result = replace(_build_result(), mei_occupation="ocupacao " * 80, content_hash="e" * 64)
+    write = upsert_econet_cnae_cache(db_session, normalized_result=result)
+    assert write.operation == EconetCacheOperation.CREATED
+    row = db_session.scalar(select(EconetCnaeCache).where(EconetCnaeCache.cnae == result.cnae))
+    assert row is not None
+    assert row.mei_occupation == result.mei_occupation
+
+
+def test_parser_version_changes_content_hash_when_payload_changes() -> None:
+    result = _build_result()
+    older_payload = {**result.normalized_payload, "parser_version": "1"}
+    assert compute_content_hash(older_payload) != result.content_hash

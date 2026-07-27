@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
+from backend.app.models.company_cnae import CompanyCnae
 from backend.app.models.external_company import ExternalCompany
 from backend.app.models.organization import Organization
 from backend.app.services.integrations.econtrole.sync import (
@@ -51,6 +52,7 @@ def test_upsert_creates_company(db_session) -> None:
     assert company.cnpj == "19163109000178"
     assert company.sync_status == "SYNCED"
     assert company.active is True
+    assert result.catalog_result.created == 2
 
 
 def test_second_upsert_is_idempotent_and_does_not_duplicate(db_session) -> None:
@@ -132,3 +134,49 @@ def test_upsert_after_delete_reactivates_company(db_session) -> None:
     assert result.company.active is True
     assert result.company.deleted_at_econtrole is None
     assert result.company.sync_status == "SYNCED"
+
+
+def test_econtrole_upsert_creates_company_cnaes(db_session) -> None:
+    organization = _create_org(db_session)
+    result = upsert_company_from_econtrole_payload(db_session, organization=organization, payload=_payload())
+    rows = db_session.scalars(select(CompanyCnae).where(CompanyCnae.company_id == result.company.id)).all()
+    assert len(rows) == 2
+
+
+def test_econtrole_upsert_sanitizes_cnaes(db_session) -> None:
+    organization = _create_org(db_session)
+    result = upsert_company_from_econtrole_payload(
+        db_session,
+        organization=organization,
+        payload=_payload(cnae_principal="86.30-5/03", cnaes_secundarios=["8650 0 01"]),
+    )
+    rows = db_session.scalars(select(CompanyCnae).where(CompanyCnae.company_id == result.company.id)).all()
+    assert {row.cnae for row in rows} == {"8630503", "8650001"}
+
+
+def test_econtrole_upsert_primary_wins_over_secondary(db_session) -> None:
+    organization = _create_org(db_session)
+    result = upsert_company_from_econtrole_payload(
+        db_session,
+        organization=organization,
+        payload=_payload(cnaes_secundarios=["8630503"]),
+    )
+    primary_rows = [row for row in db_session.scalars(select(CompanyCnae).where(CompanyCnae.company_id == result.company.id)).all() if row.is_primary]
+    assert len(primary_rows) == 1
+    assert primary_rows[0].cnae == "8630503"
+
+
+def test_econtrole_upsert_deactivates_removed_cnae(db_session) -> None:
+    organization = _create_org(db_session)
+    first = upsert_company_from_econtrole_payload(db_session, organization=organization, payload=_payload(cnaes_secundarios=["8650-0/01", "8650-0/02"]))
+    upsert_company_from_econtrole_payload(db_session, organization=organization, payload=_payload(cnaes_secundarios=["8650-0/01"]))
+    active_rows = db_session.scalars(select(CompanyCnae).where(CompanyCnae.company_id == first.company.id, CompanyCnae.active.is_(True))).all()
+    assert {row.cnae for row in active_rows} == {"8630503", "8650001"}
+
+
+def test_company_soft_delete_deactivates_all_cnaes(db_session) -> None:
+    organization = _create_org(db_session)
+    created = upsert_company_from_econtrole_payload(db_session, organization=organization, payload=_payload())
+    delete_company_from_econtrole_payload(db_session, organization=organization, payload={"cnpj": _payload()["cnpj"]})
+    active_rows = db_session.scalars(select(CompanyCnae).where(CompanyCnae.company_id == created.company.id, CompanyCnae.active.is_(True))).all()
+    assert active_rows == []

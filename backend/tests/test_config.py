@@ -21,11 +21,14 @@ def test_settings_defaults_match_project_contract(monkeypatch) -> None:
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.delenv("TEST_DATABASE_URL", raising=False)
     monkeypatch.delenv("LUMEN_TEST_DATABASE_URL", raising=False)
+    monkeypatch.setenv("LUMEN_DISABLE_DOTENV", "1")
 
-    settings = Settings()
+    settings = Settings(_env_file=None)
 
     assert settings.database_url == DEFAULT_DATABASE_URL
     assert settings.test_database_url == DEFAULT_TEST_DATABASE_URL
+    assert settings.econet_enrich_default_limit == 5
+    assert settings.econet_enrich_max_limit == 50
 
 
 def test_get_settings_reloads_when_tracked_env_changes(monkeypatch) -> None:

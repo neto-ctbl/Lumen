@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from backend.app.core.config import get_settings
 from backend.app.models.external_company import ExternalCompany
 from backend.app.models.organization import Organization
+from backend.app.services.company_cnae_catalog import CompanyCnaeSyncResult, sync_company_cnae_catalog
 from backend.app.services.integrations.econtrole.mapper import EControleMappingError, map_econtrole_company_payload, normalize_cnpj
 
 
@@ -22,12 +23,14 @@ class CompanyUpsertResult:
     company: ExternalCompany
     created: bool
     updated: bool
+    catalog_result: CompanyCnaeSyncResult
 
 
 @dataclass(slots=True)
 class CompanyDeleteResult:
     company: ExternalCompany
     deleted: bool
+    catalog_result: CompanyCnaeSyncResult
 
 
 @dataclass(slots=True)
@@ -69,6 +72,7 @@ def upsert_company_from_econtrole_payload(
     *,
     organization: Organization,
     payload: dict[str, Any],
+    dry_run_catalog: bool = False,
 ) -> CompanyUpsertResult:
     mapped = map_econtrole_company_payload(payload)
     company = session.execute(
@@ -85,7 +89,8 @@ def upsert_company_from_econtrole_payload(
 
     updated = _apply_upsert(company, mapped)
     session.flush()
-    return CompanyUpsertResult(company=company, created=created, updated=updated or created)
+    catalog_result = sync_company_cnae_catalog(session, company=company, dry_run=dry_run_catalog)
+    return CompanyUpsertResult(company=company, created=created, updated=updated or created, catalog_result=catalog_result)
 
 
 def delete_company_from_econtrole_payload(
@@ -93,6 +98,7 @@ def delete_company_from_econtrole_payload(
     *,
     organization: Organization,
     payload: dict[str, Any],
+    dry_run_catalog: bool = False,
 ) -> CompanyDeleteResult:
     normalized_cnpj = normalize_cnpj(payload.get("cnpj"))
     econtrole_company_id = payload.get("id")
@@ -124,7 +130,8 @@ def delete_company_from_econtrole_payload(
     if payload:
         company.raw_econtrole = payload
     session.flush()
-    return CompanyDeleteResult(company=company, deleted=not already_deleted)
+    catalog_result = sync_company_cnae_catalog(session, company=company, dry_run=dry_run_catalog)
+    return CompanyDeleteResult(company=company, deleted=not already_deleted, catalog_result=catalog_result)
 
 
 def sync_companies_batch(

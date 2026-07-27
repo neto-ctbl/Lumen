@@ -51,8 +51,12 @@ def company_upsert(
         actor_id="econtrole-webhook",
         resource_type="external_company",
         resource_id=str(result.company.id),
-        event_metadata={"organization_id": organization.id, "created": result.created, "updated": result.updated},
-        raw_payload=payload,
+        event_metadata={
+            "organization_id": organization.id,
+            "created": result.created,
+            "updated": result.updated,
+            **result.catalog_result.summary,
+        },
     )
     db.commit()
     return {
@@ -60,6 +64,9 @@ def company_upsert(
         "company_id": result.company.id,
         "created": result.created,
         "updated": result.updated,
+        "cnaes_received": result.catalog_result.cnaes_received,
+        "cnaes_valid": result.catalog_result.cnaes_valid,
+        "cnaes_invalid": result.catalog_result.cnaes_invalid,
     }
 
 
@@ -85,8 +92,7 @@ def company_delete(
         actor_id="econtrole-webhook",
         resource_type="external_company",
         resource_id=str(result.company.id),
-        event_metadata={"organization_id": organization.id, "deleted": result.deleted},
-        raw_payload=payload,
+        event_metadata={"organization_id": organization.id, "deleted": result.deleted, **result.catalog_result.summary},
     )
     db.commit()
     return {

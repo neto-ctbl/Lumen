@@ -51,3 +51,7 @@ class EconetUnexpectedContentTypeError(EconetSessionError):
 
 class EconetUnexpectedResponseError(EconetSessionError):
     pass
+
+
+class EconetHtmlDecodingError(EconetUnexpectedResponseError):
+    pass

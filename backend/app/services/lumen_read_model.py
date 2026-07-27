@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from backend.app.core.enums import FISCAL_REGIME_LABELS, FiscalRegime
 from backend.app.core.config import get_settings
 from backend.app.models.acessorias_company_snapshot import AcessoriasCompanySnapshot
+from backend.app.models.company_cnae import CompanyCnae
+from backend.app.models.econet_cnae_cache import EconetCnaeCache
 from backend.app.models.external_company import ExternalCompany
 from backend.app.models.fiscal_alert import FiscalAlert
 from backend.app.models.fiscal_evidence import FiscalEvidence
@@ -31,6 +33,7 @@ from backend.app.schemas.company import (
     CompanySummary,
     CompanySummaryKpis,
 )
+from backend.app.schemas.econet import CompanyCnaeItemResponse, CompanyCnaeListResponse, FactorRPotentialResponse
 from backend.app.schemas.dashboard import (
     DashboardDepartmentSummary,
     DashboardKpis,
@@ -43,6 +46,9 @@ from backend.app.schemas.evidence import EvidenceItem, EvidenceListResponse
 from backend.app.schemas.installment import InstallmentItem, InstallmentListResponse
 from backend.app.schemas.integration import IntegrationHealthItem, IntegrationHealthResponse
 from backend.app.schemas.period import PeriodItem, PeriodListResponse
+from backend.app.services.integrations.econet.assisted_session import get_econet_assisted_session
+from backend.app.services.integrations.econet.parser import CURRENT_ECONET_PARSER_VERSION
+from backend.app.services.factor_r import get_company_factor_r_potential as compute_company_factor_r_potential
 
 
 STALE_RUN_MINUTES = 15
@@ -492,6 +498,62 @@ def get_company_summary(db: Session, *, organization_id: int, company_id: int, c
     )
 
 
+def get_company_cnaes(db: Session, *, organization_id: int, company_id: int) -> CompanyCnaeListResponse:
+    company = db.scalar(
+        select(ExternalCompany).where(
+            ExternalCompany.organization_id == organization_id,
+            ExternalCompany.id == company_id,
+        )
+    )
+    if company is None:
+        return CompanyCnaeListResponse(items=[])
+    rows = db.scalars(
+        select(CompanyCnae)
+        .where(CompanyCnae.company_id == company_id)
+        .order_by(CompanyCnae.active.desc(), CompanyCnae.is_primary.desc(), CompanyCnae.cnae.asc())
+    ).all()
+    return CompanyCnaeListResponse(
+        items=[
+            CompanyCnaeItemResponse(
+                cnae=row.cnae,
+                cnae_formatted=row.cnae_formatted,
+                is_primary=row.is_primary,
+                source=row.source,
+                active=row.active,
+                first_seen_at=_iso_date(row.first_seen_at) or "",
+                last_seen_at=_iso_date(row.last_seen_at) or "",
+                deactivated_at=_iso_date(row.deactivated_at),
+            )
+            for row in rows
+        ]
+    )
+
+
+def get_company_factor_r_potential(db: Session, *, organization_id: int, company_id: int) -> FactorRPotentialResponse | None:
+    company = db.scalar(
+        select(ExternalCompany).where(
+            ExternalCompany.organization_id == organization_id,
+            ExternalCompany.id == company_id,
+        )
+    )
+    if company is None:
+        return None
+    result = compute_company_factor_r_potential(session=db, company_id=company_id)
+    return FactorRPotentialResponse(
+        company_id=result.company_id,
+        status=result.status,
+        factor_r_potential=result.factor_r_potential,
+        cnaes_total=result.cnaes_total,
+        cnaes_with_cache=result.cnaes_with_cache,
+        positive_cnaes=result.positive_cnaes,
+        negative_cnaes=result.negative_cnaes,
+        missing_cnaes=result.missing_cnaes,
+        annex_default=result.annex_default,
+        annex_conditional=result.annex_conditional,
+        factor_r_threshold=result.factor_r_threshold,
+    )
+
+
 def get_deliveries(db: Session, *, organization_id: int, competencia: str | None, company_id: int | None) -> DeliveryListResponse:
     period = _parse_period(db, organization_id, competencia)
     if period.period_id is None:
@@ -723,6 +785,64 @@ def get_integrations_health(db: Session, *, organization_id: int) -> Integration
                 if last_run is not None
                 else ("CONFIGURAR" if not configured else "NAO_INICIADA")
             )
+        elif provider == "ECONET":
+            econet_snapshot = get_econet_assisted_session(settings).snapshot()
+            cache_items = db.scalar(select(func.count()).select_from(EconetCnaeCache)) or 0
+            cache_expired_items = db.scalar(
+                select(func.count()).select_from(EconetCnaeCache).where(EconetCnaeCache.expires_at < datetime.now(timezone.utc))
+            ) or 0
+            cache_outdated_parser_items = db.scalar(
+                select(func.count())
+                .select_from(EconetCnaeCache)
+                .where(EconetCnaeCache.parser_version != CURRENT_ECONET_PARSER_VERSION)
+            ) or 0
+            cache_last_refresh = db.scalar(select(func.max(EconetCnaeCache.retrieved_at)).select_from(EconetCnaeCache))
+            catalog_active_items = db.scalar(select(func.count()).select_from(CompanyCnae).where(CompanyCnae.active.is_(True))) or 0
+            catalog_unique_cnaes = db.scalar(
+                select(func.count(func.distinct(CompanyCnae.cnae))).select_from(CompanyCnae).where(CompanyCnae.active.is_(True))
+            ) or 0
+            catalog_companies = db.scalar(
+                select(func.count(func.distinct(CompanyCnae.company_id))).select_from(CompanyCnae).where(CompanyCnae.active.is_(True))
+            ) or 0
+            note_by_status = {
+                "DISABLED": "Integracao desabilitada; health local sem chamadas externas.",
+                "NOT_LOADED": "Aguardando login manual e importacao explicita da sessao.",
+                "LOADED_UNVALIDATED": "Sessao carregada em memoria; probe explicito ainda nao executado.",
+                "VALID": "Sessao assistida valida em memoria; health nao chama a Econet.",
+                "EXPIRED": "Sessao expirada ou descartada; novo login manual e nova importacao sao necessarios.",
+                "INVALID": "Sessao rejeitada pelo contrato local de seguranca.",
+                "ERROR": "Ultimo probe encontrou falha tecnica; health permanece local.",
+            }
+            items.append(
+                IntegrationHealthItem(
+                    provider=provider,
+                    label=label,
+                    status=econet_snapshot["status"],
+                    account_status="HABILITADA" if settings.econet_assisted_session_enabled else "DESABILITADA",
+                    last_run_status=last_run.status if last_run is not None else None,
+                    last_run_at=_iso_date(last_run.finished_at if last_run is not None else None),
+                    processed_count=last_run.processed_count if last_run is not None else 0,
+                    error_count=last_run.error_count if last_run is not None else 0,
+                    note=note_by_status.get(econet_snapshot["status"], "Health local da sessao assistida da Econet."),
+                    active_run_status=active_run.status if active_run is not None else None,
+                    active_run_started_at=_iso_date(active_run.started_at if active_run is not None else None),
+                    stale_warning=stale_warning,
+                    session_status=econet_snapshot["status"],
+                    session_loaded_at=econet_snapshot["loaded_at"],
+                    session_validated_at=econet_snapshot["validated_at"],
+                    session_expires_at=econet_snapshot["expires_at"],
+                    cache_items=cache_items,
+                    cache_expired_items=cache_expired_items,
+                    cache_outdated_parser_items=cache_outdated_parser_items,
+                    cache_last_refresh=_iso_date(cache_last_refresh),
+                    snapshot_counts={
+                        "catalog_active_items": catalog_active_items,
+                        "catalog_unique_cnaes": catalog_unique_cnaes,
+                        "catalog_companies": catalog_companies,
+                    },
+                )
+            )
+            continue
         else:
             note = "Nao iniciado neste stage S5.1."
             status_value = account.status if account is not None else "NAO_INICIADA"

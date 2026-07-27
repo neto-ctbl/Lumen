@@ -995,3 +995,328 @@ Atualizacao parcial do S7.4 em 2026-07-17:
 - `backend/app/services/integrations/sittax/client.py` exige confirmacao do host API antes de DIFAL e documentos
 - `docs/SITTAX_CONTEXT_HANDOFF.md` registra a sequencia real validada, a dependencia de sessao stateful, os cookies de contexto e a divergencia entre replay stateless e comportamento real do portal
 - o handoff real da empresa no host API permanece pendente de evidencia adicional; o macro-stage S7 segue aberto
+
+## Atualizacao S8.2
+
+Arquivos efetivamente materializados no S8.2:
+
+- `backend/app/services/integrations/econet/assisted_session.py`
+- `backend/app/services/integrations/econet/client.py`
+- `backend/app/schemas/econet.py`
+- `backend/app/api/v1/endpoints/integrations/econet.py`
+- `backend/tests/test_econet_assisted_session.py`
+- `backend/tests/test_econet_client.py`
+- `backend/tests/test_econet_endpoint.py`
+- `backend/tests/test_econet_health.py`
+- `backend/tests/test_econet_session_security.py`
+- `scripts/scan/export_econet_session.js`
+
+Ainda nao materializados no fechamento do S8.2:
+
+- `backend/scripts/enrich_cnaes_econet.py`
+- qualquer worker, scheduler ou sync em lote da Econet
+
+## Atualizacao S8.3
+
+Arquivos materializados no S8.3:
+
+- `backend/app/models/company_cnae.py`
+- `backend/app/services/company_cnae_catalog.py`
+- `backend/app/services/factor_r.py`
+- `backend/app/services/integrations/econet/activity_classifier.py`
+- `backend/app/services/integrations/econet/enrichment.py`
+- `backend/app/schemas/nfse.py`
+- `backend/scripts/backfill_company_cnaes.py`
+- `backend/scripts/enrich_cnaes_econet.py`
+- `docs/NFSE_NORMALIZED_CONTRACT.md`
+
+## Retificacao auditada do Stage S8 em 2026-07-27
+
+Esta secao substitui a leitura anterior que parava no `S8.1`. O repositorio real materializado ate imediatamente antes do commit do `S8.3` contem:
+
+* `S8.0`: contrato observado, fixtures e seguranca
+* `S8.1`: parser puro e cache global por CNAE
+* `S8.2`: sessao assistida, cliente stateful e endpoints administrativos
+* `S8.3`: catalogo `company_cnaes`, enrichment, classificacao, potencial de Fator R e contrato canonico de NFS-e
+* `S8.4`: nao iniciado, portanto sem arquivos proprios materializados
+
+### Arvore efetiva do S8
+
+```txt
+backend/
+├── alembic/
+│   └── versions/
+│       ├── 20260721_0009_create_econet_cnae_cache.py
+│       ├── 20260722_0010_create_company_cnaes.py
+│       └── 20260724_0011_expand_econet_mei_occupation_to_text.py
+├── app/
+│   ├── api/v1/endpoints/
+│   │   ├── integrations/econet.py
+│   │   ├── lumen.py
+│   │   └── webhooks/econtrole.py
+│   ├── core/
+│   │   ├── config.py
+│   │   └── enums.py
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── company_activity_type.py
+│   │   ├── company_cnae.py
+│   │   ├── econet_cnae_cache.py
+│   │   ├── external_company.py
+│   │   └── integration_sync_run.py
+│   ├── schemas/
+│   │   ├── econet.py
+│   │   ├── integration.py
+│   │   └── nfse.py
+│   └── services/
+│       ├── company_cnae_catalog.py
+│       ├── factor_r.py
+│       ├── lumen_read_model.py
+│       └── integrations/
+│           ├── econtrole/sync.py
+│           └── econet/
+│               ├── __init__.py
+│               ├── activity_classifier.py
+│               ├── assisted_session.py
+│               ├── cache.py
+│               ├── client.py
+│               ├── encoding.py
+│               ├── enrichment.py
+│               ├── errors.py
+│               └── parser.py
+├── scripts/
+│   ├── backfill_company_cnaes.py
+│   └── enrich_cnaes_econet.py
+└── tests/
+    ├── econet_test_utils.py
+    ├── fixtures/
+    │   ├── econet/
+    │   └── nfse/
+    ├── test_backfill_company_cnaes.py
+    ├── test_company_cnae_catalog.py
+    ├── test_company_cnae_model.py
+    ├── test_econet_assisted_session.py
+    ├── test_econet_cache.py
+    ├── test_econet_client.py
+    ├── test_econet_cnae_cache_model.py
+    ├── test_econet_endpoint.py
+    ├── test_econet_enrichment_endpoint.py
+    ├── test_econet_enrichment_service.py
+    ├── test_econet_fixture_safety.py
+    ├── test_econet_health.py
+    ├── test_econet_observed_contract.py
+    ├── test_econet_parser.py
+    ├── test_econet_session_security.py
+    ├── test_econtrole_sync.py
+    ├── test_econtrole_webhook.py
+    ├── test_enrich_cnaes_econet_script.py
+    ├── test_nfse_contract.py
+    └── test_nfse_fixture_safety.py
+docs/
+├── ECONET_OBSERVED_CONTRACT.md
+└── NFSE_NORMALIZED_CONTRACT.md
+scripts/
+└── scan/
+    └── export_econet_session.js
+```
+
+### Descricao objetiva por arquivo do S8
+
+Migrations:
+
+* `backend/alembic/versions/20260721_0009_create_econet_cnae_cache.py`
+  * S8.1.
+  * Cria o cache global `econet_cnae_cache`.
+* `backend/alembic/versions/20260722_0010_create_company_cnaes.py`
+  * S8.3.
+  * Cria o catalogo canonico `company_cnaes`.
+* `backend/alembic/versions/20260724_0011_expand_econet_mei_occupation_to_text.py`
+  * S8.3 corretivo.
+  * Evita truncamento da ocupacao de MEI.
+
+Models:
+
+* `backend/app/models/econet_cnae_cache.py`
+  * S8.1.
+  * Cache global da Econet por CNAE, sem HTML bruto.
+* `backend/app/models/company_cnae.py`
+  * S8.3.
+  * Catalogo canonico de CNAEs ativos por empresa.
+* `backend/app/models/company_activity_type.py`
+  * Reutilizado no S8.3.
+  * Recebe classificacao derivada da Econet com `source = ECONET`.
+* `backend/app/models/external_company.py`
+  * Relacao de origem do catalogo.
+  * Mantem espelho bruto do eControle.
+* `backend/app/models/integration_sync_run.py`
+  * Reutilizado no S8.3.
+  * Registra execucoes do enrichment.
+* `backend/app/models/__init__.py`
+  * Exporta `EconetCnaeCache` e `CompanyCnae` para metadata e Alembic.
+
+Schemas:
+
+* `backend/app/schemas/econet.py`
+  * S8.2 e S8.3.
+  * Requests e responses da sessao, enrichment, catalogo de CNAEs e potencial de Fator R.
+* `backend/app/schemas/integration.py`
+  * Atualizado no S8.3.
+  * Health de integracoes com campos especificos da Econet, incluindo cache desatualizado por parser.
+* `backend/app/schemas/nfse.py`
+  * S8.3.
+  * Contrato canonico de NFS-e para o futuro S10.
+
+Services Econet:
+
+* `backend/app/services/integrations/econet/assisted_session.py`
+  * S8.2.
+  * Sessao em memoria com allowlist de cookies e dominios.
+* `backend/app/services/integrations/econet/client.py`
+  * S8.2.
+  * Cliente HTTP stateful com base URL fixa e bloqueio de path arbitrario.
+* `backend/app/services/integrations/econet/encoding.py`
+  * S8.3 corretivo.
+  * Decodificacao deterministica de HTML a partir de bytes.
+* `backend/app/services/integrations/econet/parser.py`
+  * S8.1 e S8.3.
+  * Parser puro do contrato observado; versao atual `econet-html-v2`.
+* `backend/app/services/integrations/econet/cache.py`
+  * S8.1 e S8.3.
+  * Upsert, TTL e regra de cache fresco dependente do parser atual.
+* `backend/app/services/integrations/econet/enrichment.py`
+  * S8.3.
+  * Orquestra enrichment, politica de cache, rede e consolidacao de resultados.
+* `backend/app/services/integrations/econet/activity_classifier.py`
+  * S8.3.
+  * Classifica tipos de atividade a partir da descricao do CNAE.
+* `backend/app/services/integrations/econet/errors.py`
+  * S8.1 e S8.2.
+  * Erros tipados de parser, sessao, transporte e contrato.
+* `backend/app/services/integrations/econet/__init__.py`
+  * Atualizado no S8.3.
+  * Reexporta parser, sessao, cache, encoding e cliente.
+
+Outros services:
+
+* `backend/app/services/company_cnae_catalog.py`
+  * S8.3.
+  * Normaliza CNAEs do eControle, sincroniza catalogo e rejeita placeholder `0000000`.
+* `backend/app/services/factor_r.py`
+  * S8.3.
+  * Calcula potencial cadastral de Fator R a partir de CNAEs ativos e cache fresco.
+* `backend/app/services/lumen_read_model.py`
+  * Atualizado no S8.2 e S8.3.
+  * Exposicao read-only de health, CNAEs da empresa e potencial de Fator R.
+* `backend/app/services/integrations/econtrole/sync.py`
+  * Atualizado no S8.3.
+  * Garante sincronizacao atomica entre espelho cadastral e `company_cnaes`.
+
+Endpoints:
+
+* `backend/app/api/v1/endpoints/integrations/econet.py`
+  * S8.2 e S8.3.
+  * Sessao manual e enrichment administrativo.
+* `backend/app/api/v1/endpoints/lumen.py`
+  * Atualizado no S8.3.
+  * Leitura de `companies/{company_id}/cnaes`, `factor-r-potential` e `integrations/health`.
+* `backend/app/api/v1/endpoints/webhooks/econtrole.py`
+  * Atualizado no S8.3.
+  * Webhook de upsert e delete com sincronizacao do catalogo.
+
+Scripts:
+
+* `scripts/scan/export_econet_session.js`
+  * S8.2.
+  * Exporta cookies permitidos apos login manual.
+* `backend/scripts/backfill_company_cnaes.py`
+  * S8.3.
+  * Backfill de `external_companies` para `company_cnaes`.
+* `backend/scripts/enrich_cnaes_econet.py`
+  * S8.3.
+  * Cliente operacional da API local para enrichment.
+
+Fixtures:
+
+* `backend/tests/fixtures/econet/`
+  * S8.0 a S8.3.
+  * Contrato observado sanitizado, incluindo cenarios adicionais de Fator R no S8.3.
+* `backend/tests/fixtures/nfse/`
+  * S8.3.
+  * Contratos sinteticos de NFS-e para `NFSE_ABRASF_204` e `NFSE_NACIONAL_101`.
+
+Testes:
+
+* `backend/tests/econet_test_utils.py`
+  * Utilitarios de fixtures da Econet.
+* `backend/tests/test_backfill_company_cnaes.py`
+  * Backfill do catalogo.
+* `backend/tests/test_company_cnae_catalog.py`
+  * Regras de normalizacao, placeholder, deduplicacao e desativacao.
+* `backend/tests/test_company_cnae_model.py`
+  * Invariantes do model `company_cnaes`.
+* `backend/tests/test_econet_assisted_session.py`
+  * Sessao assistida e seguranca de importacao.
+* `backend/tests/test_econet_cache.py`
+  * Cache, TTL e parser version.
+* `backend/tests/test_econet_client.py`
+  * Cliente HTTP e allowlist.
+* `backend/tests/test_econet_cnae_cache_model.py`
+  * Invariantes do model do cache.
+* `backend/tests/test_econet_endpoint.py`
+  * Endpoints administrativos de sessao.
+* `backend/tests/test_econet_enrichment_endpoint.py`
+  * Contrato HTTP do enrichment.
+* `backend/tests/test_econet_enrichment_service.py`
+  * Regras do service de enrichment.
+* `backend/tests/test_econet_fixture_safety.py`
+  * Sanitizacao das fixtures da Econet.
+* `backend/tests/test_econet_health.py`
+  * Health local da Econet.
+* `backend/tests/test_econet_observed_contract.py`
+  * Manifest e contrato observado.
+* `backend/tests/test_econet_parser.py`
+  * Parser HTML puro.
+* `backend/tests/test_econet_session_security.py`
+  * Seguranca da sessao e de cookies.
+* `backend/tests/test_econtrole_sync.py`
+  * Sync do espelho com catalogo.
+* `backend/tests/test_econtrole_webhook.py`
+  * Webhooks de upsert e delete.
+* `backend/tests/test_enrich_cnaes_econet_script.py`
+  * CLI do script de enrichment.
+* `backend/tests/test_nfse_contract.py`
+  * Contrato Pydantic da NFS-e canonica.
+* `backend/tests/test_nfse_fixture_safety.py`
+  * Seguranca das fixtures sinteticas de NFS-e.
+
+### Relacoes arquiteturais
+
+```txt
+external_companies
+    ↓
+company_cnaes
+    ↓
+econet_cnae_cache
+    ↓
+company_activity_types
+    ↓
+factor_r_potential
+```
+
+Significado:
+
+* eControle e a origem do cadastro bruto
+* `company_cnaes` e o catalogo canonico interno
+* a Econet enriquece globalmente por CNAE
+* a classificacao de atividade e derivada
+* Fator R e apenas potencial cadastral
+* o uso efetivo por competencia depende do futuro fluxo de NFS-e do S10
+
+### O que nao existe no repositorio
+
+* arquivos temporarios de sessao
+* storageState versionado
+* HAR ou logs brutos da Econet
+* OpenAPI temporario
+* XML fiscal real
+* qualquer arquivo proprio do `S8.4`

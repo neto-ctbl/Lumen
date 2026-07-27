@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.core.enums import EconetCacheWriteStatus
 from backend.app.models.econet_cnae_cache import EconetCnaeCache
-from backend.app.services.integrations.econet.parser import EconetNormalizedCnaeResult
+from backend.app.services.integrations.econet.parser import CURRENT_ECONET_PARSER_VERSION, EconetNormalizedCnaeResult
 
 
 DEFAULT_ECONET_CACHE_TTL_DAYS = 180
@@ -22,6 +22,21 @@ class EconetCacheWriteResult:
     record_id: int | None
     content_hash: str
     expires_at: datetime
+
+
+def is_current_parser_version(parser_version: str | None) -> bool:
+    return parser_version == CURRENT_ECONET_PARSER_VERSION
+
+
+def is_cache_entry_fresh(cache: EconetCnaeCache | None, *, now: datetime | None = None, force_refresh: bool = False) -> bool:
+    if cache is None or force_refresh:
+        return False
+    observed_now = now or datetime.now(timezone.utc)
+    return bool(
+        cache.parse_status == "PARSED"
+        and cache.expires_at > observed_now
+        and is_current_parser_version(cache.parser_version)
+    )
 
 
 def upsert_econet_cnae_cache(

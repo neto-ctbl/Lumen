@@ -2,7 +2,7 @@
 
 Data de referencia: 2026-07-21
 
-O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage S6.0, o Stage S6, o micro-stage S7.0, o micro-stage S7.1, o micro-stage S7.2, o micro-stage S7.3, o micro-stage S7.4, o micro-stage S8.0 e o micro-stage S8.1. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5, do frontend fiscal read-only do S5.1, da integracao oficial read-only com o Sistema Acessorias no S6 e dos snapshots cadastral e de apuracao do Sittax, o projeto passou a suportar DIFAL, documentos fiscais, tarefas/transmissoes, endpoint manual de sync, persistencia operacional multi-tenant, handoff stateful validado do host `api.sittax.com.br`, contrato observado da Econet documentado com fixtures anonimizadas e a fundacao offline da Econet com model, migration, parser HTML puro e cache idempotente por CNAE.
+O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage S6.0, o Stage S6, o micro-stage S7.0, o micro-stage S7.1, o micro-stage S7.2, o micro-stage S7.3, o micro-stage S7.4, o micro-stage S8.0, o micro-stage S8.1 e o micro-stage S8.2. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5, do frontend fiscal read-only do S5.1, da integracao oficial read-only com o Sistema Acessorias no S6 e dos snapshots cadastral e de apuracao do Sittax, o projeto passou a suportar DIFAL, documentos fiscais, tarefas/transmissoes, endpoint manual de sync, persistencia operacional multi-tenant, handoff stateful validado do host `api.sittax.com.br`, contrato observado da Econet documentado com fixtures anonimizadas, a fundacao offline da Econet com model, migration, parser HTML puro e cache idempotente por CNAE, e a sessao manual assistida da Econet com cookies em memoria, probe explicito e health local sem rede.
 
 ## Escopo real atual
 
@@ -168,7 +168,7 @@ No S4.1, foram materializados seeds logicos de regras-base e competencias, sem c
 O S4.1 foi tratado como micro-stage complementar de fechamento tecnico e nao como stage originalmente enumerado no `PLANO_DESENVOLVIMENTO.md`.
 No S5, foi materializada apenas a integracao cadastral MVP do eControle.
 No S5.1, foram materializados os endpoints read-only `/api/v1/lumen/*`, o frontend fiscal funcional e os estados vazios honestos quando tabelas operacionais ainda estiverem vazias.
-No S8.0, foram materializados apenas contrato observado da Econet, protecao de artefatos brutos no Git, fixtures HTML sinteticas/sanitizadas e testes offline. No S8.1, foram materializados `econet_cnae_cache`, a migration incremental `20260721_0009`, o parser HTML puro offline, o servico de cache idempotente por CNAE e a suite de testes dedicada. Nenhuma chamada externa nova, nenhuma sessao assistida, nenhum endpoint funcional e nenhuma alteracao funcional no frontend foram adicionados. O macro-stage S8 continua pendente e o S8.2 ainda nao foi iniciado.
+No S8.0, foram materializados apenas contrato observado da Econet, protecao de artefatos brutos no Git, fixtures HTML sinteticas/sanitizadas e testes offline. No S8.1, foram materializados `econet_cnae_cache`, a migration incremental `20260721_0009`, o parser HTML puro offline, o servico de cache idempotente por CNAE e a suite de testes dedicada. No S8.2, foram materializados sessao assistida exclusivamente em memoria, importacao controlada de cookies allowlisted, cliente HTTP stateful restrito a `https://www.econeteditora.com.br/ferramentas/regimes_cnae/`, endpoints administrativos de import/status/probe/clear, helper operacional de exportacao e health local sem chamadas externas. O macro-stage S8 continua pendente; o S8.3 materializou catalogo relacional por empresa, decode seguro por bytes, cache versionado por parser, enriquecimento por CNAE e potencial cadastral de Fator R, sem iniciar o S8.4.
 
 Observacoes do S8.1:
 
@@ -863,3 +863,15 @@ Respostas esperadas:
 - `backend/tests/test_econtrole_mapper.py`
 - `backend/tests/test_econtrole_sync.py`
 - `backend/tests/test_econtrole_webhook.py`
+
+## Atualizacao S8.3
+
+- `company_cnaes` agora e o catalogo relacional canonico de CNAEs por empresa.
+- O eControle continua preservando `cnae_principal`, `cnaes_secundarios` e `raw_econtrole` em `external_companies`.
+- O enriquecimento da Econet passa a operar por CNAE catalogado, com cache idempotente e sem persistencia de HTML bruto.
+- O client HTML da Econet decodifica a partir de `response.content`, com ordem deterministica `Content-Type -> meta charset -> meta http-equiv -> UTF-8 -> windows-1252 -> iso-8859-1`, sem `errors=\"replace\"`.
+- Cache fresco da Econet agora exige `parse_status = PARSED`, `expires_at` futuro e `parser_version` igual a versao atual do parser.
+- Mudanca de parser invalida cache anterior por versao e exige reprocessamento dos CNAEs para remover texto corrompido e thresholds ausentes.
+- O backend administrativo aceita ate `50` CNAEs por lote; o padrao operacional permanece `5` e o uso normal/futuro portal deve ficar em `25`.
+- O S8.3 calcula apenas potencial cadastral de Fator R; ele nao afirma uso efetivo por competencia.
+- O contrato canonico inicial de NFS-e foi congelado em `docs/NFSE_NORMALIZED_CONTRACT.md` e `backend/app/schemas/nfse.py`.

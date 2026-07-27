@@ -41,7 +41,7 @@ class EconetCnaeCache(Base):
 
     mei_status: Mapped[str] = mapped_column(String(32), nullable=False)
     mei_allowed: Mapped[bool | None] = mapped_column(nullable=True)
-    mei_occupation: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    mei_occupation: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     presumed_profit_status: Mapped[str] = mapped_column(String(32), nullable=False)
     presumed_profit_allowed: Mapped[bool | None] = mapped_column(nullable=True)

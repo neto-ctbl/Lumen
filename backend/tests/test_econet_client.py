@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import inspect
+
 import httpx
 import pytest
 
 from backend.app.core.config import Settings
 from backend.app.services.integrations.econet.assisted_session import get_econet_assisted_session, reset_econet_assisted_session
 from backend.app.services.integrations.econet.client import ABAS_PATH, INDEX_PATH, SEARCH_PATH, SUB_ABAS_PATH, EconetClient
+from backend.app.services.integrations.econet.encoding import decode_econet_html
 from backend.app.services.integrations.econet.errors import (
+    EconetHtmlDecodingError,
     EconetSessionExpiredError,
     EconetSessionInvalidError,
     EconetSessionNotLoadedError,
@@ -173,6 +177,61 @@ def test_client_decodes_cp1252_html_before_validation() -> None:
     body = client.get_simples_nacional("999999")
     assert "Condição do Simples Nacional" in body
     assert "não há impedimento" in body
+
+
+def test_decode_econet_html_uses_declared_utf8() -> None:
+    html = "<html><body>serviços técnicos</body></html>"
+    assert decode_econet_html(html.encode("utf-8"), "text/html; charset=utf-8") == html
+
+
+def test_decode_econet_html_uses_meta_charset() -> None:
+    html = '<html><head><meta charset="windows-1252"></head><body>gestão técnica</body></html>'
+    assert "gestão técnica" in decode_econet_html(html.encode("cp1252"), "text/html")
+
+
+def test_decode_econet_html_falls_back_to_windows_1252() -> None:
+    html = "<html><body>construção e serviços</body></html>"
+    assert decode_econet_html(html.encode("cp1252"), "text/html") == html
+
+
+def test_decode_preserves_portuguese_accents() -> None:
+    html = "<html><body>gestão técnica serviços construção não</body></html>"
+    decoded = decode_econet_html(html.encode("cp1252"), "text/html")
+    assert "gestão" in decoded
+    assert "técnica" in decoded
+    assert "serviços" in decoded
+    assert "construção" in decoded
+    assert "não" in decoded
+
+
+def test_decode_never_returns_replacement_character() -> None:
+    html = "<html><body>gestão empresarial</body></html>"
+    decoded = decode_econet_html(html.encode("cp1252"), "text/html")
+    assert "\ufffd" not in decoded
+
+
+def test_decode_raises_when_no_safe_decoding_exists() -> None:
+    with pytest.raises(EconetHtmlDecodingError):
+        decode_econet_html(b"\x81\x8d\x8f\x90\x9d", "text/html; charset=cp1252")
+
+
+def test_client_does_not_use_httpx_response_text_directly() -> None:
+    source = inspect.getsource(EconetClient._request_html) + inspect.getsource(EconetClient._decode_html_response)
+    assert ".text" not in source
+
+
+def test_decoding_error_does_not_expose_html() -> None:
+    settings = build_settings()
+    load_session(settings)
+    payload = b"\x81\x8d\x8f\x90\x9d"
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(200, content=payload, headers={"content-type": "text/html; charset=cp1252"})
+    )
+    client = EconetClient(settings=settings, http_client=httpx.Client(base_url=settings.econet_base_url, transport=transport))
+    with pytest.raises(EconetHtmlDecodingError) as excinfo:
+        client.probe_session()
+    assert "<html" not in str(excinfo.value).lower()
+    assert "phpessid" not in str(excinfo.value).lower()
 
 
 def test_detail_uses_fixed_path() -> None:

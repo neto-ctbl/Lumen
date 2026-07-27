@@ -18,17 +18,21 @@ EXPECTED_SCENARIOS = {
     "TAX_LUCRO_REAL_TRIMESTRAL",
     "TAX_LUCRO_REAL_ESTIMATIVA",
     "TAX_SIMPLES_NACIONAL",
+    "TAX_SIMPLES_FACTOR_R_POSITIVE",
+    "TAX_SIMPLES_FACTOR_R_NEGATIVE",
+    "TAX_SIMPLES_ANNEX_IV",
     "TAX_EMPREENDEDOR_INDIVIDUAL",
     "OBLIGATIONS_TABS",
     "OBLIGATIONS_PJ_GERAL",
     "OBLIGATIONS_SIMPLES_PROHIBITED",
+    "OBLIGATIONS_SIMPLES_ALLOWED",
     "OBLIGATIONS_SIMEI_NOT_ALLOWED",
 }
 
 
 def test_manifest_is_valid_and_has_no_duplicate_fixture_names() -> None:
     manifest = load_manifest()
-    assert manifest["contract_version"] == "s8.0"
+    assert manifest["contract_version"] == "s8.3"
     names = [entry["file"] for entry in iter_fixture_entries()]
     assert len(names) == len(set(names))
 
@@ -66,6 +70,9 @@ def test_tax_fixtures_contain_expected_tab_markers() -> None:
         "tax_lucro_real_trimestral.html": "Lucro Real Trimestral",
         "tax_lucro_real_estimativa.html": "Lucro Real por Estimativa",
         "tax_simples_nacional.html": "Simples Nacional",
+        "tax_simples_factor_r_positive.html": "Simples Nacional",
+        "tax_simples_factor_r_negative.html": "Simples Nacional",
+        "tax_simples_annex_iv.html": "Simples Nacional",
         "tax_empreendedor_individual.html": "Empreendedor Individual",
     }
     for file_name, marker in expected_markers.items():

@@ -18,8 +18,8 @@ from backend.app.services.integrations.econet.errors import (
     EconetUnexpectedContractError,
 )
 
-
-PARSER_VERSION = "1"
+CURRENT_ECONET_PARSER_VERSION = "econet-html-v2"
+PARSER_VERSION = CURRENT_ECONET_PARSER_VERSION
 CONTRACT_VERSION = "s8.1"
 SAFE_OBLIGATION_NAME_MAP = {
     "dctfweb": "DCTFWEB",
@@ -29,6 +29,10 @@ SAFE_OBLIGATION_NAME_MAP = {
 CNAE_DIGITS_RE = re.compile(r"\d")
 CNAE_FORMATTED_RE = re.compile(r"\b\d{4}-\d/\d{2}\b")
 PERCENT_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*%")
+FACTOR_R_CONTEXT_RE = re.compile(
+    r"([^.]*fator[^.]*r[^.]*?(?:igual\s+ou\s+superior\s+a|>=|maior\s+ou\s+igual\s+a)?[^.]*\d+(?:[.,]\d+)?\s*%[^.]*)",
+    flags=re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,13 +187,24 @@ def parse_search_results(html: str | bytes) -> list[EconetSearchResult]:
 
 
 def parse_cnae_detail(html: str | bytes) -> EconetCnaeDetail:
-    soup = _parse_html(html, expected_markers=("Consulta por CNAE", "CNAE:"))
+    soup = _parse_html(html, expected_markers=("Consulta por CNAE", "CNAE:", "Regimes Tribut", "Pessoa Jur"))
     text = soup.get_text(" ", strip=True)
     cnae_match = CNAE_FORMATTED_RE.search(text)
     if cnae_match is None:
         raise EconetUnexpectedContractError("CNAE detail page is missing formatted CNAE.")
     econet_id = _clean_text((soup.find(attrs={"data-econet-id": True}) or {}).get("data-econet-id"))
     description = _extract_labeled_value(text, "Descricao:")
+    if not description:
+        title_node = soup.select_one(".titulo_tabela_capa")
+        if title_node is not None and title_node.parent is not None:
+            title_text = _clean_text(title_node.parent.get_text(" ", strip=True))
+            description = re.sub(
+                rf"^{re.escape(cnae_match.group(0))}\s*-\s*",
+                "",
+                title_text,
+                count=1,
+                flags=re.IGNORECASE,
+            ).strip()
     if not description:
         raise EconetUnexpectedContractError("CNAE detail page is missing description.")
     return EconetCnaeDetail(
@@ -224,11 +239,19 @@ def parse_lucro_presumido(html: str | bytes) -> EconetPresumedProfitResult:
 
 
 def parse_lucro_real_trimestral(html: str | bytes) -> EconetActualProfitResult:
-    return _parse_actual_profit(html, scope="TRIMESTRAL", expected_marker="Lucro Real Trimestral")
+    return _parse_actual_profit(
+        html,
+        scope="TRIMESTRAL",
+        expected_markers=("Lucro Real Trimestral", "Condicao do Lucro Real", "Lucro Real"),
+    )
 
 
 def parse_lucro_real_estimativa(html: str | bytes) -> EconetActualProfitResult:
-    return _parse_actual_profit(html, scope="ESTIMATIVA", expected_marker="Lucro Real por Estimativa")
+    return _parse_actual_profit(
+        html,
+        scope="ESTIMATIVA",
+        expected_markers=("Lucro Real por Estimativa", "Condicao do Lucro Real", "Lucro Real"),
+    )
 
 
 def parse_simples_nacional(html: str | bytes) -> EconetSimplesResult:
@@ -247,15 +270,35 @@ def parse_simples_nacional(html: str | bytes) -> EconetSimplesResult:
             reason_text=text,
         )
 
-    annexes = re.findall(r"Anexo\s+([IVX]+)", text, flags=re.IGNORECASE)
-    annex_default = annexes[0].upper() if annexes else None
-    annex_conditional = annexes[1].upper() if len(annexes) > 1 else None
+    annexes = [_normalize_annex(match) for match in re.findall(r"Anexo\s+([IVX]+)", text, flags=re.IGNORECASE)]
+    annexes = [annex for annex in annexes if annex is not None]
+    annex_default = annexes[0] if annexes else None
+    annex_conditional = annexes[1] if len(annexes) > 1 else None
+    if annex_conditional == annex_default:
+        annex_conditional = None
     allowed = True if "permitida ao simples nacional" in norm_text or annex_default is not None else None
     status = EconetSemanticStatus.ALLOWED if allowed else EconetSemanticStatus.UNKNOWN
-    factor_r_match = re.search(r"Fator\s+R\s*(?:>=|>|igual a)?\s*(\d+(?:[.,]\d+)?)\s*%", text, flags=re.IGNORECASE)
-    factor_r_threshold = _to_decimal(factor_r_match.group(1)) if factor_r_match else None
-    factor_r_applicable = True if factor_r_match else None
-    factor_r_status = EconetSemanticStatus.PARSED if factor_r_match else EconetSemanticStatus.NOT_OBSERVED
+    positive_markers = (
+        "sujeito ao fator r" in norm_text
+        or "sujeita ao fator r" in norm_text
+        or "anexo iii quando o fator r for igual ou superior a" in norm_text
+    )
+    negative_markers = (
+        "nao sujeito ao fator r" in norm_text
+        or "nao sujeita ao fator r" in norm_text
+        or "sem fator r" in norm_text
+    )
+    factor_r_threshold = _extract_factor_r_threshold(text)
+    if negative_markers:
+        factor_r_applicable = False
+        factor_r_status = EconetSemanticStatus.PARSED
+        factor_r_threshold = None
+    elif positive_markers:
+        factor_r_applicable = True
+        factor_r_status = EconetSemanticStatus.PARSED
+    else:
+        factor_r_applicable = None
+        factor_r_status = EconetSemanticStatus.NOT_OBSERVED
     return EconetSimplesResult(
         status=status,
         allowed=allowed,
@@ -269,7 +312,7 @@ def parse_simples_nacional(html: str | bytes) -> EconetSimplesResult:
 
 
 def parse_empreendedor_individual(html: str | bytes) -> EconetMeiResult:
-    soup = _parse_html(html, expected_markers=("Empreendedor Individual",))
+    soup = _parse_html(html, expected_markers=("Empreendedor Individual", "Microempreendedor Individual", "MEI", "Enquadramento"))
     text = _clean_text(soup.get_text(" ", strip=True))
     norm_text = _norm(text)
     if "nao e possivel o enquadramento como microempreendedor individual" in norm_text:
@@ -284,6 +327,14 @@ def parse_empreendedor_individual(html: str | bytes) -> EconetMeiResult:
     occupation_match = re.search(r"Ocupacao correspondente:\s*([^\.]+)", text, flags=re.IGNORECASE)
     if occupation_match:
         occupation = _clean_text(occupation_match.group(1))
+    if occupation is None:
+        occupation_match = re.search(
+            r"relativamente\s+a\s+ocupacao\s+de\s+([^\.]+)",
+            unidecode(text),
+            flags=re.IGNORECASE,
+        )
+        if occupation_match:
+            occupation = _clean_text(occupation_match.group(1))
     allowed = True if "permitido ao mei" in norm_text or "possivel o enquadramento" in norm_text else None
     status = EconetSemanticStatus.ALLOWED if allowed else EconetSemanticStatus.UNKNOWN
     return EconetMeiResult(status=status, allowed=allowed, occupation=occupation, reason_text=text)
@@ -346,7 +397,29 @@ def parse_obligations_simples(html: str | bytes) -> EconetObligationResult:
             items=(),
             reason_text=text,
         )
-    return EconetObligationResult(scope="SIMPLES_NACIONAL", status=EconetSemanticStatus.EMPTY, items=(), reason_text=text)
+    table = soup.find("table", {"class": "tabelaResultados"})
+    if table is None:
+        return EconetObligationResult(scope="SIMPLES_NACIONAL", status=EconetSemanticStatus.EMPTY, items=(), reason_text=text)
+    items: list[EconetObligationItem] = []
+    unmapped: list[str] = []
+    for row in table.find_all("tr"):
+        cells = row.find_all("td")
+        if len(cells) < 1:
+            continue
+        name = _clean_text(cells[0].get_text(" ", strip=True))
+        if not name or name.lower() == "obrigacao":
+            continue
+        mapped_code = _map_safe_obligation_name(name)
+        if mapped_code is None:
+            unmapped.append(name)
+        items.append(EconetObligationItem(name=name, mapped_code=mapped_code))
+    return EconetObligationResult(
+        scope="SIMPLES_NACIONAL",
+        status=EconetSemanticStatus.PARSED if items else EconetSemanticStatus.EMPTY,
+        items=tuple(sorted(items, key=lambda item: item.name)),
+        reason_text=text,
+        unmapped_names=tuple(sorted(set(unmapped))),
+    )
 
 
 def parse_obligations_simei(html: str | bytes) -> EconetObligationResult:
@@ -388,7 +461,7 @@ def build_normalized_cnae_result(
     )
     payload = {
         "contract_version": CONTRACT_VERSION,
-        "parser_version": PARSER_VERSION,
+            "parser_version": CURRENT_ECONET_PARSER_VERSION,
         "cnae": {
             "normalized": detail.cnae,
             "formatted": detail.cnae_formatted,
@@ -469,7 +542,7 @@ def build_normalized_cnae_result(
         unmapped_obligations=unmapped_obligations,
         normalized_payload=payload,
         parse_status="PARSED",
-        parser_version=PARSER_VERSION,
+        parser_version=CURRENT_ECONET_PARSER_VERSION,
         content_hash=content_hash,
     )
 
@@ -479,8 +552,13 @@ def compute_content_hash(payload: dict[str, Any]) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def _parse_actual_profit(html: str | bytes, *, scope: str, expected_marker: str) -> EconetActualProfitResult:
-    soup = _parse_html(html, expected_markers=(expected_marker,))
+def _parse_actual_profit(
+    html: str | bytes,
+    *,
+    scope: str,
+    expected_markers: tuple[str, ...],
+) -> EconetActualProfitResult:
+    soup = _parse_html(html, expected_markers=expected_markers)
     text = _clean_text(soup.get_text(" ", strip=True))
     norm_text = _norm(text)
     if "nao obrigat" in norm_text:
@@ -540,6 +618,17 @@ def _extract_named_percent(text: str, label: str) -> Decimal | None:
     return _to_decimal(match.group(1)) if match else None
 
 
+def _extract_factor_r_threshold(text: str) -> Decimal | None:
+    contexts = FACTOR_R_CONTEXT_RE.findall(text)
+    for context in contexts:
+        if "fator" not in _norm(context) or "r" not in _norm(context):
+            continue
+        percent_match = PERCENT_RE.search(context)
+        if percent_match:
+            return _to_decimal(percent_match.group(1))
+    return None
+
+
 def _to_decimal(value: str) -> Decimal:
     try:
         return Decimal(value.replace(".", "").replace(",", ".") if "," in value and "." in value else value.replace(",", "."))
@@ -581,6 +670,13 @@ def _clean_text(value: Any) -> str:
 
 def _norm(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", unidecode(value).lower()).strip()
+
+
+def _normalize_annex(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = re.sub(r"[^IVX]+", "", value.strip().upper())
+    return normalized or None
 
 
 def _json_ready(value: Any) -> Any:

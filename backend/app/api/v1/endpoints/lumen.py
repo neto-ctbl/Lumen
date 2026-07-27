@@ -10,6 +10,7 @@ from backend.app.schemas.company import CompanyDetailResponse, CompanyListRespon
 from backend.app.schemas.dashboard import DashboardResponse
 from backend.app.schemas.delivery import DeliveryListResponse
 from backend.app.schemas.divergence import DivergenceListResponse
+from backend.app.schemas.econet import CompanyCnaeListResponse, FactorRPotentialResponse
 from backend.app.schemas.evidence import EvidenceListResponse
 from backend.app.schemas.installment import InstallmentListResponse
 from backend.app.schemas.integration import IntegrationHealthResponse
@@ -88,6 +89,27 @@ def company_summary(
         company_id=company_id,
         competencia=period,
     )
+    if response is None:
+        raise HTTPException(status_code=404, detail="Company not found.")
+    return response
+
+
+@router.get("/companies/{company_id}/cnaes", response_model=CompanyCnaeListResponse)
+def company_cnaes(
+    company_id: int,
+    context: AuthContext = Depends(_authorized_context),
+    db: Session = Depends(get_db),
+) -> CompanyCnaeListResponse:
+    return lumen_read_model.get_company_cnaes(db, organization_id=context.organization.id, company_id=company_id)
+
+
+@router.get("/companies/{company_id}/factor-r-potential", response_model=FactorRPotentialResponse)
+def company_factor_r_potential(
+    company_id: int,
+    context: AuthContext = Depends(_authorized_context),
+    db: Session = Depends(get_db),
+) -> FactorRPotentialResponse:
+    response = lumen_read_model.get_company_factor_r_potential(db, organization_id=context.organization.id, company_id=company_id)
     if response is None:
         raise HTTPException(status_code=404, detail="Company not found.")
     return response

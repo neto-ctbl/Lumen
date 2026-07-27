@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-import re
 from urllib.parse import urlsplit
 
 from bs4 import BeautifulSoup
@@ -10,7 +9,9 @@ import httpx
 from backend.app.core.config import Settings
 
 from .assisted_session import get_econet_assisted_session
+from .encoding import decode_econet_html
 from .errors import (
+    EconetHtmlDecodingError,
     EconetSessionDisabledError,
     EconetSessionExpiredError,
     EconetSessionInvalidError,
@@ -48,7 +49,6 @@ ABA_EXPECTED_MARKERS = {
     "obrigacoes": ("pj em geral", "optante simples nacional", "optante simei"),
 }
 ALLOWED_REDIRECT_HOSTS = {"www.econeteditora.com.br", "econeteditora.com.br"}
-CHARSET_RE = re.compile(r"charset\s*=\s*([a-z0-9._-]+)", flags=re.IGNORECASE)
 
 
 class EconetClient:
@@ -174,7 +174,11 @@ class EconetClient:
                 self.session.mark_error("unexpected_content_type")
                 raise EconetUnexpectedContentTypeError("Econet returned unexpected content type.")
 
-            body = self._decode_html_response(response)
+            try:
+                body = self._decode_html_response(response)
+            except EconetHtmlDecodingError:
+                self.session.mark_error("decode_error")
+                raise
             self._ensure_authenticated_html(body)
             self._ensure_expected_markers(body, expected_markers)
             return body
@@ -209,33 +213,7 @@ class EconetClient:
 
     @staticmethod
     def _decode_html_response(response: httpx.Response) -> str:
-        content = response.content
-        content_type = response.headers.get("content-type", "")
-        header_match = CHARSET_RE.search(content_type)
-        candidates: list[str] = []
-        if header_match:
-            candidates.append(header_match.group(1).strip().lower())
-
-        head_sample = content[:2048].decode("ascii", errors="ignore")
-        meta_match = CHARSET_RE.search(head_sample)
-        if meta_match:
-            candidates.append(meta_match.group(1).strip().lower())
-
-        candidates.extend(["utf-8", "cp1252", "latin-1"])
-
-        seen: set[str] = set()
-        for candidate in candidates:
-            if candidate in seen:
-                continue
-            seen.add(candidate)
-            try:
-                return content.decode(candidate)
-            except LookupError:
-                continue
-            except UnicodeDecodeError:
-                continue
-
-        return content.decode("utf-8", errors="replace")
+        return decode_econet_html(response.content, response.headers.get("content-type"))
 
     @staticmethod
     def _normalize_econet_id(value: str) -> str:

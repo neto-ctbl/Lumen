@@ -1,0 +1,16 @@
+{
+  "source_layout": "NFSE_NACIONAL_101",
+  "document_key": "NACIONAL-0002",
+  "issued_at": "2026-07-04T10:00:00-03:00",
+  "service_period": "2026-07",
+  "service_amount": "700.00",
+  "cnae": "7311400",
+  "provider": {
+    "document": "19163109000178",
+    "name": "Prestador Sintetico Ltda"
+  },
+  "cancellation": {
+    "cancelled": false,
+    "substituted_by_key": "NACIONAL-0003"
+  }
+}

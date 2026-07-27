@@ -9,6 +9,7 @@ from sqlalchemy import select
 from backend.app.db.session import get_db
 from backend.app.main import app
 from backend.app.models.audit_log import AuditLog
+from backend.app.models.company_cnae import CompanyCnae
 from backend.app.models.external_company import ExternalCompany
 from backend.app.models.organization import Organization
 from backend.app.core.config import get_settings
@@ -59,6 +60,13 @@ def _upsert_payload(org_slug: str = "org-webhook") -> dict[str, object]:
     }
 
 
+def _upsert_payload_with_cnaes(org_slug: str = "org-webhook") -> dict[str, object]:
+    payload = _upsert_payload(org_slug)
+    payload["cnae_principal"] = "8630-5/03"
+    payload["cnaes_secundarios"] = ["8650-0/01"]
+    return payload
+
+
 def test_webhook_without_token_returns_401(client: TestClient, db_session) -> None:
     _create_org(db_session)
 
@@ -78,7 +86,7 @@ def test_webhook_with_invalid_token_returns_401(client: TestClient, db_session) 
 def test_upsert_webhook_with_valid_token_creates_company(client: TestClient, db_session) -> None:
     _create_org(db_session)
 
-    response = client.post("/api/v1/webhooks/econtrole/company-upsert", json=_upsert_payload(), headers=_headers())
+    response = client.post("/api/v1/webhooks/econtrole/company-upsert", json=_upsert_payload_with_cnaes(), headers=_headers())
 
     assert response.status_code == 200
     payload = response.json()
@@ -87,6 +95,7 @@ def test_upsert_webhook_with_valid_token_creates_company(client: TestClient, db_
     company = db_session.scalar(select(ExternalCompany).where(ExternalCompany.id == payload["company_id"]))
     assert company is not None
     assert company.cnpj == "19163109000178"
+    assert db_session.scalars(select(CompanyCnae).where(CompanyCnae.company_id == company.id)).all()
     audit = db_session.scalar(select(AuditLog).where(AuditLog.resource_id == str(company.id)))
     assert audit is not None
     assert audit.event_type == "webhook.econtrole.company_upsert"
@@ -111,6 +120,15 @@ def test_delete_webhook_with_valid_token_soft_deletes_company(client: TestClient
     assert company is not None
     assert company.active is False
     assert company.sync_status == "DELETED_ECONTROLE"
+
+
+def test_econtrole_webhook_retry_is_idempotent(client: TestClient, db_session) -> None:
+    _create_org(db_session)
+    first = client.post("/api/v1/webhooks/econtrole/company-upsert", json=_upsert_payload_with_cnaes(), headers=_headers())
+    second = client.post("/api/v1/webhooks/econtrole/company-upsert", json=_upsert_payload_with_cnaes(), headers=_headers())
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert db_session.scalars(select(CompanyCnae)).all()
 
 
 def test_upsert_webhook_invalid_payload_returns_422(client: TestClient, db_session) -> None:

@@ -114,7 +114,7 @@ class Settings(BaseSettings):
     econet_assisted_session_enabled: bool = Field(default=False, alias="ECONET_ASSISTED_SESSION_ENABLED")
     econet_session_max_age_minutes: int = Field(default=480, alias="ECONET_SESSION_MAX_AGE_MINUTES")
     econet_enrich_default_limit: int = Field(default=5, alias="ECONET_ENRICH_DEFAULT_LIMIT")
-    econet_enrich_max_limit: int = Field(default=25, alias="ECONET_ENRICH_MAX_LIMIT")
+    econet_enrich_max_limit: int = Field(default=50, alias="ECONET_ENRICH_MAX_LIMIT")
     econet_enrich_request_delay_seconds: float = Field(default=0.5, alias="ECONET_ENRICH_REQUEST_DELAY_SECONDS")
 
     @field_validator("database_url", "test_database_url")
