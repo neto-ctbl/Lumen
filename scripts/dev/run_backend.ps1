@@ -6,4 +6,4 @@ if (Test-Path $activateScript) {
     . $activateScript
 }
 
-uvicorn backend.app.main:app --reload --port 8000
+uvicorn backend.app.main:app --reload --reload-include ".env" --port 8000

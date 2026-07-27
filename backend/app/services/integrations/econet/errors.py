@@ -15,3 +15,39 @@ class EconetAuthenticationPageDetectedError(EconetParserError):
 
 class EconetCnaeValidationError(EconetParserError):
     pass
+
+
+class EconetSessionError(RuntimeError):
+    pass
+
+
+class EconetSessionDisabledError(EconetSessionError):
+    pass
+
+
+class EconetSessionNotLoadedError(EconetSessionError):
+    pass
+
+
+class EconetSessionExpiredError(EconetSessionError):
+    pass
+
+
+class EconetSessionInvalidError(EconetSessionError, ValueError):
+    pass
+
+
+class EconetTransportError(EconetSessionError):
+    pass
+
+
+class EconetUnexpectedRedirectError(EconetSessionError):
+    pass
+
+
+class EconetUnexpectedContentTypeError(EconetSessionError):
+    pass
+
+
+class EconetUnexpectedResponseError(EconetSessionError):
+    pass

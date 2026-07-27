@@ -19,6 +19,13 @@ class IntegrationHealthItem(BaseModel):
     active_run_status: str | None = None
     active_run_started_at: str | None = None
     stale_warning: str | None = None
+    session_status: str | None = None
+    session_loaded_at: str | None = None
+    session_validated_at: str | None = None
+    session_expires_at: str | None = None
+    cache_items: int | None = None
+    cache_expired_items: int | None = None
+    cache_last_refresh: str | None = None
 
 
 class IntegrationHealthResponse(BaseModel):

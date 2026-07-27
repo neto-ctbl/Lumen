@@ -3,6 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -12,6 +13,51 @@ BACKEND_DIR = Path(__file__).resolve().parents[2]
 REPO_ROOT = BACKEND_DIR.parent
 DEFAULT_DATABASE_URL = "postgresql+psycopg://lumen:lumen@localhost:5435/lumen"
 DEFAULT_TEST_DATABASE_URL = "postgresql+psycopg://lumen:lumen@localhost:5435/lumen_test"
+TRACKED_ENV_VARS = (
+    "APP_NAME",
+    "APP_ENV",
+    "APP_DEBUG",
+    "API_HOST",
+    "API_PORT",
+    "SECRET_KEY",
+    "DATABASE_URL",
+    "TEST_DATABASE_URL",
+    "LUMEN_TEST_DATABASE_URL",
+    "REDIS_URL",
+    "LOG_LEVEL",
+    "LOG_JSON",
+    "JWT_ALGORITHM",
+    "ACCESS_TOKEN_EXPIRE_MINUTES",
+    "REFRESH_TOKEN_EXPIRE_DAYS",
+    "INITIAL_ADMIN_EMAIL",
+    "INITIAL_ADMIN_PASSWORD",
+    "INITIAL_ADMIN_FULL_NAME",
+    "INITIAL_ORG_NAME",
+    "INITIAL_ORG_SLUG",
+    "ECONTROLE_API_BASE_URL",
+    "ECONTROLE_API_TOKEN",
+    "ECONTROLE_WEBHOOK_TOKEN",
+    "ECONTROLE_TIMEOUT_SECONDS",
+    "ACESSORIAS_API_BASE_URL",
+    "ACESSORIAS_API_TOKEN",
+    "ACESSORIAS_TIMEOUT_SECONDS",
+    "ACESSORIAS_REQUESTS_PER_MINUTE",
+    "SITTAX_AUTH_BASE_URL",
+    "SITTAX_API_BASE_URL",
+    "SITTAX_APURACAO_BASE_URL",
+    "SITTAX_EMAIL",
+    "SITTAX_PASSWORD",
+    "SITTAX_API_TOKEN",
+    "SITTAX_TIMEOUT_SECONDS",
+    "ECONET_BASE_URL",
+    "ECONET_TIMEOUT_SECONDS",
+    "ECONET_ASSISTED_SESSION_ENABLED",
+    "ECONET_SESSION_MAX_AGE_MINUTES",
+    "ECONET_ENRICH_DEFAULT_LIMIT",
+    "ECONET_ENRICH_MAX_LIMIT",
+    "ECONET_ENRICH_REQUEST_DELAY_SECONDS",
+    "LUMEN_DISABLE_DOTENV",
+)
 
 
 class Settings(BaseSettings):
@@ -20,6 +66,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
+        populate_by_name=True,
     )
 
     app_name: str = Field(default="Lumen", alias="APP_NAME")
@@ -62,6 +109,13 @@ class Settings(BaseSettings):
     sittax_password: str | None = Field(default=None, alias="SITTAX_PASSWORD")
     sittax_api_token: str | None = Field(default=None, alias="SITTAX_API_TOKEN")
     sittax_timeout_seconds: int = Field(default=20, alias="SITTAX_TIMEOUT_SECONDS")
+    econet_base_url: str = Field(default="https://www.econeteditora.com.br", alias="ECONET_BASE_URL")
+    econet_timeout_seconds: int = Field(default=20, alias="ECONET_TIMEOUT_SECONDS")
+    econet_assisted_session_enabled: bool = Field(default=False, alias="ECONET_ASSISTED_SESSION_ENABLED")
+    econet_session_max_age_minutes: int = Field(default=480, alias="ECONET_SESSION_MAX_AGE_MINUTES")
+    econet_enrich_default_limit: int = Field(default=5, alias="ECONET_ENRICH_DEFAULT_LIMIT")
+    econet_enrich_max_limit: int = Field(default=25, alias="ECONET_ENRICH_MAX_LIMIT")
+    econet_enrich_request_delay_seconds: float = Field(default=0.5, alias="ECONET_ENRICH_REQUEST_DELAY_SECONDS")
 
     @field_validator("database_url", "test_database_url")
     @classmethod
@@ -77,11 +131,26 @@ class Settings(BaseSettings):
             raise ValueError("Token expiration values must be positive integers.")
         return value
 
-    @field_validator("econtrole_timeout_seconds", "acessorias_timeout_seconds", "sittax_timeout_seconds")
+    @field_validator(
+        "econtrole_timeout_seconds",
+        "acessorias_timeout_seconds",
+        "sittax_timeout_seconds",
+        "econet_timeout_seconds",
+        "econet_session_max_age_minutes",
+        "econet_enrich_default_limit",
+        "econet_enrich_max_limit",
+    )
     @classmethod
     def validate_positive_timeout(cls, value: int) -> int:
         if value <= 0:
             raise ValueError("Timeout values must be positive integers.")
+        return value
+
+    @field_validator("econet_enrich_request_delay_seconds")
+    @classmethod
+    def validate_econet_delay(cls, value: float) -> float:
+        if value < 0:
+            raise ValueError("ECONET_ENRICH_REQUEST_DELAY_SECONDS must be non-negative.")
         return value
 
     @field_validator("acessorias_requests_per_minute")
@@ -91,9 +160,61 @@ class Settings(BaseSettings):
             raise ValueError("ACESSORIAS_REQUESTS_PER_MINUTE must be between 1 and 100.")
         return value
 
+    @field_validator("econet_base_url")
+    @classmethod
+    def validate_econet_base_url(cls, value: str) -> str:
+        parts = urlsplit(value)
+        if parts.scheme != "https":
+            raise ValueError("ECONET_BASE_URL must use HTTPS.")
+        if parts.hostname != "www.econeteditora.com.br":
+            raise ValueError("ECONET_BASE_URL must target www.econeteditora.com.br.")
+        if parts.username or parts.password:
+            raise ValueError("ECONET_BASE_URL must not contain embedded credentials.")
+        if parts.query or parts.fragment:
+            raise ValueError("ECONET_BASE_URL must not contain query string or fragment.")
+        if parts.path.rstrip("/"):
+            raise ValueError("ECONET_BASE_URL must not contain a path.")
+        return f"{parts.scheme}://{parts.netloc}"
 
-@lru_cache(maxsize=1)
-def get_settings() -> Settings:
-    if os.getenv("LUMEN_DISABLE_DOTENV") == "1":
+
+def _tracked_env_snapshot() -> tuple[tuple[str, str | None], ...]:
+    return tuple((name, os.getenv(name)) for name in TRACKED_ENV_VARS)
+
+
+def _env_file_state() -> tuple[str | None, int | None]:
+    env_path = REPO_ROOT / ".env"
+    if not env_path.exists():
+        return None, None
+    stat = env_path.stat()
+    return str(env_path), stat.st_mtime_ns
+
+
+@lru_cache(maxsize=8)
+def _load_settings_cached(
+    *,
+    disable_dotenv: bool,
+    env_file_path: str | None,
+    env_file_mtime_ns: int | None,
+    env_snapshot: tuple[tuple[str, str | None], ...],
+) -> Settings:
+    if disable_dotenv:
         return Settings(_env_file=None)
     return Settings()
+
+
+def get_settings() -> Settings:
+    disable_dotenv = os.getenv("LUMEN_DISABLE_DOTENV") == "1"
+    env_file_path, env_file_mtime_ns = (None, None) if disable_dotenv else _env_file_state()
+    return _load_settings_cached(
+        disable_dotenv=disable_dotenv,
+        env_file_path=env_file_path,
+        env_file_mtime_ns=env_file_mtime_ns,
+        env_snapshot=_tracked_env_snapshot(),
+    )
+
+
+def _clear_settings_cache() -> None:
+    _load_settings_cached.cache_clear()
+
+
+get_settings.cache_clear = _clear_settings_cache  # type: ignore[attr-defined]

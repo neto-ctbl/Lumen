@@ -1,14 +1,31 @@
+from backend.app.services.integrations.econet.assisted_session import (
+    ALLOWED_COOKIE_DOMAINS,
+    ALLOWED_COOKIE_NAMES,
+    EconetAssistedSession,
+    get_econet_assisted_session,
+    reset_econet_assisted_session,
+)
 from backend.app.services.integrations.econet.cache import (
     DEFAULT_ECONET_CACHE_TTL_DAYS,
     EconetCacheOperation,
     EconetCacheWriteResult,
     upsert_econet_cnae_cache,
 )
+from backend.app.services.integrations.econet.client import EconetClient
 from backend.app.services.integrations.econet.errors import (
     EconetAuthenticationPageDetectedError,
     EconetCnaeValidationError,
     EconetParserError,
+    EconetSessionDisabledError,
+    EconetSessionError,
+    EconetSessionExpiredError,
+    EconetSessionInvalidError,
+    EconetSessionNotLoadedError,
+    EconetTransportError,
+    EconetUnexpectedContentTypeError,
+    EconetUnexpectedRedirectError,
     EconetUnexpectedContractError,
+    EconetUnexpectedResponseError,
 )
 from backend.app.services.integrations.econet.parser import (
     PARSER_VERSION,
@@ -40,12 +57,16 @@ from backend.app.services.integrations.econet.parser import (
 )
 
 __all__ = [
+    "ALLOWED_COOKIE_DOMAINS",
+    "ALLOWED_COOKIE_NAMES",
     "DEFAULT_ECONET_CACHE_TTL_DAYS",
+    "EconetAssistedSession",
     "PARSER_VERSION",
     "EconetActualProfitResult",
     "EconetAuthenticationPageDetectedError",
     "EconetCacheOperation",
     "EconetCacheWriteResult",
+    "EconetClient",
     "EconetCnaeDetail",
     "EconetCnaeValidationError",
     "EconetMeiResult",
@@ -56,11 +77,21 @@ __all__ = [
     "EconetPresumedProfitResult",
     "EconetSearchResult",
     "EconetSemanticStatus",
+    "EconetSessionDisabledError",
+    "EconetSessionError",
+    "EconetSessionExpiredError",
+    "EconetSessionInvalidError",
+    "EconetSessionNotLoadedError",
     "EconetSimplesResult",
+    "EconetTransportError",
+    "EconetUnexpectedContentTypeError",
     "EconetUnexpectedContractError",
+    "EconetUnexpectedRedirectError",
+    "EconetUnexpectedResponseError",
     "build_normalized_cnae_result",
     "compute_content_hash",
     "format_cnae",
+    "get_econet_assisted_session",
     "normalize_cnae",
     "parse_cnae_detail",
     "parse_empreendedor_individual",
@@ -73,5 +104,6 @@ __all__ = [
     "parse_obligations_simples",
     "parse_search_results",
     "parse_simples_nacional",
+    "reset_econet_assisted_session",
     "upsert_econet_cnae_cache",
 ]

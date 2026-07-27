@@ -8,6 +8,13 @@ export type IntegrationHealthItem = {
   processed_count: number;
   error_count: number;
   note: string;
+  session_status?: string | null;
+  session_loaded_at?: string | null;
+  session_validated_at?: string | null;
+  session_expires_at?: string | null;
+  cache_items?: number | null;
+  cache_expired_items?: number | null;
+  cache_last_refresh?: string | null;
 };
 
 export type IntegrationHealthResponse = {
