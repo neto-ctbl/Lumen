@@ -1,0 +1,22 @@
+{
+  "contract_version": "s9.0",
+  "network_access_required": false,
+  "synthetic_only": true,
+  "scenarios_file": "synthetic_contract_samples.json",
+  "scenarios": [
+    "ONLY_PRO_LABORE",
+    "EMPLOYEE_INSS_FGTS",
+    "AUTONOMOUS",
+    "VACATION",
+    "TERMINATION",
+    "LEAVE",
+    "TWO_PAGES",
+    "EMPTY_CONTINUATION_PAGE",
+    "SALARY_CHANGE",
+    "MULTIPLE_BLOCKS",
+    "INVALID_CNPJ",
+    "INVALID_PAYROLL_COMPETENCE",
+    "PAYROLL_2026_05_TO_2026_06",
+    "PAYROLL_2026_12_TO_2027_01"
+  ]
+}

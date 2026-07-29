@@ -1120,7 +1120,7 @@ Decisoes novas:
 
 ### Micro-stage S7.4 - DIFAL, documentos fiscais e tarefas do Sittax
 
-Status: pendente
+Status: concluido em 2026-07-17
 
 Observacao de 2026-07-17:
 - a validacao real confirmou que a apuracao funciona no host `apuracao.sittax.com.br`, mas o host `api.sittax.com.br` continua sem empresa ativa no replay HTTP hoje conhecido
@@ -1251,43 +1251,230 @@ Registro complementar de fechamento do stage S7.4:
 ---
 
 ## S8 - Econet: CNAE, atividade, Fator R e cache assistido
+### Micro-stage S8.0 - Contrato observado, seguranca e fixtures anonimizadas
 
-Status: pendente
+Status: concluido em 2026-07-21
 
 Objetivo:
 
-* Enriquecer empresas por CNAE com dados da Econet, identificando tipo de atividade, Fator R, anexos do Simples, possibilidade de Simples/MEI e obrigações indicativas por regime.
+* Formalizar o contrato HTML observado da consulta por CNAE da Econet sem iniciar integracao funcional.
+* Proteger o repositorio contra versionamento de HAR, JSONL, storages, cookies e artefatos brutos reais.
+* Preparar o terreno tecnico do S8.1 com fixtures offline seguras e reproduziveis.
 
-Justificativa:
+Entregaveis:
 
-* A Econet é fonte usada manualmente pelo escritório para classificação tributária.
-* O Lumen deve aproveitar essa fonte para reduzir consulta manual repetitiva.
-* A informação de Fator R é crítica para empresas do Simples Nacional e deve ser cruzada futuramente com Sittax e Domínio Folha.
+* `docs/ECONET_OBSERVED_CONTRACT.md`
+* `backend/tests/fixtures/econet/README.md`
+* `backend/tests/fixtures/econet/manifest.json`
+* fixtures HTML sinteticas para busca, detalhe, subabas tributarias e obrigacoes
+* `backend/tests/econet_test_utils.py`
+* `backend/tests/test_econet_fixture_safety.py`
+* `backend/tests/test_econet_observed_contract.py`
+* endurecimento do `.gitignore` para artefatos brutos da Econet
 
-Premissas:
+Validacoes:
 
-* Econet possui CAPTCHA de clique no login.
-* Não burlar CAPTCHA.
-* Não automatizar login de forma indevida.
-* Usar login manual assistido.
-* Usar sessão persistente enquanto válida.
-* Consultar apenas CNAEs novos ou com cache vencido.
-* Não consultar Econet em tempo real a cada abertura de tela.
+* `git ls-files | Select-String -Pattern "econet-network|econet-storage|\\.har"` sem artefatos brutos rastreados da Econet
+* `git check-ignore -v` confirmando cobertura dos padroes `econet-network*.har`, `econet-network-log*.jsonl` e `econet-storage-*.json`
+* `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_econet_fixture_safety.py .\backend\tests\test_econet_observed_contract.py -q`
+* `.\.venv\Scripts\python.exe -m pytest .\backend\tests -q`
+* `.\.venv\Scripts\python.exe -m ruff check .\backend`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini heads`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini current`
+* `cd .\frontend && npm run typecheck`
+* `cd .\frontend && npm run test:e2e`
 
-Tipos de atividade oficiais do Lumen:
+Decisoes:
 
-* `COMERCIO`
-* `INDUSTRIA`
-* `SERVICOS`
-* `SERVICOS_MEDICOS_ODONTOLOGICOS`
-* `SERVICOS_IMOBILIARIOS`
-* `TEMPLO_RELIGIOSO`
+* Econet permanece como fonte indicativa e nao oficial.
+* Login continua manual e CAPTCHA nao sera automatizado.
+* Fixtures da Econet devem ser sempre sinteticas ou rigorosamente sanitizadas.
+* O contrato observado do S8.0 distingue fatos confirmados, inferencias e lacunas.
+* O S8.0 nao autoriza decisao fiscal automatica, persistencia de sessao ou parser produtivo.
 
-Regra:
+Limitacoes:
 
-* Uma empresa pode ter mais de um tipo de atividade, conforme seus CNAEs.
+* nao foi criada fixture dedicada de Fator R, porque o HTML especifico nao ficou comprovado o suficiente nos artefatos analisados para este micro-stage;
+* nao houve cliente HTTP, parser produtivo, migration, model ou sync;
+* o macro-stage S8 continua pendente;
+* o S8.1 ainda nao foi iniciado.
 
-Endpoints observados e candidatos:
+### Micro-stage S8.1 - Model, migration, parser HTML puro e cache por CNAE
+
+Status: concluido em 2026-07-21
+
+Objetivo:
+
+* Criar a fundacao persistente e offline da integracao Econet sem qualquer chamada externa.
+* Materializar model, migration, parser HTML puro, payload normalizado e cache idempotente por CNAE.
+* Preparar o repositorio para o S8.2 sem iniciar sessao assistida, cliente HTTP real, endpoint manual ou sync funcional.
+
+Entregaveis:
+
+* `backend/app/models/econet_cnae_cache.py`
+* `backend/alembic/versions/20260721_0009_create_econet_cnae_cache.py`
+* `backend/app/services/integrations/econet/__init__.py`
+* `backend/app/services/integrations/econet/errors.py`
+* `backend/app/services/integrations/econet/parser.py`
+* `backend/app/services/integrations/econet/cache.py`
+* export do model em `backend/app/models/__init__.py`
+* enums `EconetSemanticStatus` e `EconetCacheWriteStatus` em `backend/app/core/enums.py`
+* `backend/tests/test_econet_parser.py`
+* `backend/tests/test_econet_cache.py`
+* `backend/tests/test_econet_cnae_cache_model.py`
+* reforco controlado das fixtures sinteticas de tributacao/MEI para explicitar cenarios de parser cobertos
+
+Schema e contrato interno materializados:
+
+* tabela `econet_cnae_cache` global por `cnae` normalizado
+* `cnae` com 7 digitos e `cnae_formatted` em `0000-0/00`
+* `econet_id_cnae` persistido como chave externa textual separada do CNAE
+* percentuais tributarios em `Numeric(5,2)`
+* blocos `simples`, `mei`, `presumed_profit`, `actual_profit` e `obligations_*` normalizados em JSONB
+* `normalized_payload` sem HTML bruto, sem cookie, sem token e sem sessao
+* `content_hash` SHA-256 deterministico sobre o payload canonicamente serializado
+
+Decisoes:
+
+* o cache da Econet no S8.1 e global por CNAE, nao multi-tenant por organizacao
+* a Econet continua estritamente indicativa; o cache nao cria status fiscal, nao altera regime oficial e nao gera obrigacao automatica
+* o parser do S8.1 e puro e offline; ele nao faz request, nao conhece cookie e nao conhece credencial
+* `econet_id_cnae` nao e calculado localmente e precisa vir do HTML de busca/detalhe observado
+* percentuais tributarios usam `Decimal`; `float` continua proibido
+* Fator R continua `NOT_OBSERVED` quando o HTML nao comprova limiar ou regra textual
+* obrigacoes desconhecidas continuam em `unmapped_obligations`; nao ha matching por aproximacao neste micro-stage
+* mensagens negativas da Econet sao resultados de negocio validos, nao erro tecnico do parser
+* TTL padrao do cache ficou em `180` dias como constante de dominio do servico
+* persistencias com hash identico retornam `UNCHANGED`, mas renovam `retrieved_at` e `expires_at`
+
+Validacoes:
+
+* `docker compose -f .\infra\docker-compose.yml up -d postgres redis`
+* `docker compose -f .\infra\docker-compose.yml ps`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini heads`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini current`
+* `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_econet_fixture_safety.py .\backend\tests\test_econet_observed_contract.py .\backend\tests\test_econet_parser.py .\backend\tests\test_econet_cache.py .\backend\tests\test_econet_cnae_cache_model.py -q`
+* `.\.venv\Scripts\python.exe -m pytest .\backend\tests -q`
+* `.\.venv\Scripts\python.exe -m ruff check .\backend`
+* `docker compose -f .\infra\docker-compose.yml exec -T postgres psql -U lumen -d lumen -c "\d+ econet_cnae_cache"`
+* `docker compose -f .\infra\docker-compose.yml exec -T postgres psql -U lumen -d lumen -c "select table_name from information_schema.tables where table_schema = 'public' and table_name = 'econet_cnae_cache';"`
+* `docker compose -f .\infra\docker-compose.yml exec -T postgres psql -U lumen -d lumen -c "select indexname, indexdef from pg_indexes where schemaname = 'public' and tablename = 'econet_cnae_cache' order by indexname;"`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini downgrade -1`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini current`
+* `docker compose -f .\infra\docker-compose.yml exec -T postgres psql -U lumen -d lumen -c "select to_regclass('public.econet_cnae_cache');"`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini current`
+* `cd .\frontend && npm run typecheck`
+* `cd .\frontend && npm run test:e2e`
+* `git diff --check`
+* `git diff --stat`
+* `git status --short`
+
+Rollback:
+
+* downgrade isolado de `20260721_0009`
+* remocao de `backend/app/models/econet_cnae_cache.py`
+* remocao de `backend/app/services/integrations/econet/`
+* remocao dos testes dedicados `test_econet_parser.py`, `test_econet_cache.py` e `test_econet_cnae_cache_model.py`
+* restore dos documentos atualizados e do export em `backend/app/models/__init__.py`
+
+Pendencias:
+
+* o macro-stage S8 continua pendente
+* o cruzamento entre `external_companies` e `econet_cnae_cache` segue para stage posterior
+* `activity_types` permanece vazio ate evidencia HTML suficiente ou regra posterior segura
+
+### Micro-stage S8.2 - Sessao manual assistida, cliente HTTP stateful e health seguro
+
+Objetivo:
+
+* materializar sessao assistida da Econet apenas em memoria, sem login automatizado e sem persistencia
+* expor importacao controlada de cookies, probe explicito, status sanitizado e limpeza idempotente
+* manter o health local da Econet sem chamadas externas e sem iniciar enriquecimento do S8.3
+
+Arquivos materializados:
+
+* `backend/app/services/integrations/econet/assisted_session.py`
+* `backend/app/services/integrations/econet/client.py`
+* `backend/app/schemas/econet.py`
+* `backend/app/api/v1/endpoints/integrations/econet.py`
+* `backend/tests/test_econet_assisted_session.py`
+* `backend/tests/test_econet_client.py`
+* `backend/tests/test_econet_endpoint.py`
+* `backend/tests/test_econet_health.py`
+* `backend/tests/test_econet_session_security.py`
+* `scripts/scan/export_econet_session.js`
+
+Limites:
+
+* nenhuma migration nova
+* nenhum login automatico
+* nenhum CAPTCHA automatizado
+* nenhuma persistencia de sessao em banco, Redis ou arquivo carregado no boot
+* nenhum enriquecimento, worker, scheduler ou sync funcional da Econet
+
+Validacao:
+
+* validacao offline concluida com testes dedicados por `httpx.MockTransport`
+* validacao real da sessao manual permanece opcional e separada do fechamento automatizado
+
+### Micro-stage S8.3 - Catalogo relacional, enriquecimento por CNAE e potencial cadastral
+
+Status: concluido em 2026-07-22
+
+Entregues:
+
+* `company_cnaes` como catalogo relacional canonico por empresa
+* reconciliacao atomica do catalogo no webhook e no sync do eControle
+* script de backfill de `external_companies` para `company_cnaes`
+* enriquecimento serial da Econet por CNAE com cache e sem HTML bruto persistido
+* parser com Fator R positivo, negativo e nao observado
+* complemento corretivo com decode seguro a partir de bytes, sem `errors="replace"` e sem aceitar `U+FFFD`
+* threshold de Fator R extraido apenas do contexto textual do proprio Fator R, com normalizacao em `Decimal("28.00")`
+* normalizacao de anexo condicional repetido, por exemplo `IV / IV -> IV / NULL`
+* `parser_version` centralizado e cache fresco dependente da versao atual do parser
+* `econet_cnae_cache.mei_occupation` mantido como `Text` no model, sem truncamento silencioso
+* limite administrativo de `50`, mantendo `5` como padrao e `25` como uso normal/futuro portal
+* endpoints read-only de catalogo e potencial cadastral de Fator R
+* contrato canonico inicial de NFS-e com fixtures sinteticas
+
+## Retificacao auditada do Stage S8 em 2026-07-27
+
+Esta secao substitui o rascunho anterior do macro-stage `S8`. O estado real do repositorio, do Git, das migrations, do OpenAPI e dos testes e:
+
+* `S8.0`: concluido no commit `f862b84`
+* `S8.1`: concluido no commit `6164f7e`
+* `S8.2`: concluido no commit `02cb7e4`
+* `S8.3`: concluido e validado, aguardando commit
+* `S8.4`: NAO INICIADO
+
+### Macro-stage S8
+
+Objetivo consolidado:
+
+* usar a Econet como fonte indicativa para enriquecer CNAEs com anexos, obrigacoes, permissao indicativa de MEI, classificacao de atividade e potencial cadastral de Fator R;
+* manter separacao explicita entre espelho cadastral do eControle, catalogo canonico interno de CNAEs, cache global da Econet, classificacao derivada e potencial de Fator R;
+* preparar o contrato canonico de NFS-e para o futuro `S10`, sem afirmar parser XML, watcher ou uso por competencia ja implementados.
+
+Arquitetura consolidada:
+
+* `external_companies`: espelho do eControle
+* `company_cnaes`: catalogo canonico interno por empresa
+* `econet_cnae_cache`: enriquecimento global por CNAE
+* `company_activity_types`: classificacao derivada com `source = ECONET`
+* `factor_r_potential`: leitura cadastral derivada do cache fresco, sem prova de uso em competencia
+
+Seguranca e limites:
+
+* login da Econet continua manual e assistido
+* CAPTCHA nao e automatizado
+* sessao existe apenas em memoria do backend
+* health da Econet e local e nao faz rede
+* `decode_econet_html` opera sobre bytes, normaliza Unicode em NFC e rejeita decodificacao insegura com `U+FFFD`
+* o stage nao calcula folha, nao le XML e nao determina uso real de Fator R por competencia
+
+Contrato outbound efetivamente utilizado:
 
 * `GET /ferramentas/regimes_cnae/buscaCnae.php?busca=...`
 * `GET /ferramentas/regimes_cnae/index.php?idcnae=...&acao=abrir`
@@ -1297,168 +1484,526 @@ Endpoints observados e candidatos:
 * `GET /ferramentas/regimes_cnae/subAbas.php?aba=simplesNacionalTributacao&idCnae=...`
 * `GET /ferramentas/regimes_cnae/subAbas.php?aba=empreendedorIndividual&idCnae=...`
 * `GET /ferramentas/regimes_cnae/abas.php?aba=obrigacoes&idCnae=...`
+* `GET /ferramentas/regimes_cnae/subAbas.php?aba=pjGeral&idCnae=...`
+* `GET /ferramentas/regimes_cnae/subAbas.php?aba=optanteSimplesNacional&idCnae=...`
+* `GET /ferramentas/regimes_cnae/subAbas.php?aba=optanteSimei&idCnae=...`
 
-Entregáveis de banco:
+### S8.0
 
-* `econet_cnae_cache`
-* eventual ajuste em `company_activity_types`, se necessário para registrar fonte/confiança/revisão
+Objetivo:
 
-Campos do cache:
+* observar o contrato sem integrar login, sem cliente HTTP produtivo e sem persistencia de sessao
 
-* `cnae`
-* `descricao`
-* `econet_id_cnae`
-* `simples_permitido`
-* `mei_permitido`
-* `tem_fator_r`
-* `anexo_simples_padrao`
-* `anexo_simples_condicional`
-* `lucro_presumido_possivel`
-* `lucro_real_obrigatorio`
-* `atividade_detectada`
-* `obrigacoes_pj_geral`
-* `obrigacoes_simples`
-* `raw_html_index`
-* `raw_html_simples`
-* `raw_html_lucro_presumido`
-* `raw_html_obrigacoes`
-* `retrieved_at`
-* `expires_at`
-* `parse_status`
+Entregas confirmadas:
 
-Entregáveis backend:
+* `docs/ECONET_OBSERVED_CONTRACT.md`
+* `backend/tests/fixtures/econet/README.md`
+* `backend/tests/fixtures/econet/manifest.json`
+* fixtures HTML sanitizadas de busca, detalhe, abas tributarias e obrigacoes
+* `backend/tests/econet_test_utils.py`
+* `backend/tests/test_econet_fixture_safety.py`
+* `backend/tests/test_econet_observed_contract.py`
 
-* `backend/app/services/integrations/econet/assisted_session.py`
-* `backend/app/services/integrations/econet/client.py`
-* `backend/app/services/integrations/econet/parser.py`
-* `backend/app/services/integrations/econet/cache.py`
-* `backend/app/services/factor_r.py`
-* `backend/app/api/v1/endpoints/integrations/econet.py`
-* `backend/app/schemas/econet.py`
+Evidencias:
+
+* contrato observado com host `www.econeteditora.com.br`
+* artefatos brutos, cookies, HAR e storageState reais fora do Git
+* fixtures adicionais de Fator R foram introduzidas apenas depois, no S8.3
+
+Status:
+
+* commitado em `f862b84`
+
+### S8.1
+
+Objetivo:
+
+* criar parser HTML puro, offline e testavel
+* criar cache global por CNAE
+
+Migration:
+
+* `20260721_0009_create_econet_cnae_cache.py`
+* tabela `econet_cnae_cache`
+* constraints: `uq_econet_cnae_cache_cnae`, `ck_econet_cnae_cache_cnae_digits`, `ck_econet_cnae_cache_parse_status`
+* indices: `ix_econet_cnae_cache_econet_id_cnae`, `ix_econet_cnae_cache_expires_at`
+
+Model e payload:
+
+* identificacao: `cnae`, `cnae_formatted`, `description`, `econet_id_cnae`
+* classificacao: `activity_types`
+* Simples: `simples_status`, `simples_allowed`, `simples_annex_default`, `simples_annex_conditional`, `factor_r_applicable`, `factor_r_threshold`
+* MEI: `mei_status`, `mei_allowed`, `mei_occupation`
+* Lucro Presumido: `presumed_profit_status`, `presumed_profit_allowed`, `presumed_profit_irpj_rate`, `presumed_profit_csll_rate`
+* Lucro Real: `actual_profit_status`, `actual_profit_mandatory`
+* obrigacoes: `obligations_general`, `obligations_simples`, `obligations_simei`, `unmapped_obligations`
+* controle: `normalized_payload`, `parse_status`, `parser_version`, `content_hash`, `retrieved_at`, `expires_at`
+
+Politica de cache:
+
+* global por CNAE
+* TTL padrao de `180` dias
+* sem HTML bruto
+* `UNCHANGED` renova datas do cache
+* sem endpoint publico proprio no S8.1
+
+Testes:
+
+* `test_econet_parser.py`
+* `test_econet_cache.py`
+* `test_econet_cnae_cache_model.py`
+
+Status:
+
+* commitado em `6164f7e`
+
+### S8.2
+
+Objetivo:
+
+* sessao manual assistida, cliente HTTP stateful e health local sem rede
+
+Sessao:
+
+* `EconetAssistedSession` com estados `DISABLED`, `NOT_LOADED`, `LOADED_UNVALIDATED`, `VALID`, `EXPIRED`, `INVALID`, `ERROR`
+* exportador manual `scripts/scan/export_econet_session.js`
+* allowlist de dominios e cookies
+* nenhuma senha, CAPTCHA, localStorage ou persistencia em banco
+
+API efetiva do S8.2:
+
+* `POST /api/v1/integrations/econet/session/import`
+* `POST /api/v1/integrations/econet/session/probe`
+* `GET /api/v1/integrations/econet/session/status`
+* `DELETE /api/v1/integrations/econet/session`
+
+Contrato:
+
+* todas as rotas exigem bearer token
+* RBAC de escrita: `ADMIN` e `DEV`
+* RBAC de leitura do status: `VIEW`, `ADMIN`, `DEV`
+* `probe` faz rede controlada
+* `status` e `health` nao fazem rede
+
+Validacao real:
+
+* importacao sanitizada de seis cookies permitidos
+* `probe` com retorno `VALID`
+* sessao somente em memoria
+
+Testes:
+
+* `test_econet_assisted_session.py`
+* `test_econet_client.py`
+* `test_econet_endpoint.py`
+* `test_econet_health.py`
+* `test_econet_session_security.py`
+
+Status:
+
+* commitado em `02cb7e4`
+
+### S8.3
+
+Objetivo:
+
+* catalogo relacional de CNAEs
+* integracao obrigatoria com webhook e sync do eControle
+* backfill operacional
+* enrichment serial da Econet
+* parser `econet-html-v2`
+* encoding seguro por bytes
+* classificacao de atividade
+* potencial cadastral de Fator R
+* contrato canonico de NFS-e
+
+Migrations:
+
+* `20260722_0010_create_company_cnaes.py`
+* `20260724_0011_expand_econet_mei_occupation_to_text.py`
+
+Tabela `company_cnaes`:
+
+* campos: `id`, `company_id`, `cnae`, `cnae_formatted`, `is_primary`, `source`, `active`, `first_seen_at`, `last_seen_at`, `deactivated_at`, `created_at`, `updated_at`
+* `FK external_companies.id`
+* `uq_company_cnaes_company_cnae`
+* `ck_company_cnaes_cnae_digits`
+* indices: `ix_company_cnaes_company_id`, `ix_company_cnaes_cnae`, `ix_company_cnaes_company_active`, `ix_company_cnaes_cnae_active`
+* indice unico parcial: `ux_company_cnaes_active_primary_per_company`
+
+Politica do catalogo:
+
+* `company_cnaes` e o catalogo canonico interno
+* `0000000` e placeholder invalido
+* principal prevalece sobre secundario duplicado
+* operacoes reais: `CREATED`, `UPDATED`, `REACTIVATED`, `DEACTIVATED`, `UNCHANGED`
+
+Explicacao da mudanca de sanitizacao:
+
+* a contagem inicial `794 validos / 4 invalidos` refletia a regra anterior, que ainda nao barrava explicitamente todos os placeholders operacionais normalizados
+* a contagem posterior `726 validos / 73 invalidos` reflete a regra final do S8.3, que rejeita `0000-0/00` e outros valores que convergiam para `0000000`
+* a diferenca veio do endurecimento da higienizacao, nao de remocao de CNAEs validos reais
+
+Enrichment:
+
+* estados reais: `CREATED`, `UPDATED`, `UNCHANGED`, `SKIPPED_FRESH_CACHE`, `SKIPPED_CACHE_ONLY`, `STALE_PARSER_VERSION`, `INVALID_CNAE`, `CNAE_NOT_FOUND`, `AMBIGUOUS_CNAE_RESULT`, `SESSION_NOT_VALID`, `SESSION_EXPIRED`, `PARSE_ERROR`, `TRANSPORT_ERROR`, `MANUAL_REVIEW`
+* cache fresco exige `parse_status = PARSED`, `expires_at > agora` e `parser_version = econet-html-v2`
+* limites: `5` padrao, `25` operacional, `50` administrativo, `51` rejeitado
+* `ECONET_ENRICH_REQUEST_DELAY_SECONDS` controla serializacao e espacamento das chamadas
+
+Fator R:
+
+* cenario equivalente a `4120400`: Anexo IV, sem anexo condicional, Fator R nao observado
+* cenario equivalente a `7020400`: Anexo V, Anexo III condicional, Fator R aplicavel, threshold `28.00%`
+* cenario equivalente a `8593700`: Anexo III, Fator R nao aplicavel
+* estados do potencial: `APPLICABLE`, `NOT_APPLICABLE`, `PARTIAL`, `UNKNOWN`
+
+Contrato canonico de NFS-e:
+
+* `backend/app/schemas/nfse.py`
+* layouts: `NFSE_ABRASF_204`, `NFSE_NACIONAL_101`
+* o parser XML permanece futuro, para o S10
+
+API efetiva do S8.3:
+
+* `POST /api/v1/integrations/econet/enrich`
+* `GET /api/v1/lumen/companies/{company_id}/cnaes`
+* `GET /api/v1/lumen/companies/{company_id}/factor-r-potential`
+* `GET /api/v1/lumen/integrations/health`
+
+Resumo formal da API documentada:
+
+* `POST /api/v1/integrations/econet/session/import`
+  * request: `cookies`
+  * response: snapshot de sessao
+  * RBAC: `ADMIN`, `DEV`
+  * rede: nao
+  * persistencia: somente memoria
+* `POST /api/v1/integrations/econet/session/probe`
+  * request: sem body
+  * response: snapshot de sessao
+  * RBAC: `ADMIN`, `DEV`
+  * rede: sim
+  * persistencia: somente memoria
+* `GET /api/v1/integrations/econet/session/status`
+  * request: sem body
+  * response: snapshot de sessao
+  * RBAC: `VIEW`, `ADMIN`, `DEV`
+  * rede: nao
+  * persistencia: nenhuma
+* `DELETE /api/v1/integrations/econet/session`
+  * request: sem body
+  * response: snapshot limpo
+  * RBAC: `ADMIN`, `DEV`
+  * rede: nao
+  * persistencia: limpa somente memoria
+* `POST /api/v1/integrations/econet/enrich`
+  * request: `organization_slug`, `company_ids`, `cnaes`, `limit`, `dry_run`, `cache_only`, `force_refresh`, `sync_catalog`, `classify_companies`
+  * response: `run_id`, `status`, `summary`, `items`, `catalog_summary`
+  * RBAC: `ADMIN`, `DEV`
+  * rede: sim
+  * persistencia: `IntegrationSyncRun`, `econet_cnae_cache`, catalogo e classificacao quando nao e `dry_run`
+* `GET /api/v1/lumen/companies/{company_id}/cnaes`
+  * request: `company_id`
+  * response: lista de CNAEs ativos da empresa
+  * RBAC: `VIEW`, `ADMIN`, `DEV`
+  * rede: nao
+  * persistencia: nenhuma
+* `GET /api/v1/lumen/companies/{company_id}/factor-r-potential`
+  * request: `company_id`
+  * response: potencial cadastral de Fator R
+  * RBAC: `VIEW`, `ADMIN`, `DEV`
+  * rede: nao
+  * persistencia: nenhuma
+* `GET /api/v1/lumen/integrations/health`
+  * request: sem body
+  * response: itens por provider, incluindo counters da Econet
+  * RBAC: `VIEW`, `ADMIN`, `DEV`
+  * rede: nao
+  * persistencia: nenhuma
+
+Scripts:
+
+* `backend/scripts/backfill_company_cnaes.py`
 * `backend/scripts/enrich_cnaes_econet.py`
+* `scripts/scan/export_econet_session.js`
 
-Jobs:
+Validacao real do fechamento:
 
-* `enrich_cnaes_econet`
-* `revalidate_econet_cnae_cache`
+* `244` empresas ativas
+* `229` empresas com catalogo valido
+* `726` vinculos ativos
+* `264` CNAEs unicos
+* `264` caches na versao atual
+* `261` atualizados
+* `3` inalterados
+* `0` erros
+* `0` CNAEs pendentes
+* `0` `U+FFFD`
+* `0` mojibake detectado
 
-Regras:
+Qualidade:
 
-* Se `tem_fator_r = true`, criar sinal/alerta para empresas do Simples.
-* Se Econet indicar Anexo V sujeito ao Fator R e possibilidade de Anexo III quando Fator R >= 28%, registrar essa condição.
-* Se Econet indicar impossibilidade de Simples e Acessórias indicar Simples, gerar alerta cadastral/fiscal.
-* Se sessão Econet expirar, não quebrar o portal; apenas exibir status de sessão expirada.
+* `92` testes especificos de Econet
+* `74` testes complementares de catalogo, eControle, config e health
+* `385` testes backend
+* `ruff` aprovado
 
-Validação:
+Status:
 
-```powershell
-.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_econet_parser.py .\backend\tests\test_econet_cache.py .\backend\tests\test_factor_r_rules.py -q
-.\.venv\Scripts\python.exe -m ruff check .\backend
-```
+* concluido e validado, aguardando commit
 
-Aceite:
+### S8.4
 
-* CNAE novo entra em fila de enriquecimento.
-* Consulta assistida salva HTML bruto e campos interpretados no cache.
-* Empresa recebe atividade padronizada quando a confiança for suficiente.
-* Empresa com CNAE sujeito ao Fator R recebe flag `tem_fator_r`.
-* Sessão expirada aparece no health da integração sem quebrar telas.
-* Nenhuma tentativa de bypass de CAPTCHA é implementada.
+Status:
+
+* NAO INICIADO
+
+Escopo apenas planejado:
+
+* card da Econet na tela de integracoes
+* status de sessao
+* contadores de catalogo e cache
+* acoes administrativas de import, probe, clear e enrichment de pendentes
+* tabela de CNAEs da empresa
+* exibicao do potencial de Fator R
+* cobertura, revisao manual, RBAC e E2E dedicados
 
 ---
 
 ## S9 - Domínio Folha: importador do Resumo Mensal e DCTFWeb DP
 
-Status: pendente
+Status: em andamento
 
 Objetivo:
 
-* Usar o relatório da Domínio Folha para identificar fator gerador de DCTFWeb pela folha/eSocial e atribuir a responsabilidade ao DP quando esse for o único fator gerador.
+```text
+Importar o Resumo Mensal da Folha emitido pelo Domínio, identificar
+movimentos de folha por empresa e relacioná-los à competência de apuração
+do mês seguinte, produzindo evidência para DCTFWeb DP e análise de Fator R.
+```
 
-Justificativa:
+Decisões definitivas:
 
-* A Domínio não possui API útil para consulta.
-* O relatório PDF do Resumo Mensal da Folha se mostrou mais útil que o Excel para automação.
-* A DCTFWeb gerada exclusivamente por folha/eSocial deve ser responsabilidade do DP, não do Fiscal.
+* Domínio é integração documental.
+* O núcleo do Lumen não dependerá de automação de tela.
+* O coletor Windows é opcional e desacoplado.
+* Upload manual do PDF continuará suportado.
+* OCR não faz parte do caminho principal.
+* O PDF prova movimento, não entrega da DCTFWeb.
+* A ausência da empresa no PDF não equivale a folha zerada.
+* CNPJ será a chave futura de matching.
+* SHA-256 será a chave de idempotência do arquivo.
 
-Premissas:
+Limites estruturais:
 
-* Não criar robô de tela da Domínio.
-* Não depender do Excel da Domínio para esse relatório.
-* Usar PDF com texto extraível.
-* OCR somente se o PDF vier como imagem ou a extração de texto falhar.
+* Domínio não é fonte principal de cadastro.
+* Domínio não é fonte principal de regime.
+* Domínio não é fonte principal de CNAE.
+* Domínio não será consultada por API.
+* Domínio não provará sozinha a transmissão da DCTFWeb.
+* Domínio será fonte documental de movimento de folha.
+
+Regra de competência obrigatória:
+
+* `source_payroll_competence` preserva exatamente a competência da folha.
+* `assessment_competence` representa a apuração do mês seguinte.
+* `source_payroll_competence != assessment_competence`.
+* Exemplo: `05/2026 -> 2026-05 -> 2026-06`.
+* Exemplo de rollover: `12/2026 -> 2026-12 -> 2027-01`.
+* No futuro, `period_id` do movimento apontará para a apuração.
+
+### S9.0 - Contrato, segurança, fixtures e coletor Windows
+
+Status: concluído em 2026-07-29
 
 Escopo:
 
-* Upload/importação assistida do PDF Resumo Mensal da Folha.
-* Parser por blocos de empresa.
-* Extração de CNPJ, empresa, competência e rubricas.
-* Persistência de movimentos por empresa/competência.
-* Regra de origem DCTFWeb.
-* Alerta para mês seguinte quando houver movimento anterior.
+* documentar o contrato real do Resumo Mensal;
+* formalizar a regra folha `M -> M+1`;
+* criar tipos puros e helper de competência;
+* criar fixtures integralmente sintéticas;
+* criar testes de contrato;
+* incorporar o coletor Windows ao repositório;
+* criar `.env.example` do coletor;
+* criar manifest lateral;
+* endurecer escrita, validação, retry, hash e lock do coletor;
+* atualizar documentação central;
+* nenhuma migration;
+* nenhum banco;
+* nenhum endpoint;
+* nenhum frontend;
+* nenhum parser completo.
 
-Entregáveis de banco:
+Entregues no S9.0:
 
-* `dominio_payroll_imports`
-* `dominio_payroll_company_movements`
+* `backend/app/services/integrations/dominio/contracts.py`
+* `backend/app/services/integrations/dominio/competence.py`
+* `backend/tests/fixtures/dominio/manifest.json`
+* `backend/tests/fixtures/dominio/synthetic_contract_samples.json`
+* `backend/tests/test_dominio_payroll_contract.py`
+* `backend/tests/test_dominio_payroll_competence.py`
+* `docs/integrations/DOMINIO_PAYROLL_CONTRACT.md`
+* `scripts/collectors/dominio/gerar_resumo_mensal_dominio.py`
+* `scripts/collectors/dominio/.env.example`
+* `scripts/collectors/dominio/README.md`
 
-Entregáveis backend:
-
-* `backend/app/models/dominio_payroll.py`
-* migration para tabelas da Domínio Folha, se ainda não existirem fisicamente
-* `backend/app/services/pdf/parse_dominio_payroll.py`
-* `backend/app/services/integrations/dominio/payroll_importer.py`
-* `backend/app/services/integrations/dominio/mapper.py`
-* `backend/app/services/dctfweb_origins.py`
-* `backend/app/api/v1/endpoints/integrations/dominio.py`
-* `backend/app/schemas/dominio.py`
-* `backend/scripts/import_dominio_payroll.py`
-
-Campos extraídos:
-
-* `company_cnpj`
-* `company_name`
-* `competencia`
-* `tem_folha`
-* `tem_empregado`
-* `tem_pro_labore`
-* `tem_autonomo`
-* `tem_inss`
-* `tem_fgts`
-* `tem_rescisao`
-* `tem_ferias`
-* `valor_proventos`
-* `valor_descontos`
-* `valor_informativas`
-* `valor_liquido`
-* `raw_text`
-* `arquivo_origem`
-
-Regras de DCTFWeb:
-
-* Movimento de folha, pró-labore, autônomo, INSS, FGTS ou rescisão indica fator gerador de DCTFWeb origem DP.
-* Se o único fator gerador da DCTFWeb for folha/eSocial, `responsible_department = DP`.
-* Se houver folha + REINF/MIT/tributos federais, `responsible_department = COMPARTILHADO`.
-* Se houver somente REINF/MIT/tributos federais, `responsible_department = FISCAL`.
-* Se houve DCTFWeb com movimento em uma competência, gerar alerta para a competência seguinte verificar envio, ainda que zerado/sem movimento, quando aplicável.
-
-Validação:
+Validação planejada do S9.0:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_dominio_payroll_parser.py .\backend\tests\test_dctfweb_origins.py .\backend\tests\test_dctfweb_next_month_alert.py -q
-.\.venv\Scripts\python.exe -m ruff check .\backend
+.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_dominio_payroll_contract.py .\backend\tests\test_dominio_payroll_competence.py -q
+.\.venv\Scripts\python.exe -m ruff check .\backend\app\services\integrations\dominio .\backend\tests\test_dominio_payroll_contract.py .\backend\tests\test_dominio_payroll_competence.py
+.\.venv\Scripts\python.exe -m py_compile .\scripts\collectors\dominio\gerar_resumo_mensal_dominio.py
 ```
 
-Aceite:
+Validação executada no fechamento do S9.0 em 2026-07-29:
 
-* PDF importado cria movimento por empresa sem duplicidade.
-* Empresas não encontradas no espelho local ficam em fila de conferência.
-* DCTFWeb por folha aparece como responsabilidade do DP.
-* DCTFWeb com múltiplas origens aparece como `COMPARTILHADO`.
-* Alerta do mês posterior é gerado corretamente.
-* Nenhum robô de tela da Domínio é criado.
+```powershell
+git branch --show-current
+git log -1 --oneline
+.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini current
+.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini heads
+.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_dominio_payroll_contract.py .\backend\tests\test_dominio_payroll_competence.py -q
+.\.venv\Scripts\python.exe -m ruff check .\backend\app\services\integrations\dominio .\backend\tests\test_dominio_payroll_contract.py .\backend\tests\test_dominio_payroll_competence.py
+.\.venv\Scripts\python.exe -m py_compile .\scripts\collectors\dominio\gerar_resumo_mensal_dominio.py
+.\.venv\Scripts\python.exe -c @"
+import ast
+from pathlib import Path
+path = Path(r'.\scripts\collectors\dominio\gerar_resumo_mensal_dominio.py')
+ast.parse(path.read_text(encoding='utf-8'))
+print('AST OK:', path)
+"@
+pip install -r requirements.txt
+Get-ChildItem .\scripts\collectors\dominio,.\backend\tests\fixtures\dominio -Recurse -File |
+    Select-String -Pattern 'DOMINIO_PASSWORD=.+','password\s*=\s*[''"]([^''"]+)[''"]' |
+    ForEach-Object { $_.Path + ':' + $_.LineNumber + ':' + $_.Line.Trim() }
+git status --short |
+    Select-String -Pattern 'Resumo_Mensal_.*\.pdf|gerar_resumo_mensal_dominio\.log|\.env$'
+.\.venv\Scripts\python.exe .\scripts\collectors\dominio\gerar_resumo_mensal_dominio.py --competencia 05/2026
+Get-ChildItem .\scripts\collectors\dominio\Relatorios_Dominio\Resumo_Mensal_05-2026*
+Get-Content .\scripts\collectors\dominio\Relatorios_Dominio\Resumo_Mensal_05-2026.manifest.json
+Get-FileHash .\scripts\collectors\dominio\Relatorios_Dominio\Resumo_Mensal_05-2026.pdf -Algorithm SHA256
+git status --short .\scripts\collectors\dominio .\requirements.txt .\PLANO_DESENVOLVIMENTO.md .\ESTRUTURA_REPO.md
+```
 
----
+Resultados observados no fechamento do S9.0:
+
+* `pytest`: `17 passed in 6.27s`.
+* `ruff check`: sem achados.
+* `py_compile`: sem erro.
+* parse AST UTF-8 do coletor: `AST OK`.
+* `alembic current` e `alembic heads`: `20260724_0011 (head)`.
+* `pip install -r requirements.txt`: ambiente central confirmou `pywinauto`, `pywin32` e `comtypes`.
+* varredura de segredos: apenas placeholders `DOMINIO_PASSWORD=ALTERE_LOCALMENTE` em `.env.example` e `README.md`.
+* varredura de artefatos versionados: sem `.env`, PDF real ou log real entrando no `git status`.
+* execucao real do coletor para `05/2026`: concluida com PDF final e manifest lateral.
+* PDF final observado: `Resumo_Mensal_05-2026.pdf`, `149` paginas, `1440469` bytes.
+* SHA-256 observado: `A7BDE8EBFCD1679F8C0D92386AC4EB3E252468E542ACB699ED06B3797EC9C59F`.
+* manifest lateral observado: `status = SUCCESS`, `payroll_competence = 2026-05`, `assessment_competence = 2026-06`, `selection_scope = ATIVAS`.
+
+Aceite do S9.0:
+
+* contratos puros e sem banco;
+* regra `05/2026 -> 06/2026` testada;
+* regra `12/2026 -> 01/2027` testada;
+* fixtures 100% sintéticas;
+* coletor com `.partial.pdf`, validação mínima, SHA-256, manifest, retry limitado e lock local;
+* nenhum artefato real versionado;
+* nenhum endpoint, migration, parser completo ou frontend criado.
+
+Fechamento tecnico do S9.0 em 2026-07-29:
+
+* contrato documental do `Resumo Mensal` congelado em `docs/integrations/DOMINIO_PAYROLL_CONTRACT.md`;
+* helper puro `folha M -> apuracao M+1` implantado no backend com testes de competencia mensal e rollover anual;
+* fixtures sinteticas e manifest sintetico implantados para contrato e validacao offline;
+* coletor Windows incorporado ao repo e adaptado ao Lumen para ler `.env` central com fallback local opcional;
+* coletor endurecido com `lock` local, retry de exportacao, escrita em `.partial.pdf`, troca atomica com `os.replace`, validacao minima de PDF, hash SHA-256 e manifest lateral;
+* compatibilidade implantada para variaveis centralizadas `DOMINIO_LOGIN_TIMEOUT`, `DOMINIO_REPORT_TIMEOUT`, `DOMINIO_SAVE_TIMEOUT`, `DOMINIO_OVERWRITE_PDF`, `DOMINIO_CLOSE_DOMINIO_AFTER` e `DOMINIO_EXPORT_RETRIES`, mantendo fallback para nomes legados;
+* requirements do coletor incorporados ao `requirements.txt` central, sem arquivo separado de dependencias;
+* homologacao funcional real concluida no Windows com geracao do PDF `Resumo_Mensal_05-2026.pdf` e manifest correspondente.
+
+### S9.1 - Parser offline do PDF
+
+Status: planejado
+
+Planejamento:
+
+* extração textual sem OCR no caminho principal;
+* OCR somente como fallback futuro e explícito;
+* separação por empresa;
+* agrupamento de páginas;
+* cabeçalhos repetidos;
+* páginas `1/2`, `2/2`;
+* páginas de continuação vazias;
+* blocos `Folha Mensal`;
+* alterações salariais;
+* lançamentos complementares;
+* rubricas;
+* totais;
+* valores brasileiros;
+* detecção de sinais de folha, empregado, pró-labore, autônomo, INSS, FGTS, férias, rescisão e afastamento;
+* produção de objetos Python;
+* nenhum acesso ao banco.
+
+### S9.2 - Persistência, importador e matching
+
+Status: planejado
+
+Planejamento:
+
+* tabelas `dominio_payroll_imports` e `dominio_payroll_company_movements`;
+* migration incremental;
+* idempotência por SHA-256;
+* matching por CNPJ;
+* `source_payroll_competence`;
+* `assessment_competence`;
+* `period_id` apontando para a apuração;
+* CLI com `--dry-run`;
+* integração futura com `integration_sync_runs`, `audit_log` e `fiscal_evidences`;
+* fonte `DOMINIO_FOLHA_PDF`;
+* unmatched sem interromper o lote;
+* PDF não armazenado como blob no banco;
+* `rubrics_summary` como JSONB em vez de tabela de rubricas no MVP.
+
+### S9.3 - Origem DCTFWeb, departamentos e alertas
+
+Status: planejado
+
+Planejamento:
+
+* `Domínio Folha somente = DP`;
+* `REINF somente = FISCAL`;
+* `MIT/federal somente = FISCAL`;
+* `Domínio Folha + REINF/MIT = COMPARTILHADO`;
+* alertas `DOMINIO_PAYROLL_COMPANY_UNMATCHED`;
+* alertas `DCTFWEB_DP_EXPECTED_NOT_FOUND`;
+* alertas `DCTFWEB_SHARED_ORIGIN_DETECTED`;
+* alertas `DCTFWEB_NEXT_PERIOD_CHECK`;
+* alertas `FACTOR_R_PAYROLL_SIGNAL_FOUND`;
+* alertas `FACTOR_R_NO_PAYROLL_SIGNAL`;
+* regra de alerta posterior em `M+2` em relação à folha original.
+
+### S9.4 - API, watcher, frontend e E2E
+
+Status: planejado
+
+Planejamento:
+
+* upload administrativo;
+* histórico de imports;
+* detalhes matched/unmatched;
+* watcher de pasta;
+* leitura de manifest;
+* RBAC;
+* limites de tamanho;
+* validação de assinatura PDF;
+* nome de arquivo sanitizado;
+* arquivos temporários;
+* card da integração;
+* frontend;
+* E2E com fixture sintética;
+* nenhuma execução do Domínio no E2E.
+
 
 ## S10 - Watcher local e motor de evidências por arquivo
 
@@ -2126,521 +2671,3 @@ Ao final, informe arquivos alterados, comandos de validação e pendências.
 ```
 
 ```
-```
-### Micro-stage S8.0 - Contrato observado, seguranca e fixtures anonimizadas
-
-Status: concluido em 2026-07-21
-
-Objetivo:
-
-* Formalizar o contrato HTML observado da consulta por CNAE da Econet sem iniciar integracao funcional.
-* Proteger o repositorio contra versionamento de HAR, JSONL, storages, cookies e artefatos brutos reais.
-* Preparar o terreno tecnico do S8.1 com fixtures offline seguras e reproduziveis.
-
-Entregaveis:
-
-* `docs/ECONET_OBSERVED_CONTRACT.md`
-* `backend/tests/fixtures/econet/README.md`
-* `backend/tests/fixtures/econet/manifest.json`
-* fixtures HTML sinteticas para busca, detalhe, subabas tributarias e obrigacoes
-* `backend/tests/econet_test_utils.py`
-* `backend/tests/test_econet_fixture_safety.py`
-* `backend/tests/test_econet_observed_contract.py`
-* endurecimento do `.gitignore` para artefatos brutos da Econet
-
-Validacoes:
-
-* `git ls-files | Select-String -Pattern "econet-network|econet-storage|\\.har"` sem artefatos brutos rastreados da Econet
-* `git check-ignore -v` confirmando cobertura dos padroes `econet-network*.har`, `econet-network-log*.jsonl` e `econet-storage-*.json`
-* `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_econet_fixture_safety.py .\backend\tests\test_econet_observed_contract.py -q`
-* `.\.venv\Scripts\python.exe -m pytest .\backend\tests -q`
-* `.\.venv\Scripts\python.exe -m ruff check .\backend`
-* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini heads`
-* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini current`
-* `cd .\frontend && npm run typecheck`
-* `cd .\frontend && npm run test:e2e`
-
-Decisoes:
-
-* Econet permanece como fonte indicativa e nao oficial.
-* Login continua manual e CAPTCHA nao sera automatizado.
-* Fixtures da Econet devem ser sempre sinteticas ou rigorosamente sanitizadas.
-* O contrato observado do S8.0 distingue fatos confirmados, inferencias e lacunas.
-* O S8.0 nao autoriza decisao fiscal automatica, persistencia de sessao ou parser produtivo.
-
-Limitacoes:
-
-* nao foi criada fixture dedicada de Fator R, porque o HTML especifico nao ficou comprovado o suficiente nos artefatos analisados para este micro-stage;
-* nao houve cliente HTTP, parser produtivo, migration, model ou sync;
-* o macro-stage S8 continua pendente;
-* o S8.1 ainda nao foi iniciado.
-
-### Micro-stage S8.1 - Model, migration, parser HTML puro e cache por CNAE
-
-Status: concluido em 2026-07-21
-
-Objetivo:
-
-* Criar a fundacao persistente e offline da integracao Econet sem qualquer chamada externa.
-* Materializar model, migration, parser HTML puro, payload normalizado e cache idempotente por CNAE.
-* Preparar o repositorio para o S8.2 sem iniciar sessao assistida, cliente HTTP real, endpoint manual ou sync funcional.
-
-Entregaveis:
-
-* `backend/app/models/econet_cnae_cache.py`
-* `backend/alembic/versions/20260721_0009_create_econet_cnae_cache.py`
-* `backend/app/services/integrations/econet/__init__.py`
-* `backend/app/services/integrations/econet/errors.py`
-* `backend/app/services/integrations/econet/parser.py`
-* `backend/app/services/integrations/econet/cache.py`
-* export do model em `backend/app/models/__init__.py`
-* enums `EconetSemanticStatus` e `EconetCacheWriteStatus` em `backend/app/core/enums.py`
-* `backend/tests/test_econet_parser.py`
-* `backend/tests/test_econet_cache.py`
-* `backend/tests/test_econet_cnae_cache_model.py`
-* reforco controlado das fixtures sinteticas de tributacao/MEI para explicitar cenarios de parser cobertos
-
-Schema e contrato interno materializados:
-
-* tabela `econet_cnae_cache` global por `cnae` normalizado
-* `cnae` com 7 digitos e `cnae_formatted` em `0000-0/00`
-* `econet_id_cnae` persistido como chave externa textual separada do CNAE
-* percentuais tributarios em `Numeric(5,2)`
-* blocos `simples`, `mei`, `presumed_profit`, `actual_profit` e `obligations_*` normalizados em JSONB
-* `normalized_payload` sem HTML bruto, sem cookie, sem token e sem sessao
-* `content_hash` SHA-256 deterministico sobre o payload canonicamente serializado
-
-Decisoes:
-
-* o cache da Econet no S8.1 e global por CNAE, nao multi-tenant por organizacao
-* a Econet continua estritamente indicativa; o cache nao cria status fiscal, nao altera regime oficial e nao gera obrigacao automatica
-* o parser do S8.1 e puro e offline; ele nao faz request, nao conhece cookie e nao conhece credencial
-* `econet_id_cnae` nao e calculado localmente e precisa vir do HTML de busca/detalhe observado
-* percentuais tributarios usam `Decimal`; `float` continua proibido
-* Fator R continua `NOT_OBSERVED` quando o HTML nao comprova limiar ou regra textual
-* obrigacoes desconhecidas continuam em `unmapped_obligations`; nao ha matching por aproximacao neste micro-stage
-* mensagens negativas da Econet sao resultados de negocio validos, nao erro tecnico do parser
-* TTL padrao do cache ficou em `180` dias como constante de dominio do servico
-* persistencias com hash identico retornam `UNCHANGED`, mas renovam `retrieved_at` e `expires_at`
-
-Validacoes:
-
-* `docker compose -f .\infra\docker-compose.yml up -d postgres redis`
-* `docker compose -f .\infra\docker-compose.yml ps`
-* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head`
-* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini heads`
-* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini current`
-* `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_econet_fixture_safety.py .\backend\tests\test_econet_observed_contract.py .\backend\tests\test_econet_parser.py .\backend\tests\test_econet_cache.py .\backend\tests\test_econet_cnae_cache_model.py -q`
-* `.\.venv\Scripts\python.exe -m pytest .\backend\tests -q`
-* `.\.venv\Scripts\python.exe -m ruff check .\backend`
-* `docker compose -f .\infra\docker-compose.yml exec -T postgres psql -U lumen -d lumen -c "\d+ econet_cnae_cache"`
-* `docker compose -f .\infra\docker-compose.yml exec -T postgres psql -U lumen -d lumen -c "select table_name from information_schema.tables where table_schema = 'public' and table_name = 'econet_cnae_cache';"`
-* `docker compose -f .\infra\docker-compose.yml exec -T postgres psql -U lumen -d lumen -c "select indexname, indexdef from pg_indexes where schemaname = 'public' and tablename = 'econet_cnae_cache' order by indexname;"`
-* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini downgrade -1`
-* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini current`
-* `docker compose -f .\infra\docker-compose.yml exec -T postgres psql -U lumen -d lumen -c "select to_regclass('public.econet_cnae_cache');"`
-* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head`
-* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini current`
-* `cd .\frontend && npm run typecheck`
-* `cd .\frontend && npm run test:e2e`
-* `git diff --check`
-* `git diff --stat`
-* `git status --short`
-
-Rollback:
-
-* downgrade isolado de `20260721_0009`
-* remocao de `backend/app/models/econet_cnae_cache.py`
-* remocao de `backend/app/services/integrations/econet/`
-* remocao dos testes dedicados `test_econet_parser.py`, `test_econet_cache.py` e `test_econet_cnae_cache_model.py`
-* restore dos documentos atualizados e do export em `backend/app/models/__init__.py`
-
-Pendencias:
-
-* o macro-stage S8 continua pendente
-* o cruzamento entre `external_companies` e `econet_cnae_cache` segue para stage posterior
-* `activity_types` permanece vazio ate evidencia HTML suficiente ou regra posterior segura
-
-### Micro-stage S8.2 - Sessao manual assistida, cliente HTTP stateful e health seguro
-
-Objetivo:
-
-* materializar sessao assistida da Econet apenas em memoria, sem login automatizado e sem persistencia
-* expor importacao controlada de cookies, probe explicito, status sanitizado e limpeza idempotente
-* manter o health local da Econet sem chamadas externas e sem iniciar enriquecimento do S8.3
-
-Arquivos materializados:
-
-* `backend/app/services/integrations/econet/assisted_session.py`
-* `backend/app/services/integrations/econet/client.py`
-* `backend/app/schemas/econet.py`
-* `backend/app/api/v1/endpoints/integrations/econet.py`
-* `backend/tests/test_econet_assisted_session.py`
-* `backend/tests/test_econet_client.py`
-* `backend/tests/test_econet_endpoint.py`
-* `backend/tests/test_econet_health.py`
-* `backend/tests/test_econet_session_security.py`
-* `scripts/scan/export_econet_session.js`
-
-Limites:
-
-* nenhuma migration nova
-* nenhum login automatico
-* nenhum CAPTCHA automatizado
-* nenhuma persistencia de sessao em banco, Redis ou arquivo carregado no boot
-* nenhum enriquecimento, worker, scheduler ou sync funcional da Econet
-
-Validacao:
-
-* validacao offline concluida com testes dedicados por `httpx.MockTransport`
-* validacao real da sessao manual permanece opcional e separada do fechamento automatizado
-
-### Micro-stage S8.3 - Catalogo relacional, enriquecimento por CNAE e potencial cadastral
-
-Status: concluido em 2026-07-22
-
-Entregues:
-
-* `company_cnaes` como catalogo relacional canonico por empresa
-* reconciliacao atomica do catalogo no webhook e no sync do eControle
-* script de backfill de `external_companies` para `company_cnaes`
-* enriquecimento serial da Econet por CNAE com cache e sem HTML bruto persistido
-* parser com Fator R positivo, negativo e nao observado
-* complemento corretivo com decode seguro a partir de bytes, sem `errors="replace"` e sem aceitar `U+FFFD`
-* threshold de Fator R extraido apenas do contexto textual do proprio Fator R, com normalizacao em `Decimal("28.00")`
-* normalizacao de anexo condicional repetido, por exemplo `IV / IV -> IV / NULL`
-* `parser_version` centralizado e cache fresco dependente da versao atual do parser
-* `econet_cnae_cache.mei_occupation` mantido como `Text` no model, sem truncamento silencioso
-* limite administrativo de `50`, mantendo `5` como padrao e `25` como uso normal/futuro portal
-* endpoints read-only de catalogo e potencial cadastral de Fator R
-* contrato canonico inicial de NFS-e com fixtures sinteticas
-
-## Retificacao auditada do Stage S8 em 2026-07-27
-
-Esta secao substitui o rascunho anterior do macro-stage `S8`. O estado real do repositorio, do Git, das migrations, do OpenAPI e dos testes e:
-
-* `S8.0`: concluido no commit `f862b84`
-* `S8.1`: concluido no commit `6164f7e`
-* `S8.2`: concluido no commit `02cb7e4`
-* `S8.3`: concluido e validado, aguardando commit
-* `S8.4`: NAO INICIADO
-
-### Macro-stage S8
-
-Objetivo consolidado:
-
-* usar a Econet como fonte indicativa para enriquecer CNAEs com anexos, obrigacoes, permissao indicativa de MEI, classificacao de atividade e potencial cadastral de Fator R;
-* manter separacao explicita entre espelho cadastral do eControle, catalogo canonico interno de CNAEs, cache global da Econet, classificacao derivada e potencial de Fator R;
-* preparar o contrato canonico de NFS-e para o futuro `S10`, sem afirmar parser XML, watcher ou uso por competencia ja implementados.
-
-Arquitetura consolidada:
-
-* `external_companies`: espelho do eControle
-* `company_cnaes`: catalogo canonico interno por empresa
-* `econet_cnae_cache`: enriquecimento global por CNAE
-* `company_activity_types`: classificacao derivada com `source = ECONET`
-* `factor_r_potential`: leitura cadastral derivada do cache fresco, sem prova de uso em competencia
-
-Seguranca e limites:
-
-* login da Econet continua manual e assistido
-* CAPTCHA nao e automatizado
-* sessao existe apenas em memoria do backend
-* health da Econet e local e nao faz rede
-* `decode_econet_html` opera sobre bytes, normaliza Unicode em NFC e rejeita decodificacao insegura com `U+FFFD`
-* o stage nao calcula folha, nao le XML e nao determina uso real de Fator R por competencia
-
-Contrato outbound efetivamente utilizado:
-
-* `GET /ferramentas/regimes_cnae/buscaCnae.php?busca=...`
-* `GET /ferramentas/regimes_cnae/index.php?idcnae=...&acao=abrir`
-* `GET /ferramentas/regimes_cnae/subAbas.php?aba=lucroPresumido&idCnae=...`
-* `GET /ferramentas/regimes_cnae/subAbas.php?aba=lucroRealTrimestral&idCnae=...`
-* `GET /ferramentas/regimes_cnae/subAbas.php?aba=lucroRealEstimativa&idCnae=...`
-* `GET /ferramentas/regimes_cnae/subAbas.php?aba=simplesNacionalTributacao&idCnae=...`
-* `GET /ferramentas/regimes_cnae/subAbas.php?aba=empreendedorIndividual&idCnae=...`
-* `GET /ferramentas/regimes_cnae/abas.php?aba=obrigacoes&idCnae=...`
-* `GET /ferramentas/regimes_cnae/subAbas.php?aba=pjGeral&idCnae=...`
-* `GET /ferramentas/regimes_cnae/subAbas.php?aba=optanteSimplesNacional&idCnae=...`
-* `GET /ferramentas/regimes_cnae/subAbas.php?aba=optanteSimei&idCnae=...`
-
-### S8.0
-
-Objetivo:
-
-* observar o contrato sem integrar login, sem cliente HTTP produtivo e sem persistencia de sessao
-
-Entregas confirmadas:
-
-* `docs/ECONET_OBSERVED_CONTRACT.md`
-* `backend/tests/fixtures/econet/README.md`
-* `backend/tests/fixtures/econet/manifest.json`
-* fixtures HTML sanitizadas de busca, detalhe, abas tributarias e obrigacoes
-* `backend/tests/econet_test_utils.py`
-* `backend/tests/test_econet_fixture_safety.py`
-* `backend/tests/test_econet_observed_contract.py`
-
-Evidencias:
-
-* contrato observado com host `www.econeteditora.com.br`
-* artefatos brutos, cookies, HAR e storageState reais fora do Git
-* fixtures adicionais de Fator R foram introduzidas apenas depois, no S8.3
-
-Status:
-
-* commitado em `f862b84`
-
-### S8.1
-
-Objetivo:
-
-* criar parser HTML puro, offline e testavel
-* criar cache global por CNAE
-
-Migration:
-
-* `20260721_0009_create_econet_cnae_cache.py`
-* tabela `econet_cnae_cache`
-* constraints: `uq_econet_cnae_cache_cnae`, `ck_econet_cnae_cache_cnae_digits`, `ck_econet_cnae_cache_parse_status`
-* indices: `ix_econet_cnae_cache_econet_id_cnae`, `ix_econet_cnae_cache_expires_at`
-
-Model e payload:
-
-* identificacao: `cnae`, `cnae_formatted`, `description`, `econet_id_cnae`
-* classificacao: `activity_types`
-* Simples: `simples_status`, `simples_allowed`, `simples_annex_default`, `simples_annex_conditional`, `factor_r_applicable`, `factor_r_threshold`
-* MEI: `mei_status`, `mei_allowed`, `mei_occupation`
-* Lucro Presumido: `presumed_profit_status`, `presumed_profit_allowed`, `presumed_profit_irpj_rate`, `presumed_profit_csll_rate`
-* Lucro Real: `actual_profit_status`, `actual_profit_mandatory`
-* obrigacoes: `obligations_general`, `obligations_simples`, `obligations_simei`, `unmapped_obligations`
-* controle: `normalized_payload`, `parse_status`, `parser_version`, `content_hash`, `retrieved_at`, `expires_at`
-
-Politica de cache:
-
-* global por CNAE
-* TTL padrao de `180` dias
-* sem HTML bruto
-* `UNCHANGED` renova datas do cache
-* sem endpoint publico proprio no S8.1
-
-Testes:
-
-* `test_econet_parser.py`
-* `test_econet_cache.py`
-* `test_econet_cnae_cache_model.py`
-
-Status:
-
-* commitado em `6164f7e`
-
-### S8.2
-
-Objetivo:
-
-* sessao manual assistida, cliente HTTP stateful e health local sem rede
-
-Sessao:
-
-* `EconetAssistedSession` com estados `DISABLED`, `NOT_LOADED`, `LOADED_UNVALIDATED`, `VALID`, `EXPIRED`, `INVALID`, `ERROR`
-* exportador manual `scripts/scan/export_econet_session.js`
-* allowlist de dominios e cookies
-* nenhuma senha, CAPTCHA, localStorage ou persistencia em banco
-
-API efetiva do S8.2:
-
-* `POST /api/v1/integrations/econet/session/import`
-* `POST /api/v1/integrations/econet/session/probe`
-* `GET /api/v1/integrations/econet/session/status`
-* `DELETE /api/v1/integrations/econet/session`
-
-Contrato:
-
-* todas as rotas exigem bearer token
-* RBAC de escrita: `ADMIN` e `DEV`
-* RBAC de leitura do status: `VIEW`, `ADMIN`, `DEV`
-* `probe` faz rede controlada
-* `status` e `health` nao fazem rede
-
-Validacao real:
-
-* importacao sanitizada de seis cookies permitidos
-* `probe` com retorno `VALID`
-* sessao somente em memoria
-
-Testes:
-
-* `test_econet_assisted_session.py`
-* `test_econet_client.py`
-* `test_econet_endpoint.py`
-* `test_econet_health.py`
-* `test_econet_session_security.py`
-
-Status:
-
-* commitado em `02cb7e4`
-
-### S8.3
-
-Objetivo:
-
-* catalogo relacional de CNAEs
-* integracao obrigatoria com webhook e sync do eControle
-* backfill operacional
-* enrichment serial da Econet
-* parser `econet-html-v2`
-* encoding seguro por bytes
-* classificacao de atividade
-* potencial cadastral de Fator R
-* contrato canonico de NFS-e
-
-Migrations:
-
-* `20260722_0010_create_company_cnaes.py`
-* `20260724_0011_expand_econet_mei_occupation_to_text.py`
-
-Tabela `company_cnaes`:
-
-* campos: `id`, `company_id`, `cnae`, `cnae_formatted`, `is_primary`, `source`, `active`, `first_seen_at`, `last_seen_at`, `deactivated_at`, `created_at`, `updated_at`
-* `FK external_companies.id`
-* `uq_company_cnaes_company_cnae`
-* `ck_company_cnaes_cnae_digits`
-* indices: `ix_company_cnaes_company_id`, `ix_company_cnaes_cnae`, `ix_company_cnaes_company_active`, `ix_company_cnaes_cnae_active`
-* indice unico parcial: `ux_company_cnaes_active_primary_per_company`
-
-Politica do catalogo:
-
-* `company_cnaes` e o catalogo canonico interno
-* `0000000` e placeholder invalido
-* principal prevalece sobre secundario duplicado
-* operacoes reais: `CREATED`, `UPDATED`, `REACTIVATED`, `DEACTIVATED`, `UNCHANGED`
-
-Explicacao da mudanca de sanitizacao:
-
-* a contagem inicial `794 validos / 4 invalidos` refletia a regra anterior, que ainda nao barrava explicitamente todos os placeholders operacionais normalizados
-* a contagem posterior `726 validos / 73 invalidos` reflete a regra final do S8.3, que rejeita `0000-0/00` e outros valores que convergiam para `0000000`
-* a diferenca veio do endurecimento da higienizacao, nao de remocao de CNAEs validos reais
-
-Enrichment:
-
-* estados reais: `CREATED`, `UPDATED`, `UNCHANGED`, `SKIPPED_FRESH_CACHE`, `SKIPPED_CACHE_ONLY`, `STALE_PARSER_VERSION`, `INVALID_CNAE`, `CNAE_NOT_FOUND`, `AMBIGUOUS_CNAE_RESULT`, `SESSION_NOT_VALID`, `SESSION_EXPIRED`, `PARSE_ERROR`, `TRANSPORT_ERROR`, `MANUAL_REVIEW`
-* cache fresco exige `parse_status = PARSED`, `expires_at > agora` e `parser_version = econet-html-v2`
-* limites: `5` padrao, `25` operacional, `50` administrativo, `51` rejeitado
-* `ECONET_ENRICH_REQUEST_DELAY_SECONDS` controla serializacao e espacamento das chamadas
-
-Fator R:
-
-* cenario equivalente a `4120400`: Anexo IV, sem anexo condicional, Fator R nao observado
-* cenario equivalente a `7020400`: Anexo V, Anexo III condicional, Fator R aplicavel, threshold `28.00%`
-* cenario equivalente a `8593700`: Anexo III, Fator R nao aplicavel
-* estados do potencial: `APPLICABLE`, `NOT_APPLICABLE`, `PARTIAL`, `UNKNOWN`
-
-Contrato canonico de NFS-e:
-
-* `backend/app/schemas/nfse.py`
-* layouts: `NFSE_ABRASF_204`, `NFSE_NACIONAL_101`
-* o parser XML permanece futuro, para o S10
-
-API efetiva do S8.3:
-
-* `POST /api/v1/integrations/econet/enrich`
-* `GET /api/v1/lumen/companies/{company_id}/cnaes`
-* `GET /api/v1/lumen/companies/{company_id}/factor-r-potential`
-* `GET /api/v1/lumen/integrations/health`
-
-Resumo formal da API documentada:
-
-* `POST /api/v1/integrations/econet/session/import`
-  * request: `cookies`
-  * response: snapshot de sessao
-  * RBAC: `ADMIN`, `DEV`
-  * rede: nao
-  * persistencia: somente memoria
-* `POST /api/v1/integrations/econet/session/probe`
-  * request: sem body
-  * response: snapshot de sessao
-  * RBAC: `ADMIN`, `DEV`
-  * rede: sim
-  * persistencia: somente memoria
-* `GET /api/v1/integrations/econet/session/status`
-  * request: sem body
-  * response: snapshot de sessao
-  * RBAC: `VIEW`, `ADMIN`, `DEV`
-  * rede: nao
-  * persistencia: nenhuma
-* `DELETE /api/v1/integrations/econet/session`
-  * request: sem body
-  * response: snapshot limpo
-  * RBAC: `ADMIN`, `DEV`
-  * rede: nao
-  * persistencia: limpa somente memoria
-* `POST /api/v1/integrations/econet/enrich`
-  * request: `organization_slug`, `company_ids`, `cnaes`, `limit`, `dry_run`, `cache_only`, `force_refresh`, `sync_catalog`, `classify_companies`
-  * response: `run_id`, `status`, `summary`, `items`, `catalog_summary`
-  * RBAC: `ADMIN`, `DEV`
-  * rede: sim
-  * persistencia: `IntegrationSyncRun`, `econet_cnae_cache`, catalogo e classificacao quando nao e `dry_run`
-* `GET /api/v1/lumen/companies/{company_id}/cnaes`
-  * request: `company_id`
-  * response: lista de CNAEs ativos da empresa
-  * RBAC: `VIEW`, `ADMIN`, `DEV`
-  * rede: nao
-  * persistencia: nenhuma
-* `GET /api/v1/lumen/companies/{company_id}/factor-r-potential`
-  * request: `company_id`
-  * response: potencial cadastral de Fator R
-  * RBAC: `VIEW`, `ADMIN`, `DEV`
-  * rede: nao
-  * persistencia: nenhuma
-* `GET /api/v1/lumen/integrations/health`
-  * request: sem body
-  * response: itens por provider, incluindo counters da Econet
-  * RBAC: `VIEW`, `ADMIN`, `DEV`
-  * rede: nao
-  * persistencia: nenhuma
-
-Scripts:
-
-* `backend/scripts/backfill_company_cnaes.py`
-* `backend/scripts/enrich_cnaes_econet.py`
-* `scripts/scan/export_econet_session.js`
-
-Validacao real do fechamento:
-
-* `244` empresas ativas
-* `229` empresas com catalogo valido
-* `726` vinculos ativos
-* `264` CNAEs unicos
-* `264` caches na versao atual
-* `261` atualizados
-* `3` inalterados
-* `0` erros
-* `0` CNAEs pendentes
-* `0` `U+FFFD`
-* `0` mojibake detectado
-
-Qualidade:
-
-* `92` testes especificos de Econet
-* `74` testes complementares de catalogo, eControle, config e health
-* `385` testes backend
-* `ruff` aprovado
-
-Status:
-
-* concluido e validado, aguardando commit
-
-### S8.4
-
-Status:
-
-* NAO INICIADO
-
-Escopo apenas planejado:
-
-* card da Econet na tela de integracoes
-* status de sessao
-* contadores de catalogo e cache
-* acoes administrativas de import, probe, clear e enrichment de pendentes
-* tabela de CNAEs da empresa
-* exibicao do potencial de Fator R
-* cobertura, revisao manual, RBAC e E2E dedicados

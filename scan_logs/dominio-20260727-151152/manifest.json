@@ -1,0 +1,20 @@
+﻿{
+    "started_at":  "2026-07-27T15:11:52.2713154-03:00",
+    "duration_minutes":  15,
+    "snapshot_interval_seconds":  3,
+    "max_controls_per_window":  5000,
+    "process_name_pattern":  "dominio|thomson|contabil|desktop",
+    "window_title_pattern":  "Dom[ií]nio|Thomson Reuters",
+    "include_command_line":  false,
+    "netsh_trace_requested":  false,
+    "mitmproxy_requested":  false,
+    "configure_wininet_proxy":  false,
+    "proxy_port":  8877,
+    "output_directory":  "G:\\PMA\\SCRIPTS\\Lumen\\scan_logs\\dominio-20260727-151152",
+    "safety":  {
+                   "captures_password_values":  false,
+                   "installs_certificates":  false,
+                   "bypasses_certificate_pinning":  false,
+                   "modifies_dominio_files":  false
+               }
+}

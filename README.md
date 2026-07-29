@@ -132,7 +132,11 @@ Ainda nao existem:
 - dominio fiscal de negocio
 - transmissao fiscal
 - mutacoes fiscais no portal
-- watcher, parser PDF, Dominio, Econet ou transmissao fiscal
+- watcher operacional do backend
+- parser completo do PDF da folha
+- persistencia da Domínio Folha
+- endpoints da Domínio Folha
+- transmissao fiscal
 
 ## Regimes fiscais reconhecidos
 
@@ -169,6 +173,7 @@ O S4.1 foi tratado como micro-stage complementar de fechamento tecnico e nao com
 No S5, foi materializada apenas a integracao cadastral MVP do eControle.
 No S5.1, foram materializados os endpoints read-only `/api/v1/lumen/*`, o frontend fiscal funcional e os estados vazios honestos quando tabelas operacionais ainda estiverem vazias.
 No S8.0, foram materializados apenas contrato observado da Econet, protecao de artefatos brutos no Git, fixtures HTML sinteticas/sanitizadas e testes offline. No S8.1, foram materializados `econet_cnae_cache`, a migration incremental `20260721_0009`, o parser HTML puro offline, o servico de cache idempotente por CNAE e a suite de testes dedicada. No S8.2, foram materializados sessao assistida exclusivamente em memoria, importacao controlada de cookies allowlisted, cliente HTTP stateful restrito a `https://www.econeteditora.com.br/ferramentas/regimes_cnae/`, endpoints administrativos de import/status/probe/clear, helper operacional de exportacao e health local sem chamadas externas. O macro-stage S8 continua pendente; o S8.3 materializou catalogo relacional por empresa, decode seguro por bytes, cache versionado por parser, enriquecimento por CNAE e potencial cadastral de Fator R, sem iniciar o S8.4.
+No S9.0, foi materializada apenas a fundacao documental da Domínio Folha: contrato técnico, helper puro de competência `folha M -> apuração M+1`, fixtures sintéticas, testes offline e coletor Windows opcional com lock local, retry limitado, `.partial.pdf`, validação mínima de PDF, SHA-256 e manifest lateral, sem migration, sem banco, sem endpoint, sem frontend e sem parser completo.
 
 Observacoes do S8.1:
 

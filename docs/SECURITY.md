@@ -66,3 +66,13 @@ Data de referencia: 2026-07-15
 - Erros de decoding da Econet nao retornam HTML, bytes, cookies, headers completos nem payload bruto.
 - O client da Econet usa `response.content` e decode centralizado; `errors="replace"` permanece proibido.
 - Cookies e arquivo temporario de sessao continuam apenas em memoria ou em artefato operacional ignorado pelo Git.
+
+## S9.0
+
+- O coletor Dominio deve ler primeiro o `.env` central da raiz do Lumen; `scripts/collectors/dominio/.env` permanece apenas como fallback local opcional.
+- `DOMINIO_PASSWORD` nunca pode ser persistida em log, manifest, fixture ou documentacao.
+- O manifest do Dominio nao pode conter senha, token, CNPJ, nome de empresa ou texto integral do PDF.
+- PDFs reais do Dominio e logs reais do coletor permanecem fora do Git.
+- O coletor deve validar o PDF antes da troca atomica e remover apenas o `.partial.pdf` em caso de falha.
+- O lock local do coletor nao pode matar automaticamente outro processo; ele apenas bloqueia a nova execucao com mensagem clara.
+- Fixtures do Dominio devem ser 100% sinteticas e sem nomes empresariais reais.

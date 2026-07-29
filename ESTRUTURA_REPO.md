@@ -1320,3 +1320,54 @@ Significado:
 * OpenAPI temporario
 * XML fiscal real
 * qualquer arquivo proprio do `S8.4`
+
+
+## Atualizacao S9.0
+
+Arquivos materializados no S9.0:
+
+- `backend/app/services/integrations/dominio/__init__.py`
+- `backend/app/services/integrations/dominio/contracts.py`
+- `backend/app/services/integrations/dominio/competence.py`
+- `backend/tests/dominio_test_utils.py`
+- `backend/tests/test_dominio_payroll_contract.py`
+- `backend/tests/test_dominio_payroll_competence.py`
+- `backend/tests/fixtures/dominio/manifest.json`
+- `backend/tests/fixtures/dominio/synthetic_contract_samples.json`
+- `docs/integrations/DOMINIO_PAYROLL_CONTRACT.md`
+- `scripts/collectors/dominio/gerar_resumo_mensal_dominio.py`
+- `scripts/collectors/dominio/.env.example`
+- `scripts/collectors/dominio/README.md`
+
+Decisoes materializadas no S9.0:
+
+- a integracao com Dominio Folha passa a ser documental
+- `source_payroll_competence` e `assessment_competence` ficam separados desde o contrato
+- a regra `folha M -> apuracao M+1` foi congelada antes de qualquer persistencia
+- o coletor Windows e opcional e desacoplado do backend
+- o fluxo automatico preferencial usa uma unica competencia por PDF
+- o coletor usa `.partial.pdf`, validacao minima, `os.replace`, SHA-256, manifest lateral e lock local
+- o coletor le o `.env` central do Lumen primeiro e aceita `.env` local apenas como fallback opcional
+- as configuracoes operacionais do coletor aceitam chaves `DOMINIO_*` no `.env` central com fallback para nomes legados
+- fixtures de Dominio sao integralmente sinteticas
+
+Fechamento validado em 2026-07-29:
+
+- testes puros do backend S9.0 aprovados: `17 passed`
+- `ruff check` do pacote `backend/app/services/integrations/dominio` aprovado
+- `py_compile` e parse AST UTF-8 do coletor aprovados
+- requirements do coletor incorporados ao `requirements.txt` central
+- execucao funcional real do coletor aprovada para `05/2026`
+- PDF final gerado: `scripts/collectors/dominio/Relatorios_Dominio/Resumo_Mensal_05-2026.pdf`
+- manifest lateral gerado com `status = SUCCESS`, `payroll_competence = 2026-05` e `assessment_competence = 2026-06`
+- hash observado do PDF homologado: `A7BDE8EBFCD1679F8C0D92386AC4EB3E252468E542ACB699ED06B3797EC9C59F`
+
+Ainda nao materializados no S9.0:
+
+- parser offline do PDF
+- migration e tabelas `dominio_payroll_imports` e `dominio_payroll_company_movements`
+- importador persistente
+- endpoint administrativo
+- watcher do backend
+- frontend
+- E2E

@@ -126,3 +126,17 @@ Data de referencia: 2026-07-20
 - O client da Econet deve decodificar HTML a partir de bytes allowlisted e nunca confiar apenas em `response.text`.
 - Mudanca no parser invalida cache anterior por `parser_version`; cache fresco exige versao igual a atual.
 - O backend administrativo da Econet aceita ate `50` CNAEs por lote; o uso normal/futuro portal deve ficar em `25`.
+
+## S9.0 - Dominio Folha documental
+
+- Dominio Folha passa a ser integracao documental baseada no PDF `Resumo Mensal`.
+- O coletor Windows e opcional e nao participa do nucleo online do Lumen.
+- Upload manual do PDF continuara suportado nos stages seguintes.
+- O caminho principal do S9 usa PDF com camada textual; OCR fica fora do caminho principal.
+- `source_payroll_competence` preserva a competencia da folha e `assessment_competence` representa o mes seguinte.
+- A regra `folha M -> apuracao M+1` precisa existir no contrato, nos testes, nas fixtures e no manifest.
+- O PDF prova movimento de folha, nao entrega de DCTFWeb.
+- Ausencia no PDF nao equivale a folha zerada.
+- O matching futuro usara CNPJ.
+- A idempotencia futura do arquivo usara SHA-256, nao nome, tamanho ou timestamp.
+- O coletor usa `.partial.pdf` e `os.replace` para preservar o ultimo PDF valido ate a nova validacao.

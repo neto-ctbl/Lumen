@@ -1,0 +1,257 @@
+{
+  "document_contract": "DOMINIO_FOLHA_RESUMO",
+  "evidence_source": "DOMINIO_FOLHA_PDF",
+  "selection_scope": "ATIVAS",
+  "fixtures": [
+    {
+      "scenario": "ONLY_PRO_LABORE",
+      "dominio_company_code": "0001",
+      "company_name": "EMPRESA FICTICIA PRO LABORE LTDA",
+      "company_cnpj": "12345678000195",
+      "source_payroll_competence": "2026-05",
+      "assessment_competence": "2026-06",
+      "source_pages": [1],
+      "raw_text": "RESUMO DA FOLHA | Competencia 05/2026 | Empresa ficticia | Pro-labore sintetico | CNPJ 12.345.678/0001-95",
+      "signals": {
+        "has_payroll": true,
+        "has_employee": false,
+        "has_pro_labore": true,
+        "has_autonomous": false,
+        "has_inss": true,
+        "has_fgts": false,
+        "has_termination": false,
+        "has_vacation": false,
+        "has_leave": false
+      }
+    },
+    {
+      "scenario": "EMPLOYEE_INSS_FGTS",
+      "dominio_company_code": "0002",
+      "company_name": "EMPRESA FICTICIA FUNCIONARIOS SA",
+      "company_cnpj": "22345678000195",
+      "source_payroll_competence": "2026-05",
+      "assessment_competence": "2026-06",
+      "source_pages": [2],
+      "raw_text": "RESUMO DA FOLHA | Competencia 05/2026 | Empregados sinteticos | INSS | FGTS",
+      "signals": {
+        "has_payroll": true,
+        "has_employee": true,
+        "has_pro_labore": false,
+        "has_autonomous": false,
+        "has_inss": true,
+        "has_fgts": true,
+        "has_termination": false,
+        "has_vacation": false,
+        "has_leave": false
+      }
+    },
+    {
+      "scenario": "AUTONOMOUS",
+      "dominio_company_code": "0003",
+      "company_name": "EMPRESA FICTICIA AUTONOMOS LTDA",
+      "company_cnpj": "32345678000195",
+      "source_payroll_competence": "2026-05",
+      "assessment_competence": "2026-06",
+      "source_pages": [3],
+      "raw_text": "RESUMO DA FOLHA | Competencia 05/2026 | Autonomo sintetico",
+      "signals": {
+        "has_payroll": true,
+        "has_employee": false,
+        "has_pro_labore": false,
+        "has_autonomous": true,
+        "has_inss": true,
+        "has_fgts": false,
+        "has_termination": false,
+        "has_vacation": false,
+        "has_leave": false
+      }
+    },
+    {
+      "scenario": "VACATION",
+      "dominio_company_code": "0004",
+      "company_name": "EMPRESA FICTICIA FERIAS LTDA",
+      "company_cnpj": "42345678000195",
+      "source_payroll_competence": "2026-05",
+      "assessment_competence": "2026-06",
+      "source_pages": [4],
+      "raw_text": "RESUMO DA FOLHA | Competencia 05/2026 | Ferias sinteticas",
+      "signals": {
+        "has_payroll": true,
+        "has_employee": true,
+        "has_pro_labore": false,
+        "has_autonomous": false,
+        "has_inss": true,
+        "has_fgts": true,
+        "has_termination": false,
+        "has_vacation": true,
+        "has_leave": false
+      }
+    },
+    {
+      "scenario": "TERMINATION",
+      "dominio_company_code": "0005",
+      "company_name": "EMPRESA FICTICIA RESCISAO LTDA",
+      "company_cnpj": "52345678000195",
+      "source_payroll_competence": "2026-05",
+      "assessment_competence": "2026-06",
+      "source_pages": [5],
+      "raw_text": "RESUMO DA FOLHA | Competencia 05/2026 | Rescisao sintetica",
+      "signals": {
+        "has_payroll": true,
+        "has_employee": true,
+        "has_pro_labore": false,
+        "has_autonomous": false,
+        "has_inss": true,
+        "has_fgts": true,
+        "has_termination": true,
+        "has_vacation": false,
+        "has_leave": false
+      }
+    },
+    {
+      "scenario": "LEAVE",
+      "dominio_company_code": "0006",
+      "company_name": "EMPRESA FICTICIA AFASTAMENTO LTDA",
+      "company_cnpj": "62345678000195",
+      "source_payroll_competence": "2026-05",
+      "assessment_competence": "2026-06",
+      "source_pages": [6],
+      "raw_text": "RESUMO DA FOLHA | Competencia 05/2026 | Afastamento sintetico",
+      "signals": {
+        "has_payroll": true,
+        "has_employee": true,
+        "has_pro_labore": false,
+        "has_autonomous": false,
+        "has_inss": true,
+        "has_fgts": true,
+        "has_termination": false,
+        "has_vacation": false,
+        "has_leave": true
+      }
+    },
+    {
+      "scenario": "TWO_PAGES",
+      "dominio_company_code": "0007",
+      "company_name": "EMPRESA FICTICIA DUAS PAGINAS LTDA",
+      "company_cnpj": "72345678000195",
+      "source_payroll_competence": "2026-05",
+      "assessment_competence": "2026-06",
+      "source_pages": [7, 8],
+      "page_labels": ["1/2", "2/2"],
+      "raw_text": "RESUMO DA FOLHA | Competencia 05/2026 | Pagina 1/2 e 2/2 sinteticas",
+      "signals": {
+        "has_payroll": true,
+        "has_employee": true,
+        "has_pro_labore": false,
+        "has_autonomous": false,
+        "has_inss": true,
+        "has_fgts": true,
+        "has_termination": false,
+        "has_vacation": false,
+        "has_leave": false
+      }
+    },
+    {
+      "scenario": "EMPTY_CONTINUATION_PAGE",
+      "dominio_company_code": "0008",
+      "company_name": "EMPRESA FICTICIA CONTINUACAO VAZIA LTDA",
+      "company_cnpj": "82345678000195",
+      "source_payroll_competence": "2026-05",
+      "assessment_competence": "2026-06",
+      "source_pages": [9, 10],
+      "raw_text": "RESUMO DA FOLHA | Competencia 05/2026 | Continuacao sintetica vazia na pagina seguinte",
+      "signals": {
+        "has_payroll": true,
+        "has_employee": true,
+        "has_pro_labore": false,
+        "has_autonomous": false,
+        "has_inss": true,
+        "has_fgts": false,
+        "has_termination": false,
+        "has_vacation": false,
+        "has_leave": false
+      }
+    },
+    {
+      "scenario": "SALARY_CHANGE",
+      "dominio_company_code": "0009",
+      "company_name": "EMPRESA FICTICIA ALTERACAO SALARIAL LTDA",
+      "company_cnpj": "92345678000195",
+      "source_payroll_competence": "2026-05",
+      "assessment_competence": "2026-06",
+      "source_pages": [11],
+      "raw_text": "RESUMO DA FOLHA | Competencia 05/2026 | Alteracao salarial sintetica",
+      "signals": {
+        "has_payroll": true,
+        "has_employee": true,
+        "has_pro_labore": false,
+        "has_autonomous": false,
+        "has_inss": true,
+        "has_fgts": true,
+        "has_termination": false,
+        "has_vacation": false,
+        "has_leave": false
+      }
+    },
+    {
+      "scenario": "MULTIPLE_BLOCKS",
+      "dominio_company_code": "0010",
+      "company_name": "EMPRESA FICTICIA MULTIPLOS BLOCOS LTDA",
+      "company_cnpj": "11345678000195",
+      "source_payroll_competence": "2026-05",
+      "assessment_competence": "2026-06",
+      "source_pages": [12, 13],
+      "raw_text": "RESUMO DA FOLHA | Competencia 05/2026 | Folha Mensal | Complementar sintetica | Rubricas sinteticas",
+      "signals": {
+        "has_payroll": true,
+        "has_employee": true,
+        "has_pro_labore": true,
+        "has_autonomous": true,
+        "has_inss": true,
+        "has_fgts": true,
+        "has_termination": false,
+        "has_vacation": false,
+        "has_leave": false
+      }
+    },
+    {
+      "scenario": "INVALID_CNPJ",
+      "dominio_company_code": "0011",
+      "company_name": "EMPRESA FICTICIA CNPJ INVALIDO LTDA",
+      "company_cnpj": "1234567800019",
+      "source_payroll_competence": "2026-05",
+      "assessment_competence": "2026-06",
+      "source_pages": [14],
+      "raw_text": "RESUMO DA FOLHA | Competencia 05/2026 | CNPJ sintetico invalido"
+    },
+    {
+      "scenario": "INVALID_PAYROLL_COMPETENCE",
+      "dominio_company_code": "0012",
+      "company_name": "EMPRESA FICTICIA COMPETENCIA INVALIDA LTDA",
+      "company_cnpj": "13345678000195",
+      "source_payroll_competence_raw": "13/2026",
+      "source_pages": [15],
+      "raw_text": "RESUMO DA FOLHA | Competencia 13/2026 | Competencia sintetica invalida"
+    },
+    {
+      "scenario": "PAYROLL_2026_05_TO_2026_06",
+      "dominio_company_code": "0013",
+      "company_name": "EMPRESA FICTICIA MAPEAMENTO MAIO LTDA",
+      "company_cnpj": "14345678000195",
+      "source_payroll_competence": "2026-05",
+      "assessment_competence": "2026-06",
+      "source_pages": [16],
+      "raw_text": "RESUMO DA FOLHA | Competencia 05/2026 | Mapeamento sintetico maio para junho"
+    },
+    {
+      "scenario": "PAYROLL_2026_12_TO_2027_01",
+      "dominio_company_code": "0014",
+      "company_name": "EMPRESA FICTICIA MAPEAMENTO DEZEMBRO LTDA",
+      "company_cnpj": "15345678000195",
+      "source_payroll_competence": "2026-12",
+      "assessment_competence": "2027-01",
+      "source_pages": [17],
+      "raw_text": "RESUMO DA FOLHA | Competencia 12/2026 | Mapeamento sintetico dezembro para janeiro"
+    }
+  ]
+}

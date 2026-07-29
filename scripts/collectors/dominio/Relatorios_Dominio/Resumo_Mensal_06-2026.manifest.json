@@ -1,0 +1,14 @@
+{
+  "assessment_competence": "2026-07",
+  "evidence_source": "DOMINIO_FOLHA_PDF",
+  "generated_at": "2026-07-29T12:52:39.869558-03:00",
+  "payroll_competence": "2026-06",
+  "pdf_file_name": "Resumo_Mensal_06-2026.pdf",
+  "pdf_page_count": 145,
+  "pdf_sha256": "bfa8b9bad47926dcb34c08cb782436d4bb7a53d38d5f1b062cc3d882dde57756",
+  "pdf_size_bytes": 1392867,
+  "schema_version": 1,
+  "selection_scope": "ATIVAS",
+  "source": "DOMINIO_FOLHA_RESUMO",
+  "status": "SUCCESS"
+}

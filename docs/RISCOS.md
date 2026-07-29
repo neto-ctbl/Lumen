@@ -69,3 +69,16 @@ Data de referencia: 2026-07-20
 - Sessao manual pode expirar no meio do reprocessamento integral e deixar parte do cache em versao antiga.
 - `cTribMun` pode nao representar CNAE em alguns municipios.
 - XML real pode conter certificado, assinatura e dados pessoais e nao pode virar fixture.
+
+## S9.0
+
+- A automacao UI do Dominio pode mudar sem aviso e quebrar atalhos ou controles mapeados.
+- A exportacao do PDF pode falhar de forma intermitente e exigir retry controlado.
+- O arquivo pode ser gravado parcialmente se a validacao nao ocorrer antes da troca atomica.
+- O PDF pode perder camada textual e inviabilizar o parser offline principal.
+- O relatorio pode ter empresas em varias paginas, paginas `1/2`, `2/2` ou continuacao vazia.
+- Rubricas desconhecidas podem exigir ampliacao do parser no S9.1.
+- A ausencia da empresa no PDF pode ser interpretada incorretamente como ausencia de movimento.
+- Confundir competencia da folha com competencia de apuracao pode contaminar DCTFWeb, alertas e Fator R.
+- Concorrencia entre duas execucoes do coletor pode sobrescrever artefatos sem lock local.
+- Fixtures podem vazar dado real se nomes, CNPJs ou valores observados forem copiados sem sanitizacao.

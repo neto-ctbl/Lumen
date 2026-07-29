@@ -132,6 +132,8 @@ logs/
 !scripts/scan/logs/
 scripts/scan/logs/*.har
 scripts/scan/logs/sittax-network-log*.jsonl
+Lumen - Guia Geral do Projeto.pdf
+
 # Econet raw diagnostic artifacts
 scripts/scan/logs/econet-network*.har
 scripts/scan/logs/econet-network-log*.jsonl
@@ -176,7 +178,6 @@ agent/failed/
 !agent/.gitkeep
 
 *.xml
-*.pdf
 *.ofd
 *.csv.tmp
 *.tmp
@@ -185,6 +186,15 @@ agent/failed/
 !docs/**/*.pdf
 !docs/**/*.csv
 !docs/examples/**
+
+# Coletor Domínio Folha
+scripts/collectors/dominio/.env
+scripts/collectors/dominio/output/
+scripts/collectors/dominio/logs/
+scripts/collectors/dominio/*.lock
+scripts/collectors/dominio/*.partial.pdf
+scripts/collectors/dominio/Resumo_Mensal_*.pdf
+scripts/collectors/dominio/Resumo_Mensal_*.manifest.json
 
 # ---------------------------------------------------------------------------
 # Patches locais e saídas de Codex
