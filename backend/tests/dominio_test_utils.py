@@ -30,3 +30,31 @@ def load_samples() -> dict[str, Any]:
     samples = load_json(SCENARIOS_PATH)
     assert isinstance(samples, dict)
     return samples
+
+
+def build_dominio_page(
+    *,
+    page_label: str,
+    company_code: str,
+    company_name: str,
+    cnpj: str,
+    competencia: str,
+    body_lines: list[str],
+    calculation_type: str = "Folha Mensal e Complementar",
+    complemento: str = "Todos",
+    emissao: str = "29/07/2026",
+    hora: str = "11:03:59",
+) -> str:
+    lines = [
+        f"{page_label}Página:",
+        "RESUMO DA FOLHA",
+        f"Empresa: {company_code} - {company_name}",
+        f"CNPJ: {cnpj} Emissão: {emissao}",
+        f"Cálculo: {calculation_type} Hora: {hora}",
+        f"Competência: {competencia}",
+        f"Complemento de cálculo: {complemento}",
+        "Nº Empregados/ContribuintesNome da RubricaRubrica Valor informado Valor Calculado",
+        *body_lines,
+        "Sistema licenciado para EMPRESA FICTICIA CONTABILIDADE",
+    ]
+    return "\n".join(lines)

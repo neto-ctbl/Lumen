@@ -1924,7 +1924,7 @@ Fechamento tecnico do S9.0 em 2026-07-29:
 
 ### S9.1 - Parser offline do PDF
 
-Status: planejado
+Status: concluido em 2026-07-29
 
 Planejamento:
 
@@ -1944,6 +1944,46 @@ Planejamento:
 * detecção de sinais de folha, empregado, pró-labore, autônomo, INSS, FGTS, férias, rescisão e afastamento;
 * produção de objetos Python;
 * nenhum acesso ao banco.
+
+Fechamento do S9.1 em 2026-07-29:
+
+* parser offline materializado em `backend/app/services/integrations/dominio/parser.py`, `normalization.py` e `rubrics.py`;
+* API publica materializada com `parse_dominio_payroll_pdf(path)` e `parse_dominio_payroll_pages(pages, source_file_name=...)`;
+* `pypdf` adotado como extrator primario do PDF textual; `PyMuPDF` restrito ao teste sintetico de fronteira;
+* agrupamento materializado por `codigo Dominio + CNPJ normalizado + competencia original da folha`;
+* blocos `MONTHLY_PAYROLL`, `SALARY_ADJUSTMENT`, `PAYMENT_ENTRY`, `COMPLEMENTARY` e `UNKNOWN` materializados;
+* parsing de rubricas da direita para a esquerda materializado, com preservacao de codigo, nome, contagem, valor informado, valor calculado e marcador `*`;
+* normalizacao de dinheiro em `Decimal`, incluindo `,95`, e normalizacao de horas em minutos, incluindo `220:00` e `7:20`;
+* totais declarados por secao e `Liquido Geral` preservados, com warning `SECTION_TOTAL_MISMATCH` para divergencia de reconciliacao;
+* sinais de folha materializados com origem por rubrica em `signal_sources`;
+* correcao incremental aplicada no fechamento para `has_employee`: `INSS EMPREGADOR` deixou de ser evidencia positiva de empregado e o sinal passou a depender apenas de rubricas inequivocamente trabalhistas;
+* regressao materializada para perfis `somente pro-labore`, `somente autonomo`, `perfil misto com empregado + pro-labore` e validacao explicita de `signal_sources`;
+* parser mantido offline, sem banco, sem rede, sem endpoint, sem watcher, sem OCR e sem frontend.
+
+Validacao executada no S9.1:
+
+* `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_dominio_payroll_contract.py .\backend\tests\test_dominio_payroll_competence.py .\backend\tests\test_dominio_payroll_parser.py .\backend\tests\test_dominio_payroll_normalization.py .\backend\tests\test_dominio_payroll_rubrics.py -q`
+* `.\.venv\Scripts\python.exe -m ruff check .\backend\app\services\integrations\dominio .\backend\tests\test_dominio_payroll_contract.py .\backend\tests\test_dominio_payroll_competence.py .\backend\tests\test_dominio_payroll_parser.py .\backend\tests\test_dominio_payroll_normalization.py .\backend\tests\test_dominio_payroll_rubrics.py`
+* `.\.venv\Scripts\python.exe -m pytest .\backend\tests -q`
+* `.\.venv\Scripts\python.exe -m py_compile .\backend\app\services\integrations\dominio\contracts.py .\backend\app\services\integrations\dominio\normalization.py .\backend\app\services\integrations\dominio\rubrics.py .\backend\app\services\integrations\dominio\parser.py`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini current`
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini heads`
+* `git status --short .\backend\alembic\versions`
+* `git diff --check`
+* validacao real agregada com `Resumo_Mensal_05-2026.pdf` e `Resumo_Mensal_06-2026.pdf`, incluindo auditoria de `employee_true`, `employee_false`, `pro_labore_without_employee`, `autonomous_without_employee` e `employee_only_supported_by_forbidden_codes`
+
+Resultados observados no S9.1:
+
+* suite especifica do Dominio: `62 passed in 9.10s`;
+* `ruff check`: sem achados;
+* suite completa do backend: `447 passed, 1 warning`;
+* `py_compile`: sem erros;
+* Alembic permaneceu em `20260724_0011 (head)` e sem alteracoes em `backend/alembic/versions`;
+* `git diff --check`: sem erros de whitespace; apenas warnings de `LF -> CRLF` na copia de trabalho;
+* `Resumo_Mensal_05-2026.pdf`: `149` paginas fisicas, `137` empresas, `employee_true = 90`, `employee_false = 47`, `pro_labore_without_employee = 47`, `autonomous_without_employee = 5`, `employee_only_supported_by_forbidden_codes = 0`, warnings agregados `CONTINUATION_PAGE_EMPTY = 1` e `SECTION_TOTAL_MISMATCH = 7`, tempo `3.423s`;
+* `Resumo_Mensal_06-2026.pdf`: `145` paginas fisicas, `137` empresas, `employee_true = 90`, `employee_false = 47`, `pro_labore_without_employee = 47`, `autonomous_without_employee = 5`, `employee_only_supported_by_forbidden_codes = 0`, warnings agregados `CONTINUATION_PAGE_EMPTY = 1` e `SECTION_TOTAL_MISMATCH = 3`, tempo `3.840s`;
+* nenhuma migration nova foi criada;
+* fechamento semantico confirmado: `has_employee` nao e mais explicado por `843`, `858`, `100`, `9380`, `235` ou `856` isoladamente.
 
 ### S9.2 - Persistência, importador e matching
 

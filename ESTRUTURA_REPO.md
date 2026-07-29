@@ -1371,3 +1371,40 @@ Ainda nao materializados no S9.0:
 - watcher do backend
 - frontend
 - E2E
+
+## Atualizacao S9.1
+
+Arquivos materializados no S9.1:
+
+- `backend/app/services/integrations/dominio/parser.py`
+- `backend/app/services/integrations/dominio/normalization.py`
+- `backend/app/services/integrations/dominio/rubrics.py`
+- `backend/tests/test_dominio_payroll_parser.py`
+- `backend/tests/test_dominio_payroll_normalization.py`
+- `backend/tests/test_dominio_payroll_rubrics.py`
+
+Decisoes materializadas no S9.1:
+
+- o parser da Dominio Folha e offline, puro e sem banco
+- `pypdf` e o extrator primario do texto do PDF
+- `parse_dominio_payroll_pdf(...)` e `parse_dominio_payroll_pages(...)` formam a API publica do stage
+- agrupamento de empresa usa `codigo Dominio + CNPJ normalizado + competencia original da folha`
+- o parser preserva blocos desconhecidos como `UNKNOWN`
+- o parser produz warnings estruturados e excecoes de dominio proprias
+- valores monetarios usam `Decimal`; horas do valor informado sao convertidas para minutos
+- a origem dos sinais de folha fica preservada em `signal_sources`
+- `has_employee` passou a aceitar apenas evidencias inequivocamente trabalhistas
+- `843 INSS EMPREGADOR` continua sinalizando `has_inss`, mas nao sinaliza `has_employee`
+- perfis somente pro-labore e somente autonomo permanecem fora de `has_employee`
+
+Fechamento validado em 2026-07-29:
+
+- testes especificos do Dominio S9.1 aprovados: `62 passed`
+- `ruff check` do pacote `backend/app/services/integrations/dominio` aprovado
+- suite completa do backend aprovada: `447 passed, 1 warning`
+- `py_compile` do parser e dos contratos aprovado
+- Alembic mantido em `20260724_0011 (head)` e sem alteracoes em `backend/alembic/versions`
+- validacao real agregada aprovada para `Resumo_Mensal_05-2026.pdf` e `Resumo_Mensal_06-2026.pdf`
+- `Resumo_Mensal_05-2026.pdf`: `149` paginas, `137` empresas, `employee_true = 90`, `employee_false = 47`, `employee_only_supported_by_forbidden_codes = 0`, competencia folha `2026-05`, apuracao `2026-06`
+- `Resumo_Mensal_06-2026.pdf`: `145` paginas, `137` empresas, `employee_true = 90`, `employee_false = 47`, `employee_only_supported_by_forbidden_codes = 0`, competencia folha `2026-06`, apuracao `2026-07`
+- o parser nao introduziu migration, tabela, endpoint, watcher ou frontend

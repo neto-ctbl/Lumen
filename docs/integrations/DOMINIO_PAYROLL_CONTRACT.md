@@ -209,3 +209,78 @@ Os cenários sintéticos congelados no S9.0 cobrem:
 - coletor Windows com lock, retry, validação mínima, SHA-256 e manifest;
 - nenhum PDF real, log real ou credencial no Git;
 - apenas S9.0 implementado.
+
+## 19. Complemento do S9.1
+
+O S9.1 materializa o parser offline puro do `Resumo Mensal` com:
+
+- `parse_dominio_payroll_pdf(path: Path) -> DominioPayrollReport`
+- `parse_dominio_payroll_pages(pages: Sequence[str], *, source_file_name: str = "<memory>") -> DominioPayrollReport`
+
+Decisao tecnica do S9.1:
+
+- `pypdf` e o extrator primario do PDF textual;
+- OCR permanece fora do caminho principal;
+- `PyMuPDF` aparece apenas no teste sintetico de fronteira para gerar PDF temporario.
+
+## 20. Regras materializadas no parser
+
+O parser do S9.1:
+
+- separa leitura do arquivo da interpretacao textual;
+- agrupa empresa por `codigo Dominio + CNPJ normalizado + competencia original da folha`;
+- preserva blocos `MONTHLY_PAYROLL`, `SALARY_ADJUSTMENT`, `PAYMENT_ENTRY`, `COMPLEMENTARY` e `UNKNOWN`;
+- preserva secoes `EARNINGS`, `DEDUCTIONS` e `INFORMATIONAL`;
+- parseia rubricas da direita para a esquerda;
+- normaliza dinheiro em `Decimal`, inclusive `,95`;
+- normaliza horas em minutos, inclusive `220:00` e `7:20`;
+- preserva marcador `*`;
+- extrai totais declarados e `Liquido Geral`;
+- gera warnings estruturados e excecoes de dominio proprias;
+- preserva origem dos sinais em `signal_sources`.
+
+Regra semantica consolidada no fechamento do S9.1:
+
+- `INSS EMPREGADOR` e sinal de `has_inss`, mas nao prova `has_employee`;
+- `PRO-LABORE` e `AUTONOMO` continuam podendo gerar `has_pro_labore` e `has_autonomous`, mas nao sao classificados como empregado por si sos;
+- `has_employee` depende apenas de rubricas inequivocamente trabalhistas, por codigo conhecido ou nome normalizado equivalente;
+- `signal_sources["has_employee"]` nao deve ser explicado apenas por `100`, `9380`, `235`, `843`, `858` ou `856`.
+
+## 21. Validacao real agregada do S9.1
+
+Validacao local agregada executada em 2026-07-29, sem expor nomes, CNPJs ou `raw_text`:
+
+- `Resumo_Mensal_05-2026.pdf`
+  - `149` paginas fisicas
+  - `137` empresas identificadas
+  - `employee_true = 90`
+  - `employee_false = 47`
+  - `pro_labore_without_employee = 47`
+  - `autonomous_without_employee = 5`
+  - `employee_only_supported_by_forbidden_codes = 0`
+  - competencias de folha: `2026-05`
+  - competencias de apuracao: `2026-06`
+  - warnings agregados por empresa: `CONTINUATION_PAGE_EMPTY = 1`, `SECTION_TOTAL_MISMATCH = 7`
+  - tempo observado: `3.423s`
+- `Resumo_Mensal_06-2026.pdf`
+  - `145` paginas fisicas
+  - `137` empresas identificadas
+  - `employee_true = 90`
+  - `employee_false = 47`
+  - `pro_labore_without_employee = 47`
+  - `autonomous_without_employee = 5`
+  - `employee_only_supported_by_forbidden_codes = 0`
+  - competencias de folha: `2026-06`
+  - competencias de apuracao: `2026-07`
+  - warnings agregados por empresa: `CONTINUATION_PAGE_EMPTY = 1`, `SECTION_TOTAL_MISMATCH = 3`
+  - tempo observado: `3.840s`
+
+## 22. Limitacoes conhecidas apos o S9.1
+
+- o parser continua offline e sem persistencia;
+- o parser nao faz matching com cadastro local;
+- o parser nao decide responsabilidade final da DCTFWeb;
+- o parser nao executa OCR;
+- o parser nao expoe endpoint HTTP;
+- o parser nao grava banco nem aciona watcher;
+- rubricas novas podem exigir ampliacao futura do catalogo classificatorio.
