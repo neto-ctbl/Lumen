@@ -80,6 +80,19 @@ def normalize_delivery_status(payload: dict[str, Any]) -> str:
     return ReconciliationStatus.CONFERENCIA_MANUAL.value
 
 
+def normalize_guide_read_status(value: Any) -> str | None:
+    text = _normalize_text(value)
+    if text is None:
+        return None
+    label = _normalize_label(text)
+    if label in {"S", "SIM", "GUIA JA ACESSADA/LIDA", "GUIA JA ACESSADA", "LIDA", "ACESSADA"}:
+        return "READ"
+    if label in {"N", "NAO", "GUIA NAO ACESSADA/LIDA", "GUIA NAO ACESSADA", "NAO LIDA"}:
+        return "UNREAD"
+    # Preserve unexpected values without violating the current schema.
+    return text[:20]
+
+
 def _require(payload: dict[str, Any], field: str) -> Any:
     if field not in payload:
         raise AcessoriasMappingError(f"Missing required field: {field}")
@@ -167,7 +180,7 @@ def map_delivery_payload(
         "delivered_date": normalize_acessorias_date(payload.get("EntDtEntrega")),
         "finalized_at": normalize_acessorias_datetime(payload.get("EntDtFinalizacao")),
         "external_last_changed_at": normalize_acessorias_datetime(payload.get("EntLastDH")),
-        "guide_read_status": _normalize_text(payload.get("EntGuiaLida")),
+        "guide_read_status": normalize_guide_read_status(payload.get("EntGuiaLida")),
         "has_penalty": has_penalty,
         "department_external_id": _normalize_text(config.get("DptoID")),
         "department_name": _normalize_text(config.get("DptoNome")),

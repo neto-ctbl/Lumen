@@ -36,6 +36,8 @@ from backend.app.services.integrations.acessorias.obligation_mapping import (
 )
 from backend.app.services.integrations.acessorias.regime import (
     MAPPED as REGIME_MAPPED,
+    is_filial_regime_normal,
+    normalize_identifier_root,
     upsert_regime_divergence_alert,
 )
 from backend.app.services.integrations.econtrole.sync import resolve_target_organization
@@ -56,6 +58,7 @@ class AcessoriasSyncSummary:
     statuses_created: int = 0
     statuses_updated: int = 0
     tasks_skipped: int = 0
+    deliveries_filtered_out: int = 0
     unmapped_obligations: int = 0
     manual_review: int = 0
     failures: int = 0
@@ -77,6 +80,7 @@ class AcessoriasSyncSummary:
             "statuses_created": self.statuses_created,
             "statuses_updated": self.statuses_updated,
             "tasks_skipped": self.tasks_skipped,
+            "deliveries_filtered_out": self.deliveries_filtered_out,
             "unmapped_obligations": self.unmapped_obligations,
             "manual_review": self.manual_review,
             "failures": self.failures,
@@ -94,9 +98,16 @@ class AcessoriasSyncResult:
 
 
 class FixtureAcessoriasClient:
-    def __init__(self, *, companies: list[dict[str, Any]], deliveries: list[dict[str, Any]]) -> None:
+    def __init__(
+        self,
+        *,
+        companies: list[dict[str, Any]],
+        deliveries: list[dict[str, Any]] | None = None,
+        deliveries_by_period: dict[str, list[dict[str, Any]]] | None = None,
+    ) -> None:
         self._companies = companies
-        self._deliveries = deliveries
+        self._deliveries = deliveries or []
+        self._deliveries_by_period = deliveries_by_period or {}
 
     @classmethod
     def from_files(cls, *, companies_path: str | Path, deliveries_path: str | Path) -> "FixtureAcessoriasClient":
@@ -105,14 +116,26 @@ class FixtureAcessoriasClient:
             deliveries=json.loads(Path(deliveries_path).read_text(encoding="utf-8")),
         )
 
+    @classmethod
+    def from_directory(cls, *, companies_path: str | Path, deliveries_dir: str | Path) -> "FixtureAcessoriasClient":
+        deliveries_by_period: dict[str, list[dict[str, Any]]] = {}
+        for path in sorted(Path(deliveries_dir).glob("*.json")):
+            deliveries_by_period[path.stem] = json.loads(path.read_text(encoding="utf-8"))
+        return cls(
+            companies=json.loads(Path(companies_path).read_text(encoding="utf-8")),
+            deliveries_by_period=deliveries_by_period,
+        )
+
     def iter_companies(self) -> list[dict[str, Any]]:
         return list(self._companies)
 
     def iter_deliveries(self, identifier: str, *, dt_initial: date, dt_final: date) -> list[dict[str, Any]]:
-        del dt_initial, dt_final
+        period_key = dt_initial.strftime("%Y-%m")
+        del dt_final
+        source = self._deliveries_by_period.get(period_key, self._deliveries)
         normalized_identifier = "".join(ch for ch in identifier if ch.isdigit())
         result: list[dict[str, Any]] = []
-        for item in self._deliveries:
+        for item in source:
             item_identifier = "".join(ch for ch in str(item.get("Identificador", "")) if ch.isdigit())
             if item_identifier == normalized_identifier:
                 result.append(item)
@@ -128,7 +151,10 @@ def sync_acessorias_companies(
     summary: AcessoriasSyncSummary,
     errors: list[dict[str, Any]],
 ) -> None:
-    for payload in client.iter_companies():
+    payloads = list(client.iter_companies())
+    root_regime_map = _build_root_regime_map(payloads)
+
+    for payload in payloads:
         summary.companies_received += 1
         try:
             mapped = map_company_payload(payload)
@@ -136,6 +162,13 @@ def sync_acessorias_companies(
             summary.failures += 1
             errors.append({"scope": "company", "error": str(exc)})
             continue
+
+        mapped = _resolve_filial_regime_normal(
+            session,
+            organization_id=organization.id,
+            mapped=mapped,
+            root_regime_map=root_regime_map,
+        )
 
         company = session.scalar(
             select(ExternalCompany).where(
@@ -190,6 +223,60 @@ def sync_acessorias_companies(
             )
 
 
+def _build_root_regime_map(payloads: list[dict[str, Any]]) -> dict[str, set[str]]:
+    root_regime_map: dict[str, set[str]] = {}
+    for payload in payloads:
+        try:
+            mapped = map_company_payload(payload)
+        except AcessoriasMappingError:
+            continue
+        if mapped["regime_mapping_status"] != REGIME_MAPPED:
+            continue
+        root = normalize_identifier_root(mapped["identifier"])
+        canonical = mapped["regime_canonical"]
+        if root is None or canonical is None:
+            continue
+        root_regime_map.setdefault(root, set()).add(canonical)
+    return root_regime_map
+
+
+def _resolve_filial_regime_normal(
+    session: Session,
+    *,
+    organization_id: int,
+    mapped: dict[str, Any],
+    root_regime_map: dict[str, set[str]],
+) -> dict[str, Any]:
+    if mapped["regime_mapping_status"] == REGIME_MAPPED:
+        return mapped
+    if not is_filial_regime_normal(mapped.get("regime_raw")):
+        return mapped
+
+    root = normalize_identifier_root(mapped.get("identifier"))
+    if root is None:
+        return mapped
+
+    candidates = set(root_regime_map.get(root, set()))
+    db_candidates = session.scalars(
+        select(AcessoriasCompanySnapshot.regime_canonical).where(
+            AcessoriasCompanySnapshot.organization_id == organization_id,
+            AcessoriasCompanySnapshot.identifier.like(f"{root}%"),
+            AcessoriasCompanySnapshot.regime_mapping_status == REGIME_MAPPED,
+            AcessoriasCompanySnapshot.regime_canonical.is_not(None),
+        )
+    ).all()
+    candidates.update(candidate for candidate in db_candidates if candidate is not None)
+
+    if len(candidates) != 1:
+        return mapped
+
+    canonical = next(iter(candidates))
+    adjusted = dict(mapped)
+    adjusted["regime_canonical"] = canonical
+    adjusted["regime_mapping_status"] = REGIME_MAPPED
+    return adjusted
+
+
 def sync_acessorias_deliveries(
     session: Session,
     *,
@@ -197,15 +284,16 @@ def sync_acessorias_deliveries(
     client: AcessoriasClient | FixtureAcessoriasClient,
     period: FiscalPeriod,
     company_id: int | None,
+    only_active: bool,
+    fiscal_only: bool,
     dry_run: bool,
     summary: AcessoriasSyncSummary,
     errors: list[dict[str, Any]],
 ) -> None:
     obligations = session.scalars(select(FiscalObligation).where(FiscalObligation.active.is_(True))).all()
-    company_query = select(ExternalCompany).where(
-        ExternalCompany.organization_id == organization.id,
-        ExternalCompany.active.is_(True),
-    )
+    company_query = select(ExternalCompany).where(ExternalCompany.organization_id == organization.id)
+    if only_active:
+        company_query = company_query.where(ExternalCompany.active.is_(True))
     if company_id is not None:
         company_query = company_query.where(ExternalCompany.id == company_id)
     companies = session.scalars(company_query.order_by(ExternalCompany.id.asc())).all()
@@ -258,6 +346,10 @@ def sync_acessorias_deliveries(
 
                 if mapped["external_type"] == "T":
                     summary.tasks_skipped += 1
+
+                if fiscal_only and not _is_fiscal_relevant_delivery(mapped=mapped, obligation_mapping_status=obligation_match.mapping_status):
+                    summary.deliveries_filtered_out += 1
+                    continue
 
                 if dry_run:
                     continue
@@ -314,10 +406,22 @@ def sync_acessorias_period(
     dry_run: bool = False,
     sync_companies: bool = True,
     sync_deliveries: bool = True,
+    only_active: bool = True,
+    fiscal_only: bool = False,
+    run_metadata_extra: dict[str, Any] | None = None,
     client: AcessoriasClient | FixtureAcessoriasClient | None = None,
 ) -> AcessoriasSyncResult:
     if organization is None:
         organization = resolve_target_organization(session, org_slug)
+    if company_id is not None:
+        company = session.scalar(
+            select(ExternalCompany).where(
+                ExternalCompany.organization_id == organization.id,
+                ExternalCompany.id == company_id,
+            )
+        )
+        if company is None:
+            raise ValueError(f"Company '{company_id}' was not found for organization '{organization.slug}'.")
     period_row = session.scalar(
         select(FiscalPeriod).where(
             FiscalPeriod.organization_id == organization.id,
@@ -330,6 +434,17 @@ def sync_acessorias_period(
     summary = AcessoriasSyncSummary()
     errors: list[dict[str, Any]] = []
     run: IntegrationSyncRun | None = None
+    run_metadata = {
+        "organization_slug": organization.slug,
+        "period": period,
+        "company_id": company_id,
+        "sync_companies": sync_companies,
+        "sync_deliveries": sync_deliveries,
+        "only_active": only_active,
+        "fiscal_only": fiscal_only,
+    }
+    if run_metadata_extra:
+        run_metadata.update(run_metadata_extra)
     if not dry_run:
         run = IntegrationSyncRun(
             organization_id=organization.id,
@@ -339,13 +454,7 @@ def sync_acessorias_period(
             status="RUNNING",
             started_at=datetime.now(timezone.utc),
             summary={},
-            run_metadata={
-                "organization_slug": organization.slug,
-                "period": period,
-                "company_id": company_id,
-                "sync_companies": sync_companies,
-                "sync_deliveries": sync_deliveries,
-            },
+            run_metadata=run_metadata,
         )
         session.add(run)
         session.commit()
@@ -372,6 +481,8 @@ def sync_acessorias_period(
                 client=client,
                 period=period_row,
                 company_id=company_id,
+                only_active=only_active,
+                fiscal_only=fiscal_only,
                 dry_run=dry_run,
                 summary=summary,
                 errors=errors,
@@ -414,6 +525,15 @@ def _resolve_run_status(*, summary: AcessoriasSyncSummary) -> str:
     if summary.failures > 0:
         return "PARTIAL"
     return "SUCCESS"
+
+
+def _is_fiscal_relevant_delivery(*, mapped: dict[str, Any], obligation_mapping_status: str) -> bool:
+    if mapped.get("external_type") != "O":
+        return False
+    if obligation_mapping_status == MAPPED:
+        return True
+    department_name = mapped.get("department_name")
+    return map_external_department(department_name, "COMPARTILHADO") == "FISCAL"
 
 
 def _upsert_fiscal_status(

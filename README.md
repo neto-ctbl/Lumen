@@ -673,6 +673,15 @@ Complemento tecnico do S6.2 em 2026-08-04:
 - o sync mensal e o backfill passaram a aceitar `--fiscal-only` para limitar o snapshot de entregas a itens operacionais pertinentes ao fiscal
 - a suite impactada do Acessorias foi revalidada em `2026-08-04` com `29 passed`
 
+Rerun operacional do S6.2 em 2026-08-04 com `--fiscal-only`:
+
+- backfill real executado com sucesso por `python -m backend.scripts.backfill_acessorias --org-slug neto-contabilidade --from-period 2026-01 --to-period 2026-07 --only-active --fiscal-only`
+- os `runs` reais por competencia ficaram em `116` a `122`, todos com `status = SUCCESS`
+- o rerun confirmou idempotencia com `delivery_snapshots_created = 0` e apenas `delivery_snapshots_updated` por competencia
+- o filtro fiscal reduziu o snapshot operacional, registrando `deliveries_filtered_out` em todos os meses e mantendo apenas o subconjunto pertinente ao fiscal
+- a conferencia final de regimes mostrou apenas canonicos mapeados: `SIMPLES_NACIONAL = 156`, `LUCRO_PRESUMIDO = 44`, `LUCRO_REAL = 20` e `IMUNE_ISENTA = 3`
+- as filiais validadas com `Filial - Regime Normal` e `Filial - Simples Nacional` ficaram corretamente mapeadas no snapshot
+
 Fechamento tecnico do S7.0:
 
 - `docs/SITTAX_OBSERVED_CONTRACT.md` materializa o contrato observado do portal Sittax sem versionar o log bruto

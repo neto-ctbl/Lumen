@@ -842,6 +842,75 @@ Observacao estrutural importante:
 
 - `backend/app/db/base.py` nao exigiu alteracao para o S6 porque o Alembic ja importa `backend.app.models`, e os novos models foram exportados em `backend/app/models/__init__.py`
 
+## Atualizacao S6.2 em 2026-07-30
+
+Arquivos materializados no S6.2:
+
+- `backend/app/services/integrations/acessorias/backfill.py`
+- `backend/scripts/backfill_acessorias.py`
+- `backend/tests/test_acessorias_backfill.py`
+- `backend/tests/test_backfill_acessorias_script.py`
+- refinamentos adicionais em `backend/app/services/integrations/acessorias/regime.py`, `mapper.py`, `sync.py` e `backend/scripts/sync_acessorias_deliveries.py`
+
+Decisoes materializadas no S6.2:
+
+- o regime tributario atual oficial do Lumen e resolvido pelo `regime_canonical` de `acessorias_company_snapshots`
+- `external_companies` permanece como espelho cadastral do eControle e nao recebeu coluna, tabela auxiliar nem historico de regime
+- o backfill do Acessorias foi separado em uma fase cadastral unica e uma fase serial de entregas por competencia
+- `integration_sync_runs` continua sendo a trilha de rastreabilidade, agora com metadata de backfill por competencia
+- o processo pode ser reiniciado desde o inicio por idempotencia, sem checkpoint extra e sem `--resume` heuristico
+- o S6.2 reutiliza apenas os endpoints `GET` oficiais do Acessorias e nao baixa anexos
+- o mapeamento de regime passou a cobrir labels reais do Acessorias, incluindo `Filial - Simples Nacional`
+- `Filial - Regime Normal` passou a herdar o regime canonico da mesma raiz de CNPJ quando houver um unico candidato mapeado
+- `EntGuiaLida` passou a ser normalizado para codigos curtos compativeis com o schema atual
+- `--fiscal-only` passou a existir como filtro opcional de entregas no sync mensal e no backfill
+
+Confirmacoes de escopo do S6.2:
+
+- nenhuma migration nova foi criada
+- nenhuma tabela nova foi criada
+- `external_companies` nao foi alterada
+- nenhuma alteracao de frontend foi realizada
+- nenhuma transmissao fiscal foi implementada
+
+## Fechamento operacional S6.2 em 2026-08-03
+
+Validacoes registradas no estado real do repositorio:
+
+- `python -m backend.scripts.backfill_acessorias --org-slug neto-contabilidade --from-period 2026-01 --to-period 2026-07`
+- resumo final do backfill com `status = SUCCESS`
+- conferencia SQL de cobertura cadastral em `acessorias_company_snapshots`
+- conferencia SQL de cobertura por competencia em `acessorias_delivery_snapshots`
+- conferencia SQL de `fiscal_obligation_statuses` com `last_source = 'ACESSORIAS_API'`
+- consulta SQL de duplicidades por `organization_id + external_company_id + external_delivery_id`
+
+Resultados operacionais principais:
+
+- `periods_success = 7` e `periods_failed = 0`
+- `companies_received = 221`, `companies_matched = 218`, `companies_unmatched = 3`
+- `223` snapshots cadastrais ao final, com `218` empresas locais vinculadas e `5` regimes mapeados na conferencia SQL
+- `deliveries_received = 10999` e `delivery_snapshots_created = 10999`
+- `statuses_created = 196` e `tasks_skipped = 328`
+- `integration_sync_runs` reais do backfill criados para as competencias `2026-01` a `2026-07`, com `run_id` de `101` a `107`
+- a consulta de duplicidades retornou `0` linhas
+
+Complemento de fechamento S6.2 em 2026-08-04:
+
+- aliases reais de regime do Acessorias cobertos em teste automatizado, incluindo labels longos de Simples, Lucro Presumido, Lucro Real e filiais
+- heranca segura de regime para `Filial - Regime Normal` validada por teste com matriz e filial da mesma raiz de CNPJ
+- normalizacao de `EntGuiaLida` validada para evitar `StringDataRightTruncation` em `guide_read_status`
+- filtro opcional `--fiscal-only` validado em sync e backfill sem alterar o comportamento padrao quando a flag nao e usada
+- suite impactada do Acessorias reexecutada com `29 passed`
+
+Rerun real complementar S6.2 em 2026-08-04:
+
+- `python -m backend.scripts.backfill_acessorias --org-slug neto-contabilidade --from-period 2026-01 --to-period 2026-07 --only-active --fiscal-only`
+- `integration_sync_runs` reais do rerun criados para as competencias `2026-01` a `2026-07`, com `run_id` de `116` a `122`
+- rerun idempotente confirmado com `delivery_snapshots_created = 0` e apenas `delivery_snapshots_updated` no intervalo
+- o filtro `--fiscal-only` registrou `deliveries_filtered_out` em todas as competencias processadas
+- a conferencia final de regimes mostrou somente canonicos mapeados: `SIMPLES_NACIONAL`, `LUCRO_PRESUMIDO`, `LUCRO_REAL` e `IMUNE_ISENTA`
+- os exemplos reais de `Filial - Regime Normal` e `Filial - Simples Nacional` ficaram persistidos com o canonico esperado
+
 ## Fechamento S6 em 2026-07-15
 
 Validacoes finais registradas no estado real do repositorio:
@@ -1029,6 +1098,16 @@ Arquivos materializados no S8.3:
 - `backend/scripts/backfill_company_cnaes.py`
 - `backend/scripts/enrich_cnaes_econet.py`
 - `docs/NFSE_NORMALIZED_CONTRACT.md`
+
+## Addendum S9.2
+
+Arquivos adicionais materializados no S9.2:
+
+- `backend/app/services/integrations/dominio/coverage.py`
+- `backend/app/services/integrations/dominio/factor_r_targets.py`
+- `backend/app/services/integrations/dominio/selection_scope.py`
+- `backend/scripts/export_dominio_factor_r_targets.py`
+- `backend/tests/test_export_dominio_factor_r_targets.py`
 
 ## Retificacao auditada do Stage S8 em 2026-07-27
 
@@ -1408,3 +1487,31 @@ Fechamento validado em 2026-07-29:
 - `Resumo_Mensal_05-2026.pdf`: `149` paginas, `137` empresas, `employee_true = 90`, `employee_false = 47`, `employee_only_supported_by_forbidden_codes = 0`, competencia folha `2026-05`, apuracao `2026-06`
 - `Resumo_Mensal_06-2026.pdf`: `145` paginas, `137` empresas, `employee_true = 90`, `employee_false = 47`, `employee_only_supported_by_forbidden_codes = 0`, competencia folha `2026-06`, apuracao `2026-07`
 - o parser nao introduziu migration, tabela, endpoint, watcher ou frontend
+
+## Atualizacao S9.2
+
+Arquivos materializados no S9.2:
+
+- `backend/app/models/dominio_payroll.py`
+- `backend/app/services/integrations/dominio/importer.py`
+- `backend/app/services/integrations/dominio/matching.py`
+- `backend/scripts/import_dominio_payroll.py`
+- `backend/tests/test_dominio_payroll_models.py`
+- `backend/tests/test_dominio_payroll_matching.py`
+- `backend/tests/test_dominio_payroll_importer.py`
+- `backend/tests/test_dominio_payroll_cli.py`
+- `backend/alembic/versions/20260730_0012_create_dominio_payroll_tables.py`
+
+Decisoes materializadas no S9.2:
+
+- a persistencia do Dominio Folha usa apenas `dominio_payroll_imports` e `dominio_payroll_company_movements`
+- o PDF nao e armazenado no banco; apenas metadados, hash, totais, warnings, `raw_text` sanitizado e resultado extraido
+- a idempotencia do arquivo ficou em `organization_id + file_sha256`
+- a idempotencia do bloco por empresa ficou em `import_id + source_company_key`
+- o matching automatico usa apenas `organization_id + cnpj`
+- `source_payroll_competence` e `assessment_competence` permanecem separadas e persistidas como primeiro dia do mes
+- `fiscal_period_id` dos movimentos e das evidencias sempre aponta para a competencia de apuracao `M+1`
+- `rubrics_summary` ficou resumido em JSONB; nenhuma tabela de rubricas foi criada
+- `fiscal_evidences` do stage usam `source = DOMINIO_FOLHA_PDF` e so sao criadas para movimentos `MATCHED`
+- o importador registra `integration_sync_runs` e `audit_log` apenas para execucao real; `--dry-run` nao grava nada
+- a CLI operacional do stage e `backend/scripts/import_dominio_payroll.py`

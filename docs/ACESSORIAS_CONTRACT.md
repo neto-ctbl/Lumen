@@ -299,6 +299,27 @@ Diretriz inicial:
 - a primeira implementacao deve privilegiar seguranca e previsibilidade
 - e aceitavel comecar por empresa + janela de competencia antes de otimizar para incremental global
 
+## Decisao canonica de regime no schema atual
+
+- o regime tributario atual oficial da empresa no Lumen e o `regime_canonical` do `acessorias_company_snapshots` vinculado a empresa local
+- `external_companies` continua sendo espelho cadastral do eControle e nao recebe o regime canonico
+- o schema atual nao possui tabela separada de perfil fiscal, nem historico legal de mudancas de regime
+- o snapshot do Acessorias representa apenas o regime atual observado na fonte externa
+- esse snapshot nao deve ser aplicado retroativamente a competencias antigas sem evidencia adicional
+
+## Backfill operacional S6.2
+
+- o S6.2 materializa um backfill reproduzivel sem alterar schema, sem migration e sem endpoint novo
+- a fase cadastral executa uma unica sincronizacao de empresas para reconciliar CNPJ, atualizar `acessorias_company_snapshots`, mapear regime atual, gerar alertas de divergencia e registrar casos nao mapeados ou sem match
+- a fase de entregas recebe `--from-period YYYY-MM` e `--to-period YYYY-MM` e processa cada competencia serialmente
+- opcionalmente, a fase de entregas pode usar `--fiscal-only` para persistir apenas entregas operacionais pertinentes ao fiscal
+- cada competencia precisa existir previamente em `fiscal_periods`; o backfill nao cria periodos implicitamente
+- o processamento de entregas reutiliza o sync existente, preserva `Config.Tipo = T` apenas em snapshot e atualiza `fiscal_obligation_statuses` somente para obrigacoes mapeadas
+- a rastreabilidade reutiliza `integration_sync_runs`, marcando `run_metadata.backfill = true` e registrando `from_period`, `to_period`, `current_period`, `company_id` e `dry_run`
+- a retomada operacional depende de idempotencia; reiniciar o backfill desde o inicio nao deve duplicar snapshots nem statuses
+- o fluxo continua restrito aos endpoints `GET /companies/{identificador}` e `GET /deliveries/{identificador}`
+- `DtLastDH`, anexos, `POST` externos, transmissao fiscal e download de anexos continuam fora de escopo
+
 ## Idempotencia proposta
 
 Chave preferida:
@@ -378,6 +399,37 @@ Escolhas implementadas:
 - obrigacoes desconhecidas permanecem em snapshot com `UNMAPPED` ou `AMBIGUOUS`, sem erro tecnico fatal do run
 - o sync nao apaga `fiscal_obligation_statuses` quando uma entrega deixa de aparecer na API
 - anexos continuam fora do escopo do S6.1
+
+Complemento S6.2 em 2026-07-30:
+
+- backfill retroativo operacional em `backend/app/services/integrations/acessorias/backfill.py`
+- CLI dedicada em `python -m backend.scripts.backfill_acessorias`
+- execucao em duas fases: cadastro/regime atual uma vez e entregas por intervalo de competencias
+- nenhum schema novo, nenhuma migration nova, nenhuma alteracao de frontend
+
+Complemento S6.2 em 2026-08-04:
+
+- ampliacao dos aliases seguros de regime para labels reais do Acessorias como `Simples Nacional - Servicos`, `Lucro Presumido - Servicos`, `Lucro Real - Comercio e Industria` e `Filial - Simples Nacional`
+- `Filial - Regime Normal` passa a herdar o regime canonico da mesma raiz de CNPJ quando houver um unico regime mapeado para a matriz ou empresa irma no mesmo grupo
+- `EntGuiaLida` deixa de ser persistido cru; o sync normaliza labels longos como `Guia ja acessada/lida` para codigos curtos compativeis com o schema atual
+- o backfill e o sync mensal passam a aceitar `--fiscal-only`, preservando o comportamento anterior por padrao
+- com `--fiscal-only`, o snapshot de entregas persiste apenas itens `Tipo = O` que sejam obrigacoes mapeadas ou pertencam ao departamento fiscal; tarefas e itens nao pertinentes ficam fora do snapshot
+
+Validacao operacional S6.2 concluida em 2026-08-03:
+
+- backfill real executado com `status = SUCCESS` no intervalo `2026-01` a `2026-07`
+- fase cadastral executada com `companies_received = 221`, `companies_matched = 218` e `companies_unmatched = 3`
+- o backfill de regime atual tambem foi executado; o resumo do run registrou `regimes_mapped = 3` e `regimes_unmapped = 218`
+- a conferencia SQL final de `acessorias_company_snapshots` mostrou `223` snapshots, `218` empresas vinculadas e `5` linhas com `regime_mapping_status = 'MAPPED'`
+- fase de entregas executada com `deliveries_received = 10999`, `delivery_snapshots_created = 10999`, `statuses_created = 196` e `tasks_skipped = 328`
+- a cobertura por competencia foi confirmada via SQL para `2026-01` a `2026-07`
+- a consulta de duplicidades em `acessorias_delivery_snapshots` retornou `0` linhas
+
+Validacao complementar S6.2 concluida em 2026-08-04:
+
+- suite impactada do Acessorias executada com sucesso apos os refinamentos de regime filial, `EntGuiaLida` e `--fiscal-only`
+- os cenarios de `Filial - Simples Nacional` e `Filial - Regime Normal` ficaram cobertos por teste automatizado
+- o modo `--fiscal-only` ficou coberto em sync e backfill sem alterar o comportamento padrao quando a flag nao e informada
 
 Aliases seguros de obrigacoes implementados no S6.1:
 

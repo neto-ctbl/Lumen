@@ -15,6 +15,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--skip-companies", action="store_true")
     parser.add_argument("--skip-deliveries", action="store_true")
+    parser.add_argument("--fiscal-only", action="store_true")
     parser.add_argument("--companies-fixture", type=str, required=False)
     parser.add_argument("--deliveries-fixture", type=str, required=False)
     return parser
@@ -42,6 +43,7 @@ def main() -> None:
             dry_run=args.dry_run,
             sync_companies=not args.skip_companies,
             sync_deliveries=not args.skip_deliveries,
+            fiscal_only=args.fiscal_only,
             client=client,
         )
         output = {

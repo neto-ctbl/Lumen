@@ -145,6 +145,11 @@ Data de referencia: 2026-07-20
 - O backfill reutiliza apenas tabelas e servicos existentes; nenhuma migration, tabela nova ou coluna nova foi necessaria.
 - A retomada operacional do backfill ocorre por idempotencia de snapshots e `fiscal_obligation_statuses`, sem `--resume` heuristico nesta primeira versao.
 - O backfill do Acessorias permanece estritamente read-only contra a origem externa e usa somente os endpoints `GET` oficiais de empresas e entregas.
+- Labels reais de regime do Acessorias devem ser normalizados para os canonicos internos, incluindo variantes longas de Simples, Lucro Presumido, Lucro Real e `Filial - Simples Nacional`.
+- `Filial - Regime Normal` deve herdar o regime canonico da mesma raiz de CNPJ quando houver exatamente um regime mapeado no grupo da matriz/filial.
+- `EntGuiaLida` nao deve ser persistido cru quando vier como label longa; o sync deve normalizar para codigos curtos compativeis com o schema atual.
+- O filtro `--fiscal-only` existe como opcao operacional e limita o snapshot de entregas a itens `Tipo = O` que sejam obrigacoes mapeadas ou pertencam ao departamento fiscal.
+- O comportamento padrao do sync e do backfill continua sem filtro, preservando rastreabilidade maxima quando `--fiscal-only` nao for informado.
 
 ## S9.0 - Dominio Folha documental
 

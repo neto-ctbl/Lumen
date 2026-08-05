@@ -28,17 +28,32 @@ REGIME_CODE_MAP: dict[int, FiscalRegime] = {
 }
 
 REGIME_LABEL_ALIASES: dict[str, FiscalRegime] = {
+    "FILIAL - SIMPLES NACIONAL": FiscalRegime.SIMPLES_NACIONAL,
     "SIMPLES NACIONAL": FiscalRegime.SIMPLES_NACIONAL,
     "SIMPLES NACIONAL COM INSCRICAO ESTADUAL": FiscalRegime.SIMPLES_NACIONAL,
     "SIMPLES NACIONAL SEM INSCRICAO ESTADUAL": FiscalRegime.SIMPLES_NACIONAL,
+    "SIMPLES NACIONAL - COMERCIO E INDUSTRIA": FiscalRegime.SIMPLES_NACIONAL,
+    "SIMPLES NACIONAL - COMERCIO E SERVICO": FiscalRegime.SIMPLES_NACIONAL,
+    "SIMPLES NACIONAL - COMERCIO E SERVICOS": FiscalRegime.SIMPLES_NACIONAL,
+    "SIMPLES NACIONAL - SERVICOS": FiscalRegime.SIMPLES_NACIONAL,
+    "SIMPLES NACIONAL - SERVICOS IMOBILIARIOS": FiscalRegime.SIMPLES_NACIONAL,
+    "SIMPLES NACIONAL - SERVICOS MEDICOS E ODONTOLOGICOS": FiscalRegime.SIMPLES_NACIONAL,
     "LUCRO PRESUMIDO": FiscalRegime.LUCRO_PRESUMIDO,
     "LUCRO PRESUMIDO COM INSCRICAO ESTADUAL - INDUSTRIA/COMERCIO": FiscalRegime.LUCRO_PRESUMIDO,
     "LUCRO PRESUMIDO SEM INSCRICAO ESTADUAL - SERVICO": FiscalRegime.LUCRO_PRESUMIDO,
+    "LUCRO PRESUMIDO - COMERCIO E SERVICOS": FiscalRegime.LUCRO_PRESUMIDO,
+    "LUCRO PRESUMIDO - INDUSTRIA E SERVICOS": FiscalRegime.LUCRO_PRESUMIDO,
+    "LUCRO PRESUMIDO - SERVICOS": FiscalRegime.LUCRO_PRESUMIDO,
+    "LUCRO PRESUMIDO - SERVICOS IMOBILIARIOS": FiscalRegime.LUCRO_PRESUMIDO,
+    "LUCRO PRESUMIDO - SERVICOS MEDICOS E ODONTOLOGICOS": FiscalRegime.LUCRO_PRESUMIDO,
     "LUCRO REAL": FiscalRegime.LUCRO_REAL,
+    "LUCRO REAL - COMERCIO E INDUSTRIA": FiscalRegime.LUCRO_REAL,
+    "LUCRO REAL - SERVICOS": FiscalRegime.LUCRO_REAL,
     "MEI": FiscalRegime.MEI,
     "MEI - MICRO EMPREENDEDOR INDIVIDUAL": FiscalRegime.MEI,
     "IMUNE/ISENTA": FiscalRegime.IMUNE_ISENTA,
     "IMUNE ISENTA": FiscalRegime.IMUNE_ISENTA,
+    "IMUNE/ISENTA - ISENTA": FiscalRegime.IMUNE_ISENTA,
 }
 
 
@@ -59,6 +74,19 @@ def normalize_text(value: Any) -> str | None:
     return "".join(
         ch for ch in unicodedata.normalize("NFKD", text) if not unicodedata.combining(ch)
     ).upper()
+
+
+def normalize_identifier_root(value: Any) -> str | None:
+    if value is None:
+        return None
+    digits = "".join(ch for ch in str(value) if ch.isdigit())
+    if len(digits) < 8:
+        return None
+    return digits[:8]
+
+
+def is_filial_regime_normal(value: Any) -> bool:
+    return normalize_text(value) == "FILIAL - REGIME NORMAL"
 
 
 def resolve_acessorias_regime(value: Any) -> RegimeResolution:

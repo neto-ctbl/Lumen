@@ -869,6 +869,15 @@ Complementos validados em 2026-08-04:
 - `--fiscal-only` ficou coberto em sync e backfill sem regressao do comportamento padrao
 - regressao impactada do Acessorias executada com `29 passed`
 
+Rerun real complementar executado em 2026-08-04:
+
+- `python -m backend.scripts.backfill_acessorias --org-slug neto-contabilidade --from-period 2026-01 --to-period 2026-07 --only-active --fiscal-only`
+- `run_id` reais por competencia de `116` a `122`, todos com `status = SUCCESS`
+- rerun idempotente confirmado com `delivery_snapshots_created = 0` e apenas `delivery_snapshots_updated` no intervalo
+- o filtro `--fiscal-only` removeu itens nao pertinentes do snapshot, registrando `deliveries_filtered_out` em todos os meses processados
+- conferencia SQL final de regimes mostrou apenas linhas `MAPPED` nos canonicos `SIMPLES_NACIONAL`, `LUCRO_PRESUMIDO`, `LUCRO_REAL` e `IMUNE_ISENTA`
+- filiais com `Filial - Regime Normal` e `Filial - Simples Nacional` ficaram validadas no banco real com o canonico esperado
+
 Confirmacoes de escopo:
 - nenhuma migration nova
 - nenhuma tabela nova

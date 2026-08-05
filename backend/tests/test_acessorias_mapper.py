@@ -13,8 +13,10 @@ from backend.app.services.integrations.acessorias.mapper import (
     normalize_acessorias_date,
     normalize_acessorias_datetime,
     normalize_delivery_status,
+    normalize_guide_read_status,
     normalize_identifier,
 )
+from backend.app.services.integrations.acessorias.regime import resolve_acessorias_regime
 
 
 def test_map_company_payload_maps_documented_regime_textual() -> None:
@@ -49,6 +51,31 @@ def test_map_company_payload_keeps_unknown_regime_unmapped() -> None:
     assert mapped["regime_mapping_status"] == "UNMAPPED"
 
 
+def test_map_company_payload_maps_real_acessorias_regime_labels() -> None:
+    cases = {
+        "Filial - Simples Nacional": "SIMPLES_NACIONAL",
+        "Imune/Isenta": "IMUNE_ISENTA",
+        "Lucro Presumido - Comércio e Serviços": "LUCRO_PRESUMIDO",
+        "Lucro Presumido - Indústria e Serviços": "LUCRO_PRESUMIDO",
+        "Lucro Presumido - Serviços": "LUCRO_PRESUMIDO",
+        "Lucro Presumido - Serviços Imobiliários": "LUCRO_PRESUMIDO",
+        "Lucro Presumido - Serviços Médicos e Odontológicos": "LUCRO_PRESUMIDO",
+        "Lucro Real - Comércio e Indústria": "LUCRO_REAL",
+        "Lucro Real - Serviços": "LUCRO_REAL",
+        "MEI - Micro Empreendedor Individual": "MEI",
+        "Simples Nacional - Comércio e Indústria": "SIMPLES_NACIONAL",
+        "Simples Nacional - Comércio e Serviço": "SIMPLES_NACIONAL",
+        "Simples Nacional - Serviços": "SIMPLES_NACIONAL",
+        "Simples Nacional - Serviços Imobiliários": "SIMPLES_NACIONAL",
+        "Simples Nacional - Serviços Médicos e Odontológicos": "SIMPLES_NACIONAL",
+    }
+
+    for raw, expected in cases.items():
+        resolved = resolve_acessorias_regime(raw)
+        assert resolved.mapping_status == "MAPPED"
+        assert resolved.canonical == expected
+
+
 def test_normalizers_convert_zero_dates_to_none() -> None:
     assert normalize_acessorias_date("0000-00-00") is None
     assert normalize_acessorias_datetime("0000-00-00 00:00:00") is None
@@ -78,6 +105,7 @@ def test_map_delivery_payload_maps_finalized_delivery() -> None:
     assert mapped["normalized_status"] == ReconciliationStatus.CONFIRMADO_API.value
     assert mapped["due_date"] == date(2026, 6, 20)
     assert mapped["has_penalty"] is False
+    assert mapped["guide_read_status"] == "READ"
 
 
 def test_normalize_delivery_status_pending_and_late_stay_pending() -> None:
@@ -122,3 +150,8 @@ def test_map_delivery_payload_raises_when_required_field_missing() -> None:
 
 def test_normalize_identifier_strips_non_digits() -> None:
     assert normalize_identifier("11.111.111/0001-11") == "11111111000111"
+
+
+def test_normalize_guide_read_status_maps_long_api_labels_to_short_codes() -> None:
+    assert normalize_guide_read_status("Guia já acessada/lida") == "READ"
+    assert normalize_guide_read_status("Guia nao acessada/lida") == "UNREAD"

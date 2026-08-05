@@ -136,3 +136,89 @@ def test_sync_skips_tasks_for_fiscal_statuses(db_session) -> None:
     assert task_snapshot.external_type == "T"
     assert len(statuses) == 1
     assert result.summary["tasks_skipped"] == 1
+
+
+def test_sync_fiscal_only_filters_non_fiscal_deliveries_from_snapshot(db_session) -> None:
+    organization, _, period = _seed_org_company_period(db_session)
+
+    result = sync_acessorias_period(
+        db_session,
+        period=period.competencia,
+        organization=organization,
+        client=_fixture_client(),
+        fiscal_only=True,
+    )
+
+    delivery_snapshots = db_session.scalars(select(AcessoriasDeliverySnapshot)).all()
+
+    assert len(delivery_snapshots) == 2
+    assert {snapshot.external_delivery_id for snapshot in delivery_snapshots} == {"5001", "5002"}
+    assert result.summary["deliveries_received"] == 3
+    assert result.summary["deliveries_filtered_out"] == 1
+
+
+def test_sync_infers_filial_regime_normal_from_same_root_matrix(db_session) -> None:
+    organization = Organization(name="Org Filial", slug="org-filial")
+    db_session.add(organization)
+    db_session.flush()
+
+    db_session.add_all(
+        [
+            ExternalCompany(
+                organization_id=organization.id,
+                cnpj="03163171000120",
+                razao_social="Ll da Silva & Cia. Ltda.",
+                active=True,
+            ),
+            ExternalCompany(
+                organization_id=organization.id,
+                cnpj="03163171000634",
+                razao_social="Ll da Silva & Cia. Ltda.",
+                active=True,
+            ),
+            FiscalPeriod(
+                organization_id=organization.id,
+                year=2026,
+                month=6,
+                competencia="2026-06",
+                status="OPEN",
+            ),
+        ]
+    )
+    db_session.flush()
+
+    client = FixtureAcessoriasClient(
+        companies=[
+            {
+                "ID": "9101",
+                "Identificador": "03.163.171/0001-20",
+                "Razao": "Ll da Silva & Cia. Ltda.",
+                "Status": "Ativa",
+                "Regime": "Lucro Real - Comércio e Indústria",
+            },
+            {
+                "ID": "9102",
+                "Identificador": "03.163.171/0006-34",
+                "Razao": "Ll da Silva & Cia. Ltda.",
+                "Status": "Ativa",
+                "Regime": "Filial - Regime Normal",
+            },
+        ],
+        deliveries=[],
+    )
+
+    sync_acessorias_period(
+        db_session,
+        period="2026-06",
+        organization=organization,
+        client=client,
+        sync_deliveries=False,
+    )
+
+    snapshots = db_session.scalars(
+        select(AcessoriasCompanySnapshot).where(AcessoriasCompanySnapshot.organization_id == organization.id)
+    ).all()
+
+    assert len(snapshots) == 2
+    assert {snapshot.regime_canonical for snapshot in snapshots} == {"LUCRO_REAL"}
+    assert all(snapshot.regime_mapping_status == "MAPPED" for snapshot in snapshots)
