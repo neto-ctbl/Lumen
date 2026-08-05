@@ -14,6 +14,7 @@ from backend.app.models.external_company import ExternalCompany
 from backend.app.models.organization import Organization
 from backend.app.models.user import User
 from backend.app.models.user_organization import UserOrganization
+from backend.app.services.factor_r import FactorRPotentialResult
 from backend.app.services.integrations.econet.enrichment import EnrichmentItemResult
 from datetime import datetime, timedelta, timezone
 
@@ -178,6 +179,59 @@ def test_enrich_serializes_items_with_slots_dataclass(client: TestClient, db_ses
             "cache_record_id": 123,
             "parse_status": "PARSED",
             "message": None,
+        }
+    ]
+
+
+def test_enrich_serializes_factor_r_results(client: TestClient, db_session, monkeypatch) -> None:
+    user, password, _ = _seed_context(db_session, role="ADMIN")
+
+    class Result:
+        status = "SUCCESS"
+        dry_run = False
+        summary = {"processed": 1, "created": 1, "updated": 0, "errors": 0}
+        items = []
+        catalog_summary = {}
+        factor_r_results = [
+            FactorRPotentialResult(
+                company_id=78,
+                status="APPLICABLE",
+                factor_r_potential=True,
+                cnaes_total=1,
+                cnaes_with_cache=1,
+                positive_cnaes=["7020400"],
+                negative_cnaes=[],
+                missing_cnaes=[],
+                annex_default="V",
+                annex_conditional="III",
+                factor_r_threshold="28.00",
+            )
+        ]
+
+    monkeypatch.setattr(
+        "backend.app.api.v1.endpoints.integrations.econet.enrich_cnaes",
+        lambda *args, **kwargs: Result(),
+    )
+    response = client.post(
+        "/api/v1/integrations/econet/enrich",
+        headers=_headers(client, email=user.email, password=password),
+        json={"company_ids": [78], "dry_run": False, "cache_only": True},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["factor_r_results"] == [
+        {
+            "company_id": 78,
+            "status": "APPLICABLE",
+            "factor_r_potential": True,
+            "cnaes_total": 1,
+            "cnaes_with_cache": 1,
+            "positive_cnaes": ["7020400"],
+            "negative_cnaes": [],
+            "missing_cnaes": [],
+            "annex_default": "V",
+            "annex_conditional": "III",
+            "factor_r_threshold": "28.00",
         }
     ]
 

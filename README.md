@@ -1,8 +1,8 @@
 # Lumen - Fiscal Cockpit
 
-Data de referencia: 2026-07-21
+Data de referencia: 2026-08-05
 
-O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage S6.0, o Stage S6, o micro-stage S7.0, o micro-stage S7.1, o micro-stage S7.2, o micro-stage S7.3, o micro-stage S7.4, o micro-stage S8.0, o micro-stage S8.1 e o micro-stage S8.2. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5, do frontend fiscal read-only do S5.1, da integracao oficial read-only com o Sistema Acessorias no S6 e dos snapshots cadastral e de apuracao do Sittax, o projeto passou a suportar DIFAL, documentos fiscais, tarefas/transmissoes, endpoint manual de sync, persistencia operacional multi-tenant, handoff stateful validado do host `api.sittax.com.br`, contrato observado da Econet documentado com fixtures anonimizadas, a fundacao offline da Econet com model, migration, parser HTML puro e cache idempotente por CNAE, e a sessao manual assistida da Econet com cookies em memoria, probe explicito e health local sem rede.
+O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage S6.0, o Stage S6, o micro-stage complementar S6.2, o micro-stage S7.0, o micro-stage S7.1, o micro-stage S7.2, o micro-stage S7.3, o micro-stage S7.4, o micro-stage S8.0, o micro-stage S8.1, o micro-stage S8.2, o micro-stage S8.3 e o micro-stage complementar S8.3.1. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5, do frontend fiscal read-only do S5.1, da integracao oficial read-only com o Sistema Acessorias no S6, do backfill operacional retroativo do Acessorias sem alteracao de schema no S6.2 e dos snapshots cadastral e de apuracao do Sittax, o projeto passou a suportar DIFAL, documentos fiscais, tarefas/transmissoes, endpoint manual de sync, persistencia operacional multi-tenant, handoff stateful validado do host `api.sittax.com.br`, contrato observado da Econet documentado com fixtures anonimizadas, a fundacao offline da Econet com model, migration, parser HTML puro e cache idempotente por CNAE, a sessao manual assistida da Econet com cookies em memoria, probe explicito e health local sem rede, o catalogo relacional canonico de CNAEs por empresa, o potencial cadastral de Fator R e a correção semantica do parser da Econet para canonicalizar Fator R como `Anexo V -> Anexo III`.
 
 ## Escopo real atual
 
@@ -127,6 +127,21 @@ S6 entregue:
 - testes backend do Acessorias e E2E da tela Integracoes
 - health read-only da integracao e precedencia de regime no read model
 
+S6.2 entregue:
+
+- `backend/app/services/integrations/acessorias/backfill.py`
+- `backend/scripts/backfill_acessorias.py`
+- `backend/tests/test_acessorias_backfill.py`
+- `backend/tests/test_backfill_acessorias_script.py`
+- backfill operacional em duas fases: cadastro/regime atual uma vez e entregas por intervalo de competencias
+- reaproveitamento de `integration_sync_runs` com metadata de backfill por competencia
+- normalizacao ampliada dos labels reais de regime do Acessorias, incluindo filiais
+- heranca de regime para `Filial - Regime Normal` pela mesma raiz de CNPJ quando houver um unico canonicamente mapeado
+- normalizacao segura de `EntGuiaLida` para codigos curtos compativeis com o schema atual
+- filtro opcional `--fiscal-only` no sync mensal e no backfill para persistir apenas entregas pertinentes ao fiscal
+- nenhuma migration nova, nenhuma tabela nova, nenhuma alteracao em `external_companies` e nenhuma alteracao de frontend
+- validacao real concluida em `2026-08-03` com `status = SUCCESS` no intervalo `2026-01` a `2026-07`
+
 Ainda nao existem:
 
 - dominio fiscal de negocio
@@ -172,8 +187,8 @@ No S4.1, foram materializados seeds logicos de regras-base e competencias, sem c
 O S4.1 foi tratado como micro-stage complementar de fechamento tecnico e nao como stage originalmente enumerado no `PLANO_DESENVOLVIMENTO.md`.
 No S5, foi materializada apenas a integracao cadastral MVP do eControle.
 No S5.1, foram materializados os endpoints read-only `/api/v1/lumen/*`, o frontend fiscal funcional e os estados vazios honestos quando tabelas operacionais ainda estiverem vazias.
-No S8.0, foram materializados apenas contrato observado da Econet, protecao de artefatos brutos no Git, fixtures HTML sinteticas/sanitizadas e testes offline. No S8.1, foram materializados `econet_cnae_cache`, a migration incremental `20260721_0009`, o parser HTML puro offline, o servico de cache idempotente por CNAE e a suite de testes dedicada. No S8.2, foram materializados sessao assistida exclusivamente em memoria, importacao controlada de cookies allowlisted, cliente HTTP stateful restrito a `https://www.econeteditora.com.br/ferramentas/regimes_cnae/`, endpoints administrativos de import/status/probe/clear, helper operacional de exportacao e health local sem chamadas externas. O macro-stage S8 continua pendente; o S8.3 materializou catalogo relacional por empresa, decode seguro por bytes, cache versionado por parser, enriquecimento por CNAE e potencial cadastral de Fator R, sem iniciar o S8.4.
-No S9.0, foi materializada apenas a fundacao documental da Dominio Folha: contrato tecnico, helper puro de competencia `folha M -> apuracao M+1`, fixtures sinteticas, testes offline e coletor Windows opcional com lock local, retry limitado, `.partial.pdf`, validacao minima de PDF, SHA-256 e manifest lateral, sem migration, sem banco, sem endpoint e sem frontend. No S9.1, o projeto passou a ter parser offline do `Resumo Mensal` com `pypdf` como extrator primario, leitura separada de parser puro de paginas, agrupamento por empresa/competencia, blocos, rubricas, totais, sinais de folha, warnings estruturados, correcao semantica de `has_employee` para excluir `INSS EMPREGADOR` como prova de empregado e validacao real agregada para os PDFs `05/2026` e `06/2026`, ainda sem persistencia, endpoint, watcher ou OCR.
+No S8.0, foram materializados apenas contrato observado da Econet, protecao de artefatos brutos no Git, fixtures HTML sinteticas/sanitizadas e testes offline. No S8.1, foram materializados `econet_cnae_cache`, a migration incremental `20260721_0009`, o parser HTML puro offline, o servico de cache idempotente por CNAE e a suite de testes dedicada. No S8.2, foram materializados sessao assistida exclusivamente em memoria, importacao controlada de cookies allowlisted, cliente HTTP stateful restrito a `https://www.econeteditora.com.br/ferramentas/regimes_cnae/`, endpoints administrativos de import/status/probe/clear, helper operacional de exportacao e health local sem chamadas externas. No S8.3, foram materializados catalogo relacional por empresa, decode seguro por bytes, cache versionado por parser, enriquecimento por CNAE e potencial cadastral de Fator R. No micro-stage complementar S8.3.1, o parser foi endurecido para ignorar menções incidentais em `Nota ECONET`, canonicalizar casos positivos de Fator R para `Anexo V -> Anexo III`, corrigir falsos positivos/negativos historicos do cache e validar o fechamento real da base da Econet. O macro-stage S8 continua pendente; o S8.4 segue nao iniciado.
+No S9.0, foi materializada apenas a fundacao documental da Dominio Folha: contrato tecnico, helper puro de competencia `folha M -> apuracao M+1`, fixtures sinteticas, testes offline e coletor Windows opcional com lock local, retry limitado, `.partial.pdf`, validacao minima de PDF, SHA-256 e manifest lateral, sem migration, sem banco, sem endpoint e sem frontend. No S9.1, o projeto passou a ter parser offline do `Resumo Mensal` com `pypdf` como extrator primario, leitura separada de parser puro de paginas, agrupamento por empresa/competencia, blocos, rubricas, totais, sinais de folha, warnings estruturados, correcao semantica de `has_employee` para excluir `INSS EMPREGADOR` como prova de empregado e validacao real agregada para os PDFs `05/2026` e `06/2026`, ainda sem persistencia, endpoint, watcher ou OCR. No S9.2, a trilha Dominio passou a persistir imports e movimentos com migration incremental propria, idempotencia por `organization_id + file_sha256`, matching exclusivo por `organization_id + cnpj`, resolucao de `fiscal_periods` sempre pela competencia de apuracao `M+1`, `rubrics_summary` deterministico em JSONB, criacao de `fiscal_evidences` apenas para movimentos `MATCHED`, `integration_sync_runs`, auditoria e CLI `backend/scripts/import_dominio_payroll.py` com `--dry-run` e saida segura, sem endpoint HTTP, sem watcher, sem tabela de rubricas e sem alterar DCTFWeb neste stage.
 
 Observacoes do S8.1:
 
@@ -317,7 +332,13 @@ Observacoes do S6:
 - o token e opcional no boot geral da aplicacao e obrigatorio apenas para sync real
 - o endpoint manual do S6 e `POST /api/v1/integrations/acessorias/sync` com RBAC `ADMIN|DEV`
 - o script operacional do S6 e `python -m backend.scripts.sync_acessorias_deliveries`
+- o script de backfill do S6.2 e `python -m backend.scripts.backfill_acessorias --org-slug <slug> --from-period YYYY-MM --to-period YYYY-MM`
+- ambos os fluxos aceitam `--fiscal-only` como filtro opcional de entregas
 - o modo fixture nao exige token real e reutiliza os mesmos mappers e servicos
+- o regime tributario atual oficial do Lumen e o `regime_canonical` do `acessorias_company_snapshots` vinculado a empresa local
+- `external_companies` permanece como espelho cadastral do eControle e nao recebe o regime canonico
+- o schema atual nao possui historico legal de regime; o snapshot do Acessorias representa apenas o estado atual observado
+- o backfill do S6.2 e reiniciavel por idempotencia, sem precisar de tabela de checkpoint ou migration nova
 
 Observacao S3.1:
 
@@ -624,6 +645,34 @@ Fechamento tecnico do S6:
 - o portal continua sem consultar a API externa em request do frontend; ele le apenas o read model local e os `fiscal_obligation_statuses` atualizados pelo sync
 - o S6 nao baixa anexos, nao usa endpoints `POST`, nao transmite obrigacoes e nao inicia watcher nem conciliacao do S11
 
+Fechamento tecnico do S6.2 em 2026-07-30:
+
+- o backfill retroativo do Acessorias ficou materializado em `backend/app/services/integrations/acessorias/backfill.py` e `backend/scripts/backfill_acessorias.py`
+- a fase cadastral executa uma sincronizacao unica de empresas para preencher `acessorias_company_snapshots`, reconciliar por CNPJ e resolver o regime atual oficial
+- a fase de entregas processa `fiscal_periods` existentes por intervalo `YYYY-MM`, sem criar competencias implicitamente
+- `integration_sync_runs` continua sendo a trilha de rastreabilidade por competencia, agora com `run_metadata.backfill = true` e metadados de intervalo
+- o processo pode ser reiniciado integralmente por idempotencia sem duplicar snapshots ou `fiscal_obligation_statuses`
+- nenhuma migration nova foi criada, `external_companies` nao foi alterada, nenhuma tabela nova foi criada e nenhum frontend foi alterado
+
+Validacao operacional do S6.2 em 2026-08-03:
+
+- backfill real executado com sucesso por `python -m backend.scripts.backfill_acessorias --org-slug neto-contabilidade --from-period 2026-01 --to-period 2026-07`
+- resumo agregado validado: `periods_success = 7`, `periods_failed = 0`, `companies_received = 221`, `companies_matched = 218`, `companies_unmatched = 3`
+- o backfill de regime atual tambem foi executado: `regimes_mapped = 3` e `regimes_unmapped = 218` no resumo do run; a conferencia SQL final mostrou `223` snapshots cadastrais, `218` matches e `5` regimes mapeados
+- a fase de entregas foi concluida com `deliveries_received = 10999`, `delivery_snapshots_created = 10999`, `statuses_created = 196` e `tasks_skipped = 328`
+- os `runs` reais por competencia ficaram em `101` a `107`, todos com `status = SUCCESS`
+- a consulta SQL por competencia confirmou cobertura de `2026-01` a `2026-07`, sem lacunas no intervalo solicitado
+- a consulta SQL de duplicidades em `acessorias_delivery_snapshots` retornou `0` linhas
+- a trilha de status fiscais por competencia foi confirmada via `fiscal_obligation_statuses` com `last_source = 'ACESSORIAS_API'`
+
+Complemento tecnico do S6.2 em 2026-08-04:
+
+- o mapeamento de regime do Acessorias foi ampliado para labels reais como `Simples Nacional - Comercio e Servicos`, `Lucro Presumido - Servicos`, `Lucro Real - Comercio e Industria` e `Filial - Simples Nacional`
+- `Filial - Regime Normal` passa a herdar o regime canonico da mesma raiz de CNPJ quando houver um unico regime mapeado no grupo
+- `EntGuiaLida` passou a ser normalizado para codigos curtos como `READ` e `UNREAD`, evitando truncamento no snapshot
+- o sync mensal e o backfill passaram a aceitar `--fiscal-only` para limitar o snapshot de entregas a itens operacionais pertinentes ao fiscal
+- a suite impactada do Acessorias foi revalidada em `2026-08-04` com `29 passed`
+
 Fechamento tecnico do S7.0:
 
 - `docs/SITTAX_OBSERVED_CONTRACT.md` materializa o contrato observado do portal Sittax sem versionar o log bruto
@@ -880,3 +929,11 @@ Respostas esperadas:
 - O backend administrativo aceita ate `50` CNAEs por lote; o padrao operacional permanece `5` e o uso normal/futuro portal deve ficar em `25`.
 - O S8.3 calcula apenas potencial cadastral de Fator R; ele nao afirma uso efetivo por competencia.
 - O contrato canonico inicial de NFS-e foi congelado em `docs/NFSE_NORMALIZED_CONTRACT.md` e `backend/app/schemas/nfse.py`.
+
+## Atualizacao S8.3.1
+
+- O parser do Simples da Econet passa a tratar Fator R pela regra oficial: `>= 28% -> Anexo III` e `< 28% -> Anexo V`.
+- Casos positivos passam a ser canonicalizados como `simples_annex_default = V` e `simples_annex_conditional = III`, independentemente da ordem textual observada no HTML.
+- Menções laterais em `Nota ECONET` deixam de marcar `factor_r_applicable = true` quando nao houver regra tributaria estruturada no bloco principal.
+- O reenriquecimento real de `16` CNAEs corrigiu falsos positivos de software (`4651601`, `4751201`), corrigiu falso negativo de Fator R (`7312200`) e eliminou as combinacoes incoerentes do cache.
+- A validacao real final da org `neto-contabilidade` ficou em `244` empresas ativas, `0` CNAEs faltantes no potencial cadastral, `62` `APPLICABLE`, `169` `NOT_APPLICABLE` e `13` `UNKNOWN`, estes ultimos restritos a empresas de teste sem CNAE ativo.

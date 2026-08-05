@@ -126,6 +126,25 @@ Data de referencia: 2026-07-20
 - O client da Econet deve decodificar HTML a partir de bytes allowlisted e nunca confiar apenas em `response.text`.
 - Mudanca no parser invalida cache anterior por `parser_version`; cache fresco exige versao igual a atual.
 - O backend administrativo da Econet aceita ate `50` CNAEs por lote; o uso normal/futuro portal deve ficar em `25`.
+- O potencial cadastral de Fator R pode usar inferencia local segura sobre cache fresco quando a combinacao de Simples e anexos ja provar `NOT_APPLICABLE`.
+
+## S8.3.1 - Canonicalizacao do Fator R no cache da Econet
+
+- A regra oficial adotada no parser e no cache passa a ser: `Fator R >= 28% => Anexo III` e `Fator R < 28% => Anexo V`.
+- Quando o HTML da Econet expressar caso positivo de Fator R, o armazenamento canonico fica em `simples_annex_default = V` e `simples_annex_conditional = III`, independentemente da ordem textual observada.
+- A deteccao de Fator R nao deve usar mencoes incidentais em `Nota ECONET`; ela precisa partir da regra tributaria estruturada do bloco principal do Simples.
+- `factor_r_applicable = true` sem combinacao canonica coerente entre anexos passa a ser tratado como sinal de cache historico inconsistente e exige refresh direcionado.
+
+## S6.2 - Backfill operacional do Acessorias
+
+- O regime tributario atual oficial da empresa no Lumen e o `regime_canonical` do `acessorias_company_snapshots` vinculado a empresa local.
+- O regime atual oficial nao pertence a `external_companies`.
+- O schema atual nao possui historico legal de regimes; o snapshot do Acessorias representa somente o regime atual observado.
+- O snapshot atual do Acessorias nao deve ser aplicado retroativamente a competencias antigas sem outra evidencia.
+- O backfill do Acessorias foi dividido em duas fases: uma sincronizacao cadastral unica para estado atual e um processamento serial de entregas por competencia.
+- O backfill reutiliza apenas tabelas e servicos existentes; nenhuma migration, tabela nova ou coluna nova foi necessaria.
+- A retomada operacional do backfill ocorre por idempotencia de snapshots e `fiscal_obligation_statuses`, sem `--resume` heuristico nesta primeira versao.
+- O backfill do Acessorias permanece estritamente read-only contra a origem externa e usa somente os endpoints `GET` oficiais de empresas e entregas.
 
 ## S9.0 - Dominio Folha documental
 
@@ -140,3 +159,18 @@ Data de referencia: 2026-07-20
 - O matching futuro usara CNPJ.
 - A idempotencia futura do arquivo usara SHA-256, nao nome, tamanho ou timestamp.
 - O coletor usa `.partial.pdf` e `os.replace` para preservar o ultimo PDF valido ate a nova validacao.
+
+## S9.2 - Persistencia, importador, matching e evidencias
+
+- O S9.2 cria apenas `dominio_payroll_imports` e `dominio_payroll_company_movements`.
+- O PDF nao e persistido como blob, base64 ou texto integral na tabela de imports.
+- A idempotencia de import ficou em `organization_id + file_sha256`.
+- O matching automatico do Dominio usa somente `organization_id + cnpj`.
+- `source_payroll_competence` e `assessment_competence` permanecem separadas no banco.
+- `fiscal_period_id` do movimento aponta sempre para a competencia de apuracao `M+1`, nunca para a competencia original da folha.
+- `rubrics_summary` ficou consolidado em JSONB deterministico; nao existe tabela de rubricas no MVP.
+- `fiscal_evidences` do Dominio so nascem para movimentos `MATCHED`.
+- `integration_sync_runs` e `audit_log` guardam apenas agregados seguros; `raw_text`, CNPJ e rubricas completas ficam fora desses registros.
+- `--dry-run` executa parser e matching, mas nao grava import, movimento, periodo, evidencia, sync run ou auditoria.
+- Duplicidade concluida pelo mesmo hash e `no-op`; retry de `FAILED` reutiliza a mesma linha de import.
+- O S9.2 nao altera `fiscal_obligation_statuses`, nao marca DCTFWeb como entregue e nao antecipa regras do S9.3.

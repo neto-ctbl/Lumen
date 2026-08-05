@@ -815,6 +815,72 @@ Decisoes novas:
 - manter rollback de codigo e migration coordenados; durante downgrade controlado das tabelas `acessorias_*`, o read model deve ser revertido junto da migration em deploy real
 - para validacao manual via endpoint HTTP, o usuario autenticado precisa pertencer a uma organizacao que possua `external_companies` correspondentes ao tenant consultado no Acessorias; no ambiente local isso significou diferenciar `lumen` de `neto-contabilidade`
 
+## S6.2 - Backfill operacional retroativo do Acessorias
+
+Status: concluido em 2026-08-03
+
+Objetivo:
+- materializar um backfill reproduzivel para preencher os dados do Acessorias usando apenas schema e servicos ja existentes
+
+Entregues:
+- `backend/app/services/integrations/acessorias/backfill.py`
+- `backend/scripts/backfill_acessorias.py`
+- `backend/tests/test_acessorias_backfill.py`
+- `backend/tests/test_backfill_acessorias_script.py`
+- reaproveitamento do sync Acessorias existente com `run_metadata` adicional para rastrear backfill por competencia
+- ampliacao do mapeamento de regimes reais do Acessorias, incluindo filiais
+- normalizacao segura de `EntGuiaLida` no snapshot de entregas
+- filtro opcional `--fiscal-only` no sync mensal e no backfill
+
+Decisoes novas:
+- o regime tributario atual oficial da empresa no Lumen e o `regime_canonical` do `acessorias_company_snapshots` vinculado a empresa local
+- `external_companies` continua sendo apenas espelho cadastral do eControle
+- o schema atual nao possui historico legal de regime; o snapshot do Acessorias representa somente o estado atual observado
+- o backfill foi dividido em duas fases: sincronizacao cadastral unica e processamento serial de entregas por intervalo
+- a retomada do backfill e baseada em idempotencia de snapshots e `fiscal_obligation_statuses`, sem `--resume` heuristico
+- `Filial - Regime Normal` deve herdar o regime canonico da mesma raiz de CNPJ quando houver um unico regime mapeado no grupo
+- `--fiscal-only` limita o snapshot de entregas a itens operacionais pertinentes ao fiscal, sem alterar o comportamento padrao quando a flag nao e usada
+
+Validacao esperada:
+- `python -m backend.scripts.backfill_acessorias --org-slug <slug> --from-period YYYY-MM --to-period YYYY-MM`
+- `pytest backend/tests/test_acessorias_backfill.py backend/tests/test_backfill_acessorias_script.py`
+
+Validacao executada:
+- `python -m backend.scripts.backfill_acessorias --org-slug neto-contabilidade --from-period 2026-01 --to-period 2026-07`
+- conferencia SQL de `acessorias_company_snapshots`, `acessorias_delivery_snapshots` e `fiscal_obligation_statuses`
+- consulta de duplicidades por `organization_id + external_company_id + external_delivery_id`
+- `pytest backend/tests/test_acessorias_mapper.py backend/tests/test_acessorias_sync.py backend/tests/test_acessorias_backfill.py backend/tests/test_backfill_acessorias_script.py -q`
+
+Resultados principais validados em 2026-08-03:
+- backfill concluido com `status = SUCCESS`
+- intervalo processado integralmente com `periods_success = 7` e `periods_failed = 0`
+- fase cadastral executada com `companies_received = 221`, `companies_matched = 218` e `companies_unmatched = 3`
+- regime atual oficial do Acessorias retroalimentado em snapshot; o resumo do run registrou `regimes_mapped = 3` e `regimes_unmapped = 218`
+- conferencia SQL final de cadastro mostrou `223` snapshots de empresa, `218` vinculados a empresa local e `5` com `regime_mapping_status = 'MAPPED'`
+- fase de entregas concluida com `deliveries_received = 10999`, `delivery_snapshots_created = 10999`, `statuses_created = 196` e `tasks_skipped = 328`
+- nenhuma duplicidade encontrada em `acessorias_delivery_snapshots`
+
+Complementos validados em 2026-08-04:
+
+- labels reais de regime do Acessorias passaram a normalizar corretamente para `SIMPLES_NACIONAL`, `MEI`, `LUCRO_PRESUMIDO`, `LUCRO_REAL` e `IMUNE_ISENTA`
+- `Filial - Simples Nacional` ficou mapeado diretamente para `SIMPLES_NACIONAL`
+- `Filial - Regime Normal` ficou coberto por inferencia segura a partir da mesma raiz de CNPJ
+- `EntGuiaLida` passou a ser normalizado para valores curtos compativeis com `guide_read_status`
+- `--fiscal-only` ficou coberto em sync e backfill sem regressao do comportamento padrao
+- regressao impactada do Acessorias executada com `29 passed`
+
+Confirmacoes de escopo:
+- nenhuma migration nova
+- nenhuma tabela nova
+- nenhuma alteracao em `external_companies`
+- nenhuma alteracao de frontend
+- somente endpoints `GET` do Acessorias
+- nenhum download de anexo
+- nenhuma transmissao fiscal
+
+Observacao:
+- o S6.2 e micro-stage complementar e nao reabre S7, S8 ou outros stages posteriores
+
 ## S7 - Sittax read-only: Simples, DAS, DIFAL e documentos fiscais
 
 Status: pendente
@@ -1446,7 +1512,8 @@ Esta secao substitui o rascunho anterior do macro-stage `S8`. O estado real do r
 * `S8.0`: concluido no commit `f862b84`
 * `S8.1`: concluido no commit `6164f7e`
 * `S8.2`: concluido no commit `02cb7e4`
-* `S8.3`: concluido e validado, aguardando commit
+* `S8.3`: concluido e validado
+* `S8.3.1`: concluido em 2026-08-05 como micro-stage complementar de correção semantica do parser de Fator R, saneamento do cache e validacao real final
 * `S8.4`: NAO INICIADO
 
 ### Macro-stage S8
@@ -1767,6 +1834,59 @@ Escopo apenas planejado:
 * acoes administrativas de import, probe, clear e enrichment de pendentes
 * tabela de CNAEs da empresa
 * exibicao do potencial de Fator R
+
+Validacao real complementar executada em 2026-08-05:
+
+* `.\.venv\Scripts\python.exe .\backend\scripts\backfill_company_cnaes.py --org-slug neto-contabilidade --only-active`
+* `node .\scripts\scan\export_econet_session.js`
+* `POST /api/v1/integrations/econet/session/import`
+* `POST /api/v1/integrations/econet/session/probe`
+* `POST /api/v1/integrations/econet/enrich` com `16` CNAEs em `dry_run = true`, `force_refresh = true`
+* `POST /api/v1/integrations/econet/enrich` com os mesmos `16` CNAEs em `dry_run = false`, `force_refresh = true`
+* `docker compose -f .\infra\docker-compose.yml exec -T postgres psql -U lumen -d lumen -c "select count(*) as suspicious_true ..."`
+* `docker compose -f .\infra\docker-compose.yml exec -T postgres psql -U lumen -d lumen -c "select count(*) as suspicious_false ..."`
+* `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_econet_parser.py .\backend\tests\test_factor_r_service.py .\backend\tests\test_econet_enrichment_service.py .\backend\tests\test_econet_enrichment_endpoint.py -q`
+
+Resultado real consolidado em 2026-08-05:
+
+* `16` CNAEs historicamente inconsistentes foram reenriquecidos com `updated = 16`
+* `suspicious_true = 0`
+* `suspicious_false = 0`
+* `factor_r_null = 0`
+* org `neto-contabilidade`: `244` empresas ativas, `missing_unique_cnaes = 0`, `APPLICABLE = 62`, `NOT_APPLICABLE = 169`, `UNKNOWN = 13`
+* os `13` `UNKNOWN` remanescentes correspondem a empresas de teste sem CNAE ativo no catalogo local
+
+### Micro-stage S8.3.1 - Correcao semantica do parser de Fator R e saneamento final do cache
+
+Status: concluido em 2026-08-05
+
+Objetivo:
+
+* corrigir a interpretacao de Fator R no parser da Econet para alinhar o cache a regra oficial da LC 123
+* eliminar falsos positivos e falsos negativos historicos do `econet_cnae_cache`
+* fechar a validacao real do S8.3 com base confiavel para `factor_r_potential`
+
+Entregues:
+
+* canonicalizacao dos casos positivos de Fator R para `Anexo V -> Anexo III`
+* deteccao estruturada do bloco tributario do Simples, ignorando mencoes incidentais em `Nota ECONET`
+* correcao dos falsos positivos `4651601` e `4751201`
+* correcao do falso negativo `7312200`
+* reenriquecimento controlado de `16` CNAEs afetados
+* novo teste de servico `backend/tests/test_factor_r_service.py`
+* ampliacao da suite `backend/tests/test_econet_parser.py`
+
+Decisoes novas:
+
+* a regra oficial a considerar no parser e no cache e: `Fator R >= 28% => Anexo III` e `Fator R < 28% => Anexo V`
+* a ordem textual observada no HTML da Econet nao define semantica; o armazenamento canonico para caso positivo passa a ser `default = V`, `conditional = III`
+* mencoes laterais a eventual reenquadramento tributario, sem regra estruturada no bloco principal, nao provam Fator R aplicavel
+
+Aceite:
+
+* combinacoes incoerentes entre anexos e `factor_r_applicable` zeradas no cache
+* `factor_r_potential` sem `missing_cnaes` para a org validada
+* suites focadas do parser, enrichment e servico de Fator R aprovadas
 * cobertura, revisao manual, RBAC e E2E dedicados
 
 ---
@@ -1855,6 +1975,24 @@ Validação planejada do S9.0:
 .\.venv\Scripts\python.exe -m ruff check .\backend\app\services\integrations\dominio .\backend\tests\test_dominio_payroll_contract.py .\backend\tests\test_dominio_payroll_competence.py
 .\.venv\Scripts\python.exe -m py_compile .\scripts\collectors\dominio\gerar_resumo_mensal_dominio.py
 ```
+
+## Addendum S9 Roadmap
+
+- `S9.2` = Persistencia, importador, matching e cobertura documental.
+- `S9.3` = Origem DCTFWeb, departamentos e alertas.
+- `S9.4` = Fator R historico e reconciliacao com Sittax.
+- `S9.5` = API, watcher, frontend e E2E.
+
+Alertas planejados para `S9.4`:
+
+- `FACTOR_R_HISTORY_REQUIRED`
+- `FACTOR_R_MONTHLY_REPORT_MISSING`
+- `DOMINIO_FACTOR_R_FILTER_UPDATE_REQUIRED`
+- `FACTOR_R_ESTIMATE_INCOMPLETE`
+- `FACTOR_R_THRESHOLD_DIVERGENCE`
+- `FACTOR_R_PERCENTAGE_DIVERGENCE`
+- `FACTOR_R_ANNEX_MISMATCH`
+- `FACTOR_R_NOT_APPLIED`
 
 Validação executada no fechamento do S9.0 em 2026-07-29:
 
@@ -2004,6 +2142,59 @@ Planejamento:
 * unmatched sem interromper o lote;
 * PDF não armazenado como blob no banco;
 * `rubrics_summary` como JSONB em vez de tabela de rubricas no MVP.
+
+Fechamento tecnico S9.2 em 2026-07-30:
+
+Status: concluido
+
+Entregues:
+
+* migration `20260730_0012_create_dominio_payroll_tables.py`;
+* modelos `DominioPayrollImport` e `DominioPayrollCompanyMovement`;
+* tabelas `dominio_payroll_imports` e `dominio_payroll_company_movements`;
+* importador `backend/app/services/integrations/dominio/importer.py`;
+* matching por CNPJ em `backend/app/services/integrations/dominio/matching.py`;
+* CLI `backend/scripts/import_dominio_payroll.py`;
+* testes `test_dominio_payroll_models.py`, `test_dominio_payroll_matching.py`, `test_dominio_payroll_importer.py` e `test_dominio_payroll_cli.py`;
+* persistencia de `source_payroll_competence` e `assessment_competence`;
+* resolucao de `fiscal_period_id` sempre pela competencia de apuracao `M+1`;
+* `rubrics_summary` deterministico em JSONB;
+* criacao de `fiscal_evidences` apenas para movimentos `MATCHED`;
+* `integration_sync_runs` e auditoria para imports reais;
+* `--dry-run` sem escrita.
+
+Validacao executada:
+
+* `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_dominio_payroll_contract.py .\backend\tests\test_dominio_payroll_competence.py .\backend\tests\test_dominio_payroll_normalization.py .\backend\tests\test_dominio_payroll_rubrics.py .\backend\tests\test_dominio_payroll_parser.py .\backend\tests\test_dominio_payroll_models.py .\backend\tests\test_dominio_payroll_matching.py .\backend\tests\test_dominio_payroll_importer.py .\backend\tests\test_dominio_payroll_cli.py -q`;
+* `.\.venv\Scripts\python.exe -m pytest .\backend\tests -q`;
+* `.\.venv\Scripts\python.exe -m ruff check .\backend\app\models\dominio_payroll.py .\backend\app\services\integrations\dominio .\backend\scripts\import_dominio_payroll.py .\backend\tests\test_dominio_payroll_models.py .\backend\tests\test_dominio_payroll_matching.py .\backend\tests\test_dominio_payroll_importer.py .\backend\tests\test_dominio_payroll_cli.py`;
+* `.\.venv\Scripts\python.exe -m py_compile .\backend\app\models\dominio_payroll.py .\backend\app\services\integrations\dominio\importer.py .\backend\app\services\integrations\dominio\matching.py .\backend\scripts\import_dominio_payroll.py`;
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head`;
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini current`;
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini heads`;
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini downgrade 20260724_0011`;
+* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head`;
+* `git diff --check`;
+* `.\.venv\Scripts\python.exe .\backend\scripts\import_dominio_payroll.py --organization-slug neto-contabilidade --file ".\scripts\collectors\dominio\Relatorios_Dominio\Resumo_Mensal_05-2026.pdf" --dry-run --json`;
+* `.\.venv\Scripts\python.exe .\backend\scripts\import_dominio_payroll.py --organization-slug neto-contabilidade --file ".\scripts\collectors\dominio\Relatorios_Dominio\Resumo_Mensal_06-2026.pdf" --dry-run --json`.
+
+Resultados:
+
+* migration incremental criada, com upgrade, downgrade para `20260724_0011` e upgrade novamente;
+* nenhuma tabela de rubricas criada;
+* unique `organization_id + file_sha256` e unique `import_id + source_company_key` ativos;
+* matching automatico restrito a `organization_id + cnpj`;
+* `fiscal_period_id` dos movimentos e evidencias apontando para a apuracao `M+1`;
+* duplicidade concluida como `no-op`;
+* retry de `FAILED` coberto por teste sintetico;
+* `--dry-run` sem escrita;
+* nenhuma alteracao em `fiscal_obligation_statuses`;
+* validacao real em `--dry-run` concluida para `05/2026` e `06/2026` sem expor identificadores.
+
+Pendencias nao bloqueantes:
+
+* `git diff --check` reportou apenas warnings de `LF -> CRLF` na copia de trabalho;
+* a suite completa segue com `StarletteDeprecationWarning` preexistente.
 
 ### S9.3 - Origem DCTFWeb, departamentos e alertas
 

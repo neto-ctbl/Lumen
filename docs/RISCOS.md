@@ -69,6 +69,8 @@ Data de referencia: 2026-07-20
 - Sessao manual pode expirar no meio do reprocessamento integral e deixar parte do cache em versao antiga.
 - `cTribMun` pode nao representar CNAE em alguns municipios.
 - XML real pode conter certificado, assinatura e dados pessoais e nao pode virar fixture.
+- Mudanca de microcopy no bloco principal do Simples pode reintroduzir deteccao incorreta de Fator R mesmo com notas laterais ignoradas.
+- Um mesmo CNAE pode trazer multiplas descricoes tributarias no HTML observado; o parser precisa continuar privilegiando a regra estruturada e nao a primeira ocorrencia de `Anexo`.
 
 ## S9.0
 
@@ -82,3 +84,11 @@ Data de referencia: 2026-07-20
 - Confundir competencia da folha com competencia de apuracao pode contaminar DCTFWeb, alertas e Fator R.
 - Concorrencia entre duas execucoes do coletor pode sobrescrever artefatos sem lock local.
 - Fixtures podem vazar dado real se nomes, CNPJs ou valores observados forem copiados sem sanitizacao.
+
+## S9.2
+
+- Concorrencia entre duas importacoes do mesmo arquivo depende da constraint `organization_id + file_sha256` e do tratamento correto de `IntegrityError`.
+- CNPJ invalido, ausente ou sem match nao pode interromper o lote, mas aumenta fila de revisao manual.
+- `raw_text` persistido em movimento exige cuidado para nao vazar em log, erro, auditoria ou `integration_sync_runs`.
+- Retry de import `FAILED` precisa limpar movimentos e evidencias anteriores para nao produzir duplicidade.
+- Arquivo com multiplas competencias de apuracao pode deixar `assessment_period_id` do import nulo e exigir leitura por movimento.

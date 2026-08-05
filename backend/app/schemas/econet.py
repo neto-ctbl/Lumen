@@ -76,6 +76,7 @@ class EconetEnrichmentResponse(BaseModel):
     summary: dict[str, object]
     items: list[EconetEnrichmentItemResponse]
     catalog_summary: dict[str, object] | None = None
+    factor_r_results: list["FactorRPotentialResponse"] | None = None
 
 
 class CompanyCnaeItemResponse(BaseModel):
@@ -105,3 +106,6 @@ class FactorRPotentialResponse(BaseModel):
     annex_default: str | None = None
     annex_conditional: str | None = None
     factor_r_threshold: Decimal | None = None
+
+
+EconetEnrichmentResponse.model_rebuild()

@@ -127,9 +127,9 @@ def test_parse_simples_prohibited() -> None:
 
 def test_parse_simples_does_not_infer_factor_r() -> None:
     result = parse_simples_nacional(read_text(fixture_path("tax_simples_nacional.html")))
-    assert result.factor_r_applicable is None
+    assert result.factor_r_applicable is False
     assert result.factor_r_threshold is None
-    assert result.factor_r_status == EconetSemanticStatus.NOT_OBSERVED
+    assert result.factor_r_status == EconetSemanticStatus.PARSED
 
 
 def test_parse_factor_r_positive() -> None:
@@ -191,23 +191,24 @@ def test_factor_r_threshold_is_decimal() -> None:
 
 def test_factor_r_absent_remains_not_observed() -> None:
     result = parse_simples_nacional(read_text(fixture_path("tax_simples_nacional.html")))
-    assert result.factor_r_applicable is None
+    assert result.factor_r_applicable is False
     assert result.factor_r_threshold is None
-    assert result.factor_r_status == EconetSemanticStatus.NOT_OBSERVED
+    assert result.factor_r_status == EconetSemanticStatus.PARSED
 
 
 def test_unrelated_percentage_is_not_factor_r_threshold() -> None:
     html = """
     <html><body>
       <p>Simples Nacional</p>
-      <p>Anexo V.</p>
+      <p>Anexo I.</p>
       <p>Aliquota nominal de 6%.</p>
       <p>Servico sujeito ao ISS de 5%.</p>
     </body></html>
     """
     result = parse_simples_nacional(html)
     assert result.factor_r_threshold is None
-    assert result.factor_r_status == EconetSemanticStatus.NOT_OBSERVED
+    assert result.factor_r_applicable is False
+    assert result.factor_r_status == EconetSemanticStatus.PARSED
 
 
 def test_same_default_and_conditional_annex_becomes_none() -> None:
@@ -228,6 +229,36 @@ def test_distinct_conditional_annex_is_preserved() -> None:
     result = parse_simples_nacional(read_text(fixture_path("tax_simples_factor_r_positive.html")))
     assert result.annex_default == "V"
     assert result.annex_conditional == "III"
+
+
+def test_parse_factor_r_positive_when_econet_lists_annex_iii_first() -> None:
+    html = """
+    <html><body>
+      <p>Simples Nacional</p>
+      <p>Prestacao de Servico - A tributacao sera determinada pelo Anexo III, sujeito ao Fator "r".</p>
+      <p>A atividade sera tributada pelo Anexo V quando o Fator "r" for inferior a 28%.</p>
+    </body></html>
+    """
+    result = parse_simples_nacional(html)
+    assert result.factor_r_applicable is True
+    assert result.factor_r_threshold == Decimal("28.00")
+    assert result.annex_default == "V"
+    assert result.annex_conditional == "III"
+
+
+def test_parse_factor_r_note_without_rule_does_not_mark_true() -> None:
+    html = """
+    <html><body>
+      <p>Simples Nacional</p>
+      <p>Atividade Comercial - A tributacao sera determinada pelo Anexo I.</p>
+      <p>Nota ECONET: a cobranca do ISS podera refletir diretamente no reenquadramento para Anexo III sujeito ao Fator "r".</p>
+    </body></html>
+    """
+    result = parse_simples_nacional(html)
+    assert result.annex_default == "I"
+    assert result.annex_conditional is None
+    assert result.factor_r_applicable is False
+    assert result.factor_r_threshold is None
 
 
 def test_annex_iv_has_no_conditional_annex() -> None:

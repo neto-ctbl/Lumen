@@ -12,6 +12,7 @@ from backend.app.core.config import Settings, get_settings
 from backend.app.core.enums import EconetEnrichmentItemStatus
 from backend.app.models.econet_cnae_cache import EconetCnaeCache
 from backend.app.services.company_cnae_catalog import get_unique_active_cnaes, sync_organization_cnae_catalog
+from backend.app.services.factor_r import FactorRPotentialResult, get_company_factor_r_potential
 from backend.app.services.integrations.econet.activity_classifier import classify_cache_description, classify_company_activity_types
 from backend.app.services.integrations.econet.cache import is_current_parser_version, is_cache_entry_fresh, upsert_econet_cnae_cache
 from backend.app.services.integrations.econet.client import EconetClient
@@ -55,6 +56,7 @@ class EnrichmentRunResult:
     summary: dict[str, Any]
     items: list[EnrichmentItemResult]
     catalog_summary: dict[str, Any]
+    factor_r_results: list[FactorRPotentialResult] | None = None
 
 
 def enrich_cnaes(
@@ -73,6 +75,7 @@ def enrich_cnaes(
 ) -> EnrichmentRunResult:
     observed_settings = settings or get_settings()
     effective_limit = min(limit or observed_settings.econet_enrich_default_limit, observed_settings.econet_enrich_max_limit)
+    unique_company_ids = sorted(set(company_ids or []))
     catalog_summary: dict[str, Any] = {}
     if sync_catalog and company_ids:
         catalog_results = [
@@ -144,10 +147,16 @@ def enrich_cnaes(
     if classify_companies and company_ids:
         for company_id in company_ids:
             classify_company_activity_types(session, company_id=company_id, dry_run=dry_run)
+    if not dry_run:
+        session.flush()
+    factor_r_results = None
+    if unique_company_ids and not dry_run:
+        factor_r_results = [
+            get_company_factor_r_potential(session, company_id=company_id)
+            for company_id in unique_company_ids
+        ]
     if dry_run:
         session.rollback()
-    else:
-        session.flush()
     statuses = [item.status for item in items]
     status = "SUCCESS"
     if any(item in {EconetEnrichmentItemStatus.SESSION_NOT_VALID.value, EconetEnrichmentItemStatus.SESSION_EXPIRED.value, EconetEnrichmentItemStatus.TRANSPORT_ERROR.value} for item in statuses):
@@ -162,7 +171,14 @@ def enrich_cnaes(
         "unchanged": sum(item.status == EconetEnrichmentItemStatus.UNCHANGED.value for item in items),
         "errors": sum(item.status in {EconetEnrichmentItemStatus.INVALID_CNAE.value, EconetEnrichmentItemStatus.TRANSPORT_ERROR.value, EconetEnrichmentItemStatus.SESSION_NOT_VALID.value} for item in items),
     }
-    return EnrichmentRunResult(status=status, dry_run=dry_run, summary=summary, items=items, catalog_summary=catalog_summary)
+    return EnrichmentRunResult(
+        status=status,
+        dry_run=dry_run,
+        summary=summary,
+        items=items,
+        catalog_summary=catalog_summary,
+        factor_r_results=factor_r_results,
+    )
 
 
 def _resolve_target_cnaes(

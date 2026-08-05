@@ -12,6 +12,8 @@ from backend.app.models.company_cnae import CompanyCnae
 from backend.app.models.econet_cnae_cache import EconetCnaeCache
 from backend.app.services.integrations.econet.cache import is_cache_entry_fresh
 
+NON_FACTOR_R_ANNEXES = {"I", "II", "III", "IV", "VI"}
+
 
 @dataclass(frozen=True, slots=True)
 class FactorRPotentialResult:
@@ -58,11 +60,15 @@ def get_company_factor_r_potential(session: Session, *, company_id: int) -> Fact
     covered = 0
     for item in active_cnaes:
         cache = cache_map.get(item.cnae)
-        if not is_cache_entry_fresh(cache, now=now) or cache.factor_r_applicable is None:
+        if not is_cache_entry_fresh(cache, now=now):
+            missing.append(item.cnae)
+            continue
+        factor_r_applicable = _resolve_factor_r_applicable(cache)
+        if factor_r_applicable is None:
             missing.append(item.cnae)
             continue
         covered += 1
-        if cache.factor_r_applicable:
+        if factor_r_applicable:
             positives.append(item.cnae)
             chosen = chosen or cache
         else:
@@ -100,3 +106,21 @@ def get_company_factor_r_potential(session: Session, *, company_id: int) -> Fact
         annex_conditional=None,
         factor_r_threshold=None,
     )
+
+
+def _resolve_factor_r_applicable(cache: EconetCnaeCache) -> bool | None:
+    if cache.factor_r_applicable is not None:
+        return cache.factor_r_applicable
+    if cache.simples_allowed is False or cache.simples_status == "PROHIBITED":
+        return False
+    annex_default = cache.simples_annex_default
+    annex_conditional = cache.simples_annex_conditional
+    if annex_default is None:
+        return None
+    if annex_default == "V":
+        return True if annex_conditional == "III" else False
+    if annex_default in NON_FACTOR_R_ANNEXES:
+        return False
+    if annex_conditional is not None:
+        return False
+    return None

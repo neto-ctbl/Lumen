@@ -16,6 +16,7 @@ from backend.app.schemas.econet import (
     EconetSessionClearResponse,
     EconetSessionImportRequest,
     EconetEnrichmentItemResponse,
+    FactorRPotentialResponse,
     EconetSessionProbeResponse,
     EconetSessionStatusResponse,
 )
@@ -148,6 +149,7 @@ def enrich_econet_cnaes(
         db.rollback()
     else:
         db.commit()
+    factor_r_results = getattr(result, "factor_r_results", None)
     return EconetEnrichmentResponse(
         run_id=sync_run.id if not body.dry_run else None,
         status=result.status,
@@ -155,4 +157,24 @@ def enrich_econet_cnaes(
         summary=result.summary,
         items=[EconetEnrichmentItemResponse(**asdict(item)) for item in result.items],
         catalog_summary=result.catalog_summary,
+        factor_r_results=(
+            [
+                FactorRPotentialResponse(
+                    company_id=item.company_id,
+                    status=item.status,
+                    factor_r_potential=item.factor_r_potential,
+                    cnaes_total=item.cnaes_total,
+                    cnaes_with_cache=item.cnaes_with_cache,
+                    positive_cnaes=item.positive_cnaes,
+                    negative_cnaes=item.negative_cnaes,
+                    missing_cnaes=item.missing_cnaes,
+                    annex_default=item.annex_default,
+                    annex_conditional=item.annex_conditional,
+                    factor_r_threshold=item.factor_r_threshold,
+                )
+                for item in factor_r_results
+            ]
+            if factor_r_results is not None
+            else None
+        ),
     )

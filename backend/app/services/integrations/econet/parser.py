@@ -33,6 +33,17 @@ FACTOR_R_CONTEXT_RE = re.compile(
     r"([^.]*fator[^.]*r[^.]*?(?:igual\s+ou\s+superior\s+a|>=|maior\s+ou\s+igual\s+a)?[^.]*\d+(?:[.,]\d+)?\s*%[^.]*)",
     flags=re.IGNORECASE,
 )
+FACTOR_R_POSITIVE_PATTERNS = (
+    re.compile(
+        r"Anexo\s+III\b.*?sujeit[oa]\s+ao\s+Fator\s+\"?r\"?.*?Anexo\s+V\b.*?Fator\s+\"?r\"?\s+for\s+inferior\s+a\s+28(?:[.,]0+)?%",
+        flags=re.IGNORECASE | re.DOTALL,
+    ),
+    re.compile(
+        r"Anexo\s+V\b.*?sujeit[oa]\s+ao\s+Fator\s+\"?r\"?.*?Anexo\s+III\b.*?Fator\s+\"?r\"?\s+for\s+(?:igual\s+ou\s+superior\s+a|maior\s+ou\s+igual\s+a|>=)\s*28(?:[.,]0+)?%",
+        flags=re.IGNORECASE | re.DOTALL,
+    ),
+)
+NON_FACTOR_R_DEFAULT_ANNEXES = {"I", "II", "III", "IV", "VI"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -257,6 +268,7 @@ def parse_lucro_real_estimativa(html: str | bytes) -> EconetActualProfitResult:
 def parse_simples_nacional(html: str | bytes) -> EconetSimplesResult:
     soup = _parse_html(html, expected_markers=("Simples Nacional",))
     text = _clean_text(soup.get_text(" ", strip=True))
+    ascii_text = unidecode(text)
     norm_text = _norm(text)
     if "impedida ao simples nacional" in norm_text or "impedido ao simples nacional" in norm_text:
         return EconetSimplesResult(
@@ -264,14 +276,13 @@ def parse_simples_nacional(html: str | bytes) -> EconetSimplesResult:
             allowed=False,
             annex_default=None,
             annex_conditional=None,
-            factor_r_applicable=None,
+            factor_r_applicable=False,
             factor_r_threshold=None,
-            factor_r_status=EconetSemanticStatus.NOT_OBSERVED,
+            factor_r_status=EconetSemanticStatus.PARSED,
             reason_text=text,
         )
 
-    annexes = [_normalize_annex(match) for match in re.findall(r"Anexo\s+([IVX]+)", text, flags=re.IGNORECASE)]
-    annexes = [annex for annex in annexes if annex is not None]
+    annexes = _extract_simples_annexes(text)
     annex_default = annexes[0] if annexes else None
     annex_conditional = annexes[1] if len(annexes) > 1 else None
     if annex_conditional == annex_default:
@@ -289,13 +300,27 @@ def parse_simples_nacional(html: str | bytes) -> EconetSimplesResult:
         or "sem fator r" in norm_text
     )
     factor_r_threshold = _extract_factor_r_threshold(text)
-    if negative_markers:
+    positive_rule_detected = _has_explicit_factor_r_rule(ascii_text)
+    if positive_rule_detected:
+        factor_r_applicable = True
+        factor_r_status = EconetSemanticStatus.PARSED
+        factor_r_threshold = factor_r_threshold or Decimal("28.00")
+        annex_default, annex_conditional = _canonicalize_factor_r_annexes(
+            annex_default=annex_default,
+            annex_conditional=annex_conditional,
+        )
+    elif negative_markers:
+        factor_r_applicable = False
+        factor_r_status = EconetSemanticStatus.PARSED
+        factor_r_threshold = None
+    elif annex_default in NON_FACTOR_R_DEFAULT_ANNEXES:
         factor_r_applicable = False
         factor_r_status = EconetSemanticStatus.PARSED
         factor_r_threshold = None
     elif positive_markers:
-        factor_r_applicable = True
-        factor_r_status = EconetSemanticStatus.PARSED
+        factor_r_applicable = None
+        factor_r_status = EconetSemanticStatus.NOT_OBSERVED
+        factor_r_threshold = None
     else:
         factor_r_applicable = None
         factor_r_status = EconetSemanticStatus.NOT_OBSERVED
@@ -627,6 +652,37 @@ def _extract_factor_r_threshold(text: str) -> Decimal | None:
         if percent_match:
             return _to_decimal(percent_match.group(1))
     return None
+
+
+def _extract_simples_annexes(text: str) -> list[str]:
+    ascii_text = unidecode(text)
+    annexes: list[str] = []
+    structured_patterns = (
+        r"tributa(?:cao|ção)\s+sera\s+determinada\s+pelo\s+Anexo\s+([IVX]+)",
+        r"atividade\s+sera\s+tributada\s+pelo\s+Anexo\s+([IVX]+)\s+quando\s+o\s+Fator\s+\"?r\"?",
+    )
+    for pattern in structured_patterns:
+        for match in re.findall(pattern, ascii_text, flags=re.IGNORECASE):
+            annex = _normalize_annex(match)
+            if annex is not None:
+                annexes.append(annex)
+    if annexes:
+        return annexes
+    for match in re.findall(r"\bAnexo\s+([IVX]+)\b", ascii_text, flags=re.IGNORECASE):
+        annex = _normalize_annex(match)
+        if annex is not None:
+            annexes.append(annex)
+    return annexes
+
+
+def _has_explicit_factor_r_rule(text: str) -> bool:
+    return any(pattern.search(text) is not None for pattern in FACTOR_R_POSITIVE_PATTERNS)
+
+
+def _canonicalize_factor_r_annexes(*, annex_default: str | None, annex_conditional: str | None) -> tuple[str | None, str | None]:
+    if {annex_default, annex_conditional} == {"III", "V"}:
+        return "V", "III"
+    return annex_default, annex_conditional
 
 
 def _to_decimal(value: str) -> Decimal:
