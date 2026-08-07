@@ -179,3 +179,8 @@ Data de referencia: 2026-07-20
 - `--dry-run` executa parser e matching, mas nao grava import, movimento, periodo, evidencia, sync run ou auditoria.
 - Duplicidade concluida pelo mesmo hash e `no-op`; retry de `FAILED` reutiliza a mesma linha de import.
 - O S9.2 nao altera `fiscal_obligation_statuses`, nao marca DCTFWeb como entregue e nao antecipa regras do S9.3.
+- O fluxo mensal canonico do Dominio fica definido como um PDF por competencia com filtro `Ativas`.
+- `selection_scope` deve ser normalizado deterministicamente; manifests legados `Ativas` passam a ser inferidos como `ACTIVE_COMPANIES`.
+- `target_company_count` e `target_list_sha256` pertencem somente ao escopo `FACTOR_R` e nao devem vazar para imports `Ativas`.
+- A janela historica de 12 meses para Fator R deve ser montada a partir dos movimentos persistidos; filtro `Fator R` e modo intervalo ficam opcionais para auditoria, diagnostico ou contingencia.
+- O relatorio Dominio comprova movimento de folha/eSocial e componente DP, mas nao comprova transmissao da DCTFWeb nem fato gerador da REINF.

@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 from __future__ import annotations
 
 """
@@ -38,7 +39,7 @@ import win32clipboard
 from dateutil.relativedelta import relativedelta
 from dotenv import load_dotenv
 from pypdf import PdfReader
-import comtypes.gen
+import comtypes.gen  # noqa: F401
 from pywinauto import Application, Desktop
 from pywinauto.keyboard import send_keys
 
@@ -96,6 +97,8 @@ class Config:
     password: str
     competencia_de: str
     competencia_ate: str
+    company_filter: str
+    selection_scope: str
     output_path: Path
     login_timeout: int
     report_timeout: int
@@ -105,6 +108,9 @@ class Config:
     log_path: Path
     lock_path: Path
     export_retries: int
+    targets_summary_path: Path | None
+    target_company_count: int | None
+    target_list_sha256: str | None
 
 
 @dataclass(frozen=True)
@@ -204,6 +210,44 @@ def build_manifest_path(output_path: Path) -> Path:
     return output_path.with_suffix(".manifest.json")
 
 
+def normalize_company_filter_name(value: str) -> str:
+    normalized = " ".join(str(value).strip().split())
+    lowered = normalized.casefold()
+    if lowered == "ativas":
+        return "Ativas"
+    if lowered == "fator r":
+        return "Fator R"
+    return normalized or "Ativas"
+
+
+def selection_scope_from_company_filter(value: str) -> str:
+    normalized = normalize_company_filter_name(value)
+    if normalized == "Ativas":
+        return "ACTIVE_COMPANIES"
+    if normalized == "Fator R":
+        return "FACTOR_R"
+    return "CUSTOM"
+
+
+def load_targets_summary_metadata(path: Path) -> tuple[int | None, str | None]:
+    if not path.exists():
+        raise FileNotFoundError(f"Target summary manifest not found: {path}")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    target_company_count = payload.get("target_company_count")
+    target_list_sha256 = payload.get("target_list_sha256")
+    if isinstance(target_company_count, bool):
+        target_company_count = None
+    elif target_company_count is not None:
+        target_company_count = int(target_company_count)
+    if target_list_sha256 is not None:
+        target_list_sha256 = str(target_list_sha256).strip().lower() or None
+    return target_company_count, target_list_sha256
+
+
+def should_use_factor_r_targets_metadata(company_filter: str) -> bool:
+    return selection_scope_from_company_filter(company_filter) == "FACTOR_R"
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Gera o relatório Resumo Mensal do Domínio Folha em PDF."
@@ -217,6 +261,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--saida",
         help="Caminho completo do PDF. Se omitido, usa OUTPUT_DIR do .env.",
+    )
+    parser.add_argument(
+        "--company-filter",
+        default=None,
+        help='Nome do filtro de empresas no Dominio. Exemplos operacionais: "Ativas" e "Fator R".',
     )
     parser.add_argument(
         "--nao-sobrescrever",
@@ -330,12 +379,24 @@ def load_config(args: argparse.Namespace) -> Config:
         )
     )
     lock_path = script_dir / LOCK_FILE_NAME
+    company_filter = normalize_company_filter_name(
+        args.company_filter or getenv_compat("DOMINIO_COMPANY_FILTER", default="Ativas")
+    )
+    targets_summary_path = None
+    target_company_count = None
+    target_list_sha256 = None
+    targets_summary_env = getenv_compat("DOMINIO_TARGETS_SUMMARY_PATH")
+    if targets_summary_env and should_use_factor_r_targets_metadata(company_filter):
+        targets_summary_path = Path(targets_summary_env)
+        target_company_count, target_list_sha256 = load_targets_summary_metadata(targets_summary_path)
 
     return Config(
         dominio_exe=dominio_exe,
         password=password,
         competencia_de=competencia_de,
         competencia_ate=competencia_ate,
+        company_filter=company_filter,
+        selection_scope=selection_scope_from_company_filter(company_filter),
         output_path=output_path,
         login_timeout=int(getenv_compat("DOMINIO_LOGIN_TIMEOUT", "LOGIN_TIMEOUT", default="90")),
         report_timeout=int(getenv_compat("DOMINIO_REPORT_TIMEOUT", "REPORT_TIMEOUT", default="1200")),
@@ -354,6 +415,9 @@ def load_config(args: argparse.Namespace) -> Config:
                 )
             ),
         ),
+        targets_summary_path=targets_summary_path,
+        target_company_count=target_company_count,
+        target_list_sha256=target_list_sha256,
     )
 
 
@@ -432,6 +496,7 @@ def validate_pdf_file(path: Path, *, competencia: str) -> PdfValidationResult:
 
 def write_manifest(
     *,
+    config: Config,
     manifest_path: Path,
     output_path: Path,
     competencia_de: str,
@@ -443,7 +508,10 @@ def write_manifest(
         "schema_version": MANIFEST_SCHEMA_VERSION,
         "source": "DOMINIO_FOLHA_RESUMO",
         "evidence_source": "DOMINIO_FOLHA_PDF",
-        "selection_scope": "ATIVAS",
+        "selection_scope": config.selection_scope,
+        "source_filter_name": config.company_filter,
+        "target_company_count": config.target_company_count,
+        "target_list_sha256": config.target_list_sha256,
         "payroll_competence": payroll_competence,
         "assessment_competence": assessment_competence,
         "generated_at": datetime.now(ZoneInfo("America/Sao_Paulo")).isoformat(),
@@ -1133,11 +1201,7 @@ def open_resumo_mensal(app: Application, main_win, skip_existing_check: bool = F
 
     # Estratégia principal: atalhos definidos pelo próprio menu.
     try:
-        send_keys("%r")  # Alt+R: Relatórios
-        time.sleep(0.2)
-        send_keys("f")   # Folha
-        time.sleep(0.2)
-        send_keys("r")   # Resumo
+        _open_resumo_mensal_via_keyboard(main_win)
     except Exception as exc:
         logging.warning("Falha na navegação por teclado: %s", exc)
 
@@ -1151,10 +1215,9 @@ def open_resumo_mensal(app: Application, main_win, skip_existing_check: bool = F
         time.sleep(0.3)
 
     logging.warning(
-        "A janela não abriu pelos atalhos. Tentando clicar nos menus via UIA."
+        "A janela não abriu pelos atalhos. Tentando fallback pelo menu Win32."
     )
 
-    # Fallback UIA para menus que estejam expostos na árvore de acessibilidade.
     main_win.set_focus()
     close_startup_popups(timeout=0.2, app=app, main_win=main_win)
 
@@ -1164,13 +1227,15 @@ def open_resumo_mensal(app: Application, main_win, skip_existing_check: bool = F
         report_win.set_focus()
         return report_win
 
-    # O fallback por menu UIA global tem sido instável. Reaplica os atalhos
-    # com o foco saneado e prioriza a detecção do formulário já aberto.
-    send_keys("%r")
-    time.sleep(0.2)
-    send_keys("f")
-    time.sleep(0.2)
-    send_keys("r")
+    try:
+        if _open_resumo_mensal_via_win32_menu(main_win):
+            logging.info("Comando do menu Win32 enviado com sucesso.")
+        else:
+            logging.warning("Fallback Win32 não encontrou um caminho de menu compatível.")
+            _open_resumo_mensal_via_keyboard(main_win)
+    except Exception as exc:
+        logging.warning("Fallback Win32 falhou: %s", exc)
+        _open_resumo_mensal_via_keyboard(main_win)
 
     deadline = time.time() + 8
     report_win = None
@@ -1181,9 +1246,38 @@ def open_resumo_mensal(app: Application, main_win, skip_existing_check: bool = F
             break
         time.sleep(0.3)
     if report_win is None:
-        raise TimeoutError("A janela 'Resumo Mensal' não foi localizada após o fallback UIA.")
-    logging.info("Janela 'Resumo Mensal' aberta pelo fallback UIA.")
+        raise TimeoutError("A janela 'Resumo Mensal' não foi localizada após as tentativas de menu.")
+    logging.info("Janela 'Resumo Mensal' aberta pelo fallback de menu.")
     return report_win
+
+
+def _open_resumo_mensal_via_keyboard(main_win) -> None:
+    main_win.set_focus()
+    send_keys("%r")
+    time.sleep(0.25)
+    send_keys("f")
+    time.sleep(0.25)
+    send_keys("r")
+
+
+def _open_resumo_mensal_via_win32_menu(main_win) -> bool:
+    process_id = main_win.process_id()
+    win32_app = Application(backend="win32").connect(process=process_id)
+    win32_main = win32_app.window(class_name=MAIN_WINDOW_CLASS)
+    menu_paths = [
+        "Relatórios->Folha->Resumo",
+        "Relatorios->Folha->Resumo",
+        "Relatórios->Folha->Resumo Mensal",
+        "Relatorios->Folha->Resumo Mensal",
+    ]
+
+    for menu_path in menu_paths:
+        try:
+            win32_main.menu_select(menu_path)
+            return True
+        except Exception:
+            continue
+    return False
 
 
 def fill_competencias(report_win, config: Config) -> None:
@@ -1209,6 +1303,10 @@ def fill_competencias(report_win, config: Config) -> None:
 
 
 def select_active_companies(app: Application, report_win, main_win=None) -> None:
+    select_companies_with_filter(app, report_win, company_filter="Ativas", main_win=main_win)
+
+
+def select_companies_with_filter(app: Application, report_win, *, company_filter: str, main_win=None) -> None:
     logging.info("Abrindo o filtro de empresas.")
     report_win.set_focus()
     send_keys("%e")
@@ -1241,10 +1339,10 @@ def select_active_companies(app: Application, report_win, main_win=None) -> None
 
     send_keys("%{DOWN}")
     time.sleep(0.2)
-    send_keys("ativas", with_spaces=True)
+    send_keys(company_filter.lower(), with_spaces=True)
     send_keys("{ENTER}")
 
-    logging.info("Filtro 'Ativas' selecionado.")
+    logging.info("Filtro '%s' selecionado.", company_filter)
 
     send_keys("%o")
 
@@ -1513,7 +1611,7 @@ def run(config: Config) -> Path:
             skip_existing_check=started_new_instance,
         )
         fill_competencias(report_form, config)
-        select_active_companies(app, report_form, main_win)
+        select_companies_with_filter(app, report_form, company_filter=config.company_filter, main_win=main_win)
         generate_report(report_form)
 
         wait_report_processing(app, timeout=config.report_timeout)
@@ -1531,6 +1629,7 @@ def run(config: Config) -> Path:
         validation = validate_pdf_file(pdf_path, competencia=config.competencia_de)
         final_path = finalize_valid_pdf(config, partial_path, validation)
         write_manifest(
+            config=config,
             manifest_path=manifest_path,
             output_path=final_path,
             competencia_de=config.competencia_de,
@@ -1566,6 +1665,7 @@ def main() -> int:
         logging.info("Automação Domínio Folha - Resumo Mensal")
         logging.info("Competência inicial: %s", config.competencia_de)
         logging.info("Competência final: %s", config.competencia_ate)
+        logging.info("Filtro de empresas: %s", config.company_filter)
         logging.info("Destino: %s", config.output_path)
         if config.competencia_de == config.competencia_ate:
             payroll_competence, assessment_competence = map_payroll_to_assessment_competence(config.competencia_de)
@@ -1576,7 +1676,7 @@ def main() -> int:
             )
         else:
             logging.warning(
-                "Range mode enabled from %s to %s. Lumen should prefer a single competence per PDF.",
+                "Range mode enabled from %s to %s. This mode remains optional for audit, diagnostics or contingency.",
                 config.competencia_de,
                 config.competencia_ate,
             )

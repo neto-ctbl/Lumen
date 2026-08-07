@@ -46,9 +46,36 @@ from backend.app.services.integrations.dominio.parser import (
     summarize_report_for_validation,
     timed_parse_dominio_payroll_pdf,
 )
+from backend.app.services.integrations.dominio.importer import (
+    DominioPayrollImportResult,
+    import_dominio_payroll_file,
+)
+from backend.app.services.integrations.dominio.coverage import (
+    DominioPayrollCoverageRow,
+    list_dominio_payroll_coverage,
+)
+from backend.app.services.integrations.dominio.factor_r_targets import (
+    DominioFactorRTargetExport,
+    DominioFactorRTargetRow,
+    build_dominio_factor_r_targets,
+    build_factor_r_target_manifest_metadata,
+)
+from backend.app.services.integrations.dominio.matching import (
+    DominioPayrollCompanyMatch,
+    match_dominio_company_by_cnpj,
+)
 from backend.app.services.integrations.dominio.rubrics import (
     DominioRubricSignals,
     classify_rubric_signals,
+)
+from backend.app.services.integrations.dominio.selection_scope import (
+    DominioManifestSelectionMetadata,
+    build_manifest_selection_metadata,
+    normalize_company_filter_name,
+    normalize_selection_scope,
+    normalize_target_company_count,
+    normalize_target_list_sha256,
+    selection_scope_from_company_filter,
 )
 
 __all__ = [
@@ -63,7 +90,12 @@ __all__ = [
     "DominioPayrollBlock",
     "DominioPayrollBlockType",
     "DominioPayrollCompany",
+    "DominioPayrollCompanyMatch",
+    "DominioPayrollCoverageRow",
     "DominioPayrollEncryptedPdfError",
+    "DominioFactorRTargetExport",
+    "DominioFactorRTargetRow",
+    "DominioPayrollImportResult",
     "DominioPayrollFileNotFoundError",
     "DominioPayrollInvalidPdfError",
     "DominioPayrollNoCompanyBlocksFoundError",
@@ -78,20 +110,32 @@ __all__ = [
     "DominioPayrollWarning",
     "DominioPayrollWarningCode",
     "DominioRubricSignals",
+    "DominioManifestSelectionMetadata",
     "DominioSelectionScope",
     "PayrollCompetenceMapping",
+    "build_dominio_factor_r_targets",
+    "build_factor_r_target_manifest_metadata",
+    "build_manifest_selection_metadata",
     "classify_rubric_signals",
+    "import_dominio_payroll_file",
+    "list_dominio_payroll_coverage",
     "map_payroll_to_assessment_competence",
+    "match_dominio_company_by_cnpj",
+    "normalize_company_filter_name",
     "normalize_cnpj_for_dominio",
     "normalize_dominio_text",
     "normalize_payroll_competence",
     "normalize_search_text",
+    "normalize_selection_scope",
+    "normalize_target_company_count",
+    "normalize_target_list_sha256",
     "parse_brazilian_date_to_iso",
     "parse_brazilian_decimal",
     "parse_competence_header_to_iso",
     "parse_dominio_payroll_pages",
     "parse_dominio_payroll_pdf",
     "parse_informed_value",
+    "selection_scope_from_company_filter",
     "summarize_report_for_validation",
     "timed_parse_dominio_payroll_pdf",
 ]

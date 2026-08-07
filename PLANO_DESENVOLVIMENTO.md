@@ -2132,29 +2132,27 @@ Resultados observados no S9.1:
 * nenhuma migration nova foi criada;
 * fechamento semantico confirmado: `has_employee` nao e mais explicado por `843`, `858`, `100`, `9380`, `235` ou `856` isoladamente.
 
-### S9.2 - Persistência, importador e matching
+### S9.2 - Persistencia, importador, matching e cobertura documental
 
-Status: planejado
+Status: concluido em 2026-08-06
 
 Planejamento:
 
 * tabelas `dominio_payroll_imports` e `dominio_payroll_company_movements`;
 * migration incremental;
-* idempotência por SHA-256;
+* idempotencia por SHA-256;
 * matching por CNPJ;
 * `source_payroll_competence`;
 * `assessment_competence`;
-* `period_id` apontando para a apuração;
+* `period_id` apontando para a apuracao;
 * CLI com `--dry-run`;
-* integração futura com `integration_sync_runs`, `audit_log` e `fiscal_evidences`;
+* integracao futura com `integration_sync_runs`, `audit_log` e `fiscal_evidences`;
 * fonte `DOMINIO_FOLHA_PDF`;
 * unmatched sem interromper o lote;
-* PDF não armazenado como blob no banco;
+* PDF nao armazenado como blob no banco;
 * `rubrics_summary` como JSONB em vez de tabela de rubricas no MVP.
 
-Fechamento tecnico S9.2 em 2026-07-30:
-
-Status: concluido
+Fechamento tecnico S9.2 em 2026-08-06:
 
 Entregues:
 
@@ -2170,22 +2168,25 @@ Entregues:
 * `rubrics_summary` deterministico em JSONB;
 * criacao de `fiscal_evidences` apenas para movimentos `MATCHED`;
 * `integration_sync_runs` e auditoria para imports reais;
-* `--dry-run` sem escrita.
+* `--dry-run` sem escrita;
+* normalizacao deterministica de `selection_scope`;
+* inferencia de `ACTIVE_COMPANIES` a partir de manifests legados com `source_filter_name = Ativas`;
+* isolamento de `target_company_count` e `target_list_sha256` somente para `FACTOR_R`;
+* warning estruturado `FACTOR_R_TARGET_SCOPE_MISMATCH` com finalizacao em `MANUAL_REVIEW` quando o escopo `FACTOR_R` ficar incoerente;
+* backfill local reconstruido com 12 competencias mensais canonicamente classificadas como `ACTIVE_COMPANIES`.
 
 Validacao executada:
 
 * `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_dominio_payroll_contract.py .\backend\tests\test_dominio_payroll_competence.py .\backend\tests\test_dominio_payroll_normalization.py .\backend\tests\test_dominio_payroll_rubrics.py .\backend\tests\test_dominio_payroll_parser.py .\backend\tests\test_dominio_payroll_models.py .\backend\tests\test_dominio_payroll_matching.py .\backend\tests\test_dominio_payroll_importer.py .\backend\tests\test_dominio_payroll_cli.py -q`;
 * `.\.venv\Scripts\python.exe -m pytest .\backend\tests -q`;
-* `.\.venv\Scripts\python.exe -m ruff check .\backend\app\models\dominio_payroll.py .\backend\app\services\integrations\dominio .\backend\scripts\import_dominio_payroll.py .\backend\tests\test_dominio_payroll_models.py .\backend\tests\test_dominio_payroll_matching.py .\backend\tests\test_dominio_payroll_importer.py .\backend\tests\test_dominio_payroll_cli.py`;
-* `.\.venv\Scripts\python.exe -m py_compile .\backend\app\models\dominio_payroll.py .\backend\app\services\integrations\dominio\importer.py .\backend\app\services\integrations\dominio\matching.py .\backend\scripts\import_dominio_payroll.py`;
-* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head`;
-* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini current`;
-* `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini heads`;
+* `.\.venv\Scripts\python.exe -m ruff check .\backend\app\models\dominio_payroll.py .\backend\app\services\integrations\dominio .\backend\scripts\import_dominio_payroll.py .\backend\scripts\export_dominio_factor_r_targets.py .\scripts\collectors\dominio\gerar_resumo_mensal_dominio.py`;
+* `.\.venv\Scripts\python.exe -m py_compile .\backend\app\models\dominio_payroll.py .\backend\app\services\integrations\dominio\contracts.py .\backend\app\services\integrations\dominio\selection_scope.py .\backend\app\services\integrations\dominio\matching.py .\backend\app\services\integrations\dominio\importer.py .\backend\app\services\integrations\dominio\coverage.py .\backend\app\services\integrations\dominio\factor_r_targets.py .\backend\scripts\import_dominio_payroll.py .\backend\scripts\export_dominio_factor_r_targets.py .\scripts\collectors\dominio\gerar_resumo_mensal_dominio.py`;
 * `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini downgrade 20260724_0011`;
 * `.\.venv\Scripts\python.exe -m alembic -c .\backend\alembic.ini upgrade head`;
 * `git diff --check`;
-* `.\.venv\Scripts\python.exe .\backend\scripts\import_dominio_payroll.py --organization-slug neto-contabilidade --file ".\scripts\collectors\dominio\Relatorios_Dominio\Resumo_Mensal_05-2026.pdf" --dry-run --json`;
-* `.\.venv\Scripts\python.exe .\backend\scripts\import_dominio_payroll.py --organization-slug neto-contabilidade --file ".\scripts\collectors\dominio\Relatorios_Dominio\Resumo_Mensal_06-2026.pdf" --dry-run --json`.
+* reimportacao das 12 competencias `07/2025` a `06/2026`;
+* reimportacao adicional de `06/2026` para comprovar `duplicate = true`;
+* conferencia SQL agregada de competencias, escopos e status.
 
 Resultados:
 
@@ -2198,12 +2199,31 @@ Resultados:
 * retry de `FAILED` coberto por teste sintetico;
 * `--dry-run` sem escrita;
 * nenhuma alteracao em `fiscal_obligation_statuses`;
-* validacao real em `--dry-run` concluida para `05/2026` e `06/2026` sem expor identificadores.
+* os 12 imports canonicos ficaram em `ACTIVE_COMPANIES | Ativas | target_* = null`;
+* o backfill mensal validado cobriu `07/2025` a `06/2026`;
+* a janela de 12 meses para Fator R passa a ser montada a partir dos movimentos persistidos;
+* nao existe segundo relatorio mensal obrigatorio com filtro `Fator R`;
+* a reimportacao de `06/2026` retornou `duplicate = true` sem crescimento em `dominio_payroll_imports`, `dominio_payroll_company_movements` ou `fiscal_evidences`.
+
+Decisao operacional final:
+
+* fonte canonica mensal: um PDF por competencia com filtro `Ativas`;
+* o backfill inicial do S9.2 usa 12 PDFs mensais individuais;
+* a rotina mensal gera somente a competencia recem-fechada;
+* a folha `M` corresponde a apuracao `M+1`;
+* o Lumen monta a janela historica de 12 meses usando movimentos persistidos;
+* somente empresas potencialmente sujeitas entram na analise de Fator R;
+* o filtro `Fator R` e o modo intervalo permanecem opcionais para auditoria, diagnostico ou contingencia;
+* o relatorio Dominio comprova movimento de folha/eSocial e componente DP, mas nao comprova transmissao da DCTFWeb nem fato gerador da REINF.
 
 Pendencias nao bloqueantes:
 
-* `git diff --check` reportou apenas warnings de `LF -> CRLF` na copia de trabalho;
-* a suite completa segue com `StarletteDeprecationWarning` preexistente.
+* movimentos `UNMATCHED` continuam em revisao manual;
+* PDFs reais anteriores ainda existem no historico do Git no commit `6060711`;
+* limpeza historica do Git sera tratada como acao de seguranca separada;
+* calculo e reconciliacao do Fator R pertencem ao S9.4;
+* alertas e origem DCTFWeb pertencem ao S9.3;
+* a tentativa de reemissao assistida de `06/2026` em `2026-08-06` falhou por timeout do processamento e depois por erro de `SendInput()`, mas o PDF local permaneceu com agregado compativel com o backfill mensal e o manifest foi normalizado para o escopo canonico `Ativas`.
 
 ### S9.3 - Origem DCTFWeb, departamentos e alertas
 
@@ -2569,7 +2589,7 @@ Checklist visual:
 * Regime oficial vem do Acessórias.
 * Fator R aparece no dossiê da empresa.
 * DCTFWeb exibe origem e departamento responsável.
-* Tela Envios suporta escopo “empresa” e “todas”.
+* Tela Envios suporta escopo "empresa" e "todas".
 * Estados vazios continuam honestos.
 * Divergências reais aparecem com severidade e ações.
 

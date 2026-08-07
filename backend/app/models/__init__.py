@@ -3,6 +3,10 @@ from backend.app.models.acessorias_delivery_snapshot import AcessoriasDeliverySn
 from backend.app.models.audit_log import AuditLog
 from backend.app.models.company_cnae import CompanyCnae
 from backend.app.models.company_activity_type import CompanyActivityType
+from backend.app.models.dominio_payroll import (
+    DominioPayrollCompanyMovement,
+    DominioPayrollImport,
+)
 from backend.app.models.econet_cnae_cache import EconetCnaeCache
 from backend.app.models.external_company import ExternalCompany
 from backend.app.models.fiscal_alert import FiscalAlert
@@ -30,6 +34,8 @@ __all__ = [
     "AuditLog",
     "CompanyCnae",
     "CompanyActivityType",
+    "DominioPayrollCompanyMovement",
+    "DominioPayrollImport",
     "EconetCnaeCache",
     "ExternalCompany",
     "FiscalAlert",

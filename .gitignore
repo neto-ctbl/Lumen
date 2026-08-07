@@ -189,12 +189,15 @@ agent/failed/
 
 # Coletor Domínio Folha
 scripts/collectors/dominio/.env
+scripts/collectors/dominio/inputs/
 scripts/collectors/dominio/output/
 scripts/collectors/dominio/logs/
 scripts/collectors/dominio/*.lock
 scripts/collectors/dominio/*.partial.pdf
 scripts/collectors/dominio/Resumo_Mensal_*.pdf
 scripts/collectors/dominio/Resumo_Mensal_*.manifest.json
+# Relatórios reais gerados pelo collector Domínio
+scripts/collectors/dominio/Relatorios_Dominio/
 
 # ---------------------------------------------------------------------------
 # Patches locais e saídas de Codex

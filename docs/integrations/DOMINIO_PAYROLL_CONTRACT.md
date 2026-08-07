@@ -284,3 +284,42 @@ Validacao local agregada executada em 2026-07-29, sem expor nomes, CNPJs ou `raw
 - o parser nao expoe endpoint HTTP;
 - o parser nao grava banco nem aciona watcher;
 - rubricas novas podem exigir ampliacao futura do catalogo classificatorio.
+
+## 23. Materializacao do S9.2
+
+O S9.2 fecha a trilha de persistencia offline do Dominio com:
+
+- migration `20260730_0012_create_dominio_payroll_tables.py`;
+- tabelas `dominio_payroll_imports` e `dominio_payroll_company_movements`;
+- importador `import_dominio_payroll_file(...)`;
+- matching por `organization_id + cnpj`;
+- idempotencia por `organization_id + file_sha256`;
+- `source_payroll_competence` e `assessment_competence` persistidas separadamente;
+- `fiscal_period_id` sempre resolvido pela competencia de apuracao `M+1`;
+- `rubrics_summary` deterministico em JSONB;
+- `fiscal_evidences` apenas para movimentos `MATCHED`;
+- `integration_sync_runs` e `audit_log` para import real;
+- CLI `backend/scripts/import_dominio_payroll.py` com `--dry-run`.
+
+Regras mantidas:
+
+- `INSS EMPREGADOR` continua sendo prova de `has_inss`, nao de `has_employee`;
+- pro-labore e autonomo nao sao classificados como empregado por si sos;
+- o PDF nao marca obrigacao como entregue;
+- o S9.2 nao define `DP`, `FISCAL` ou `COMPARTILHADO`;
+- o S9.2 nao cria watcher, endpoint HTTP, tabela de rubricas, alertas ou frontend.
+
+## 24. Addendum S9.2
+
+- `dominio_payroll_imports` passa a registrar `selection_scope`, `source_filter_name`, `target_company_count` e `target_list_sha256`.
+- Manifest legado com `selection_scope = ATIVAS` deve ser normalizado para `ACTIVE_COMPANIES`, preservando o valor original em `raw_metadata`.
+- Manifest sem `selection_scope`, mas com `source_filter_name = Ativas`, deve ser inferido como `ACTIVE_COMPANIES`.
+- Manifest sem `selection_scope`, mas com `source_filter_name = Fator R`, deve ser inferido como `FACTOR_R`.
+- Importacao sem manifest continua permitida com `selection_scope = UNKNOWN`.
+- O stage adiciona apenas preparacao operacional e documental do universo `FACTOR_R`.
+- O exportador read-only `backend/scripts/export_dominio_factor_r_targets.py` gera CSV local e resumo JSON sem identificadores reais.
+- O collector Windows aceita `--company-filter` para reaproveitar filtros operacionais ja existentes no Dominio.
+- O collector mensal canonico do Lumen usa `--company-filter "Ativas"` e um PDF por competencia.
+- `target_company_count` e `target_list_sha256` pertencem somente ao escopo `FACTOR_R`; imports `ACTIVE_COMPANIES`, `CUSTOM` e `UNKNOWN` devem persistir esses campos como `null`.
+- O filtro `Fator R` e o modo intervalo permanecem opcionais para auditoria, diagnostico ou contingencia; a janela historica de 12 meses deve ser montada a partir dos movimentos persistidos.
+- O S9.2 nao calcula percentual do Fator R, nao estima anexo final, nao gera alertas persistidos e nao cria divergencia fiscal.

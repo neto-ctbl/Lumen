@@ -76,3 +76,16 @@ Data de referencia: 2026-07-15
 - O coletor deve validar o PDF antes da troca atomica e remover apenas o `.partial.pdf` em caso de falha.
 - O lock local do coletor nao pode matar automaticamente outro processo; ele apenas bloqueia a nova execucao com mensagem clara.
 - Fixtures do Dominio devem ser 100% sinteticas e sem nomes empresariais reais.
+
+## S9.2
+
+- O importador do Dominio nao deve abrir nem imprimir `.env`.
+- A CLI do Dominio nao deve imprimir CNPJ, nome de empresa, `raw_text` ou rubricas individuais.
+- `fiscal_evidences`, `integration_sync_runs` e `audit_log` do Dominio devem conter apenas agregados seguros.
+- O banco nao deve receber PDF bruto, base64 ou blob do arquivo de folha.
+- O `raw_text` persistido fica restrito a `dominio_payroll_company_movements` e nao pode aparecer em logs ou erros serializados.
+- O `source_file_path` persistido deve ser opcional e interno; a CLI publica so exibe hash e contadores.
+- `--dry-run` nao grava import, movimento, periodo, evidencia, sync run nem auditoria.
+- Relatorios reais do Dominio devem permanecer fora do indice do Git, com `scripts/collectors/dominio/Relatorios_Dominio/` protegido por `.gitignore`.
+- O fechamento do S9.2 registra separadamente o risco de historico antigo com PDFs reais no commit `6060711`; a limpeza historica do Git fica fora deste stage.
+- O universo `FACTOR_R` pode gerar apenas CSV e resumo JSON sem nomes, CNPJs ou lista identificavel no manifest lateral.

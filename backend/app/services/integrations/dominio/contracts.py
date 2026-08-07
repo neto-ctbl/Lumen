@@ -15,6 +15,10 @@ class DominioEvidenceSource(str, Enum):
 
 
 class DominioSelectionScope(str, Enum):
+    ACTIVE_COMPANIES = "ACTIVE_COMPANIES"
+    FACTOR_R = "FACTOR_R"
+    CUSTOM = "CUSTOM"
+    UNKNOWN = "UNKNOWN"
     ATIVAS = "ATIVAS"
 
 

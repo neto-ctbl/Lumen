@@ -1515,3 +1515,7 @@ Decisoes materializadas no S9.2:
 - `fiscal_evidences` do stage usam `source = DOMINIO_FOLHA_PDF` e so sao criadas para movimentos `MATCHED`
 - o importador registra `integration_sync_runs` e `audit_log` apenas para execucao real; `--dry-run` nao grava nada
 - a CLI operacional do stage e `backend/scripts/import_dominio_payroll.py`
+- o collector mensal canonico usa filtro `Ativas`, um PDF por competencia e manifest com `selection_scope = ACTIVE_COMPANIES`
+- `target_company_count` e `target_list_sha256` pertencem apenas ao escopo `FACTOR_R` e nao devem vazar para imports `Ativas`
+- manifests legados com `selection_scope` ausente e `source_filter_name = Ativas` passam a ser inferidos como `ACTIVE_COMPANIES`
+- a janela historica de 12 meses para Fator R e montada a partir dos movimentos persistidos; filtro `Fator R` e modo intervalo permanecem opcionais para auditoria, diagnostico ou contingencia
