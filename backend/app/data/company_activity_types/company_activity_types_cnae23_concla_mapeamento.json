@@ -1,0 +1,944 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "metadata": {
+    "name": "company_activity_types_cnae23_concla_mapeamento",
+    "title": "Mapeamento CONCLA/IBGE CNAE 2.3 para company_activity_types do Lumen",
+    "version": "2026-08-11.manual-review-overrides.1",
+    "generated_at": "2026-08-11T00:00:00-03:00",
+    "language": "pt-BR",
+    "source_primary": {
+      "organization": "CONCLA/IBGE",
+      "classification": "CNAE-Subclasses 2.3",
+      "structure_url": "https://concla.ibge.gov.br/classificacoes/download-concla.html",
+      "search_url": "https://concla.ibge.gov.br/busca-online-cnae.html"
+    },
+    "regeneration": {
+      "mode": "deterministic_rule_contract",
+      "reason": "O artefato de download anterior expirou; este arquivo foi recriado a partir das regras auditadas no relatório anterior.",
+      "byte_identical_to_previous_artifact": false,
+      "contains_explicit_1332_row_catalog": false,
+      "usage_note": "Aplicar as regras em ordem de prioridade sobre a estrutura oficial CNAE 2.3. O primeiro match vence.",
+      "official_subclasses_count": 1332,
+      "previous_report_processed_count": 1331,
+      "count_reconciliation_note": "O relatório anterior registrou 1.331 linhas processadas, enquanto a estrutura oficial CNAE 2.3 possui 1.332 subclasses. Revalidar a linha faltante ao materializar o catálogo enumerado."
+    },
+    "changelog": [
+      {
+        "version": "2026-07-30.regenerated.1",
+        "date": "2026-07-30T16:33:14.998897+00:00",
+        "motivo": "Reconstrução do contrato de regras após expiração do artefato de download anterior, a partir das regras auditadas no relatório anterior.",
+        "impacto_esperado": "Nenhuma mudança de comportamento de classificação por CNAE; apenas recriação do artefato-contrato. Catálogo enumerado (1.331/1.332 linhas) não incluído nesta versão.",
+        "tipo": "REGENERATION"
+      },
+      {
+        "version": "2026-07-30.company_post_processing.1",
+        "date": "2026-07-30T19:15:56.458733+00:00",
+        "motivo": "Formalização explícita, dentro do próprio artefato, da regra de consolidação final dos activity_type no nível da empresa (union dos CNAEs ativos + supressão de SERVICOS quando coexiste com classes específicas). Também adicionada validação de cobertura contra a estrutura oficial real da CONCLA/IBGE (planilha 'Estrutura Detalhada CNAE-Subclasses 2.3'), substituindo a suposição anterior de 1.332 subclasses pelo número oficial confirmado de 1.331.",
+        "impacto_esperado": "Nenhuma alteração nas regras de classificação por CNAE (classification_contract e rules permanecem byte-a-byte equivalentes em lógica). Impacto está apenas na etapa de pós-processamento no nível da empresa: SERVICOS deixa de aparecer no resultado final sempre que a empresa também tiver TEMPLO_RELIGIOSO, SERVICOS_MEDICOS_ODONTOLOGICOS ou SERVICOS_IMOBILIARIOS entre seus CNAEs ativos. Consumidores que hoje dependem de SERVICOS aparecer junto dessas classes específicas precisam revisar essa integração.",
+        "tipo": "FEATURE_ADDITION_AND_VALIDATION"
+      },
+      {
+        "version": "2026-08-11.manual-review-overrides.1",
+        "date": "2026-08-11T00:00:00-03:00",
+        "motivo": "Aplicacao dos ajustes manuais revisados na planilha de catalogo com anexos da Econet para manter contrato e catalogo materializado consistentes com a validacao humana final.",
+        "impacto_esperado": "Catorze subclasses passam a usar activity_type corrigido por revisao manual. O contrato continua estrutural, mas agora explicita overrides pontuais auditados.",
+        "tipo": "MANUAL_OVERRIDE_REVIEW"
+      }
+    ]
+  },
+  "activity_types": [
+    "COMERCIO",
+    "INDUSTRIA",
+    "SERVICOS",
+    "SERVICOS_MEDICOS_ODONTOLOGICOS",
+    "SERVICOS_IMOBILIARIOS",
+    "TEMPLO_RELIGIOSO"
+  ],
+  "classification_contract": {
+    "input": {
+      "accepted_formats": [
+        "NNNN-N/NN",
+        "NNNNNNN",
+        "integer"
+      ],
+      "normalization": "Remover caracteres não numéricos e completar à esquerda até 7 dígitos.",
+      "invalid_placeholder_codes": [
+        "0000000"
+      ]
+    },
+    "evaluation": {
+      "strategy": "first_match_wins",
+      "precedence": [
+        "TEMPLO_RELIGIOSO",
+        "SERVICOS_MEDICOS_ODONTOLOGICOS",
+        "SERVICOS_IMOBILIARIOS",
+        "COMERCIO",
+        "INDUSTRIA",
+        "SERVICOS"
+      ],
+      "company_aggregation": "Uma empresa recebe a união dos activity_type de todos os seus CNAEs ativos.",
+      "fallback": "SERVICOS"
+    },
+    "derived_fields": {
+      "division": "dois primeiros dígitos do CNAE normalizado",
+      "group": "três primeiros dígitos do CNAE normalizado",
+      "class": "cinco primeiros dígitos do CNAE normalizado",
+      "subclass": "sete dígitos normalizados"
+    },
+    "company_aggregation": "Uma empresa recebe a união dos activity_type de todos os seus CNAEs ativos. A partir desta versão, a etapa de consolidação final (incluindo a supressão de SERVICOS quando coexiste com classes específicas) está formalizada explicitamente na seção 'company_post_processing' deste mesmo arquivo, e deixa de ser apenas um comportamento implícito de código."
+  },
+  "rules": [
+    {
+      "priority": 10,
+      "rule_id": "R_TEMPLO_RELIGIOSO_9491000",
+      "activity_type": "TEMPLO_RELIGIOSO",
+      "match": {
+        "exact": [
+          "9491000"
+        ]
+      },
+      "confidence": 1.0,
+      "rule_type": "CONCLA_EXACT_SUBCLASS",
+      "justification": "A subclasse 9491-0/00 reúne atividades de organizações religiosas ou filosóficas e descritores de templos e organizações religiosas."
+    },
+    {
+      "priority": 20,
+      "rule_id": "R_SAUDE_HUMANA_DIVISAO_86",
+      "activity_type": "SERVICOS_MEDICOS_ODONTOLOGICOS",
+      "match": {
+        "division": [
+          "86"
+        ]
+      },
+      "confidence": 1.0,
+      "rule_type": "CONCLA_DIVISION",
+      "justification": "A Divisão 86 corresponde a Atividades de atenção à saúde humana, incluindo hospitais, urgência, atividades ambulatoriais, diagnóstico, terapia e profissionais da saúde."
+    },
+    {
+      "priority": 30,
+      "rule_id": "R_IMOBILIARIO_INCORPORACAO",
+      "activity_type": "SERVICOS_IMOBILIARIOS",
+      "match": {
+        "exact": [
+          "4110700"
+        ]
+      },
+      "confidence": 1.0,
+      "rule_type": "CONCLA_EXACT_SUBCLASS",
+      "justification": "A subclasse 4110-7/00 corresponde à incorporação de empreendimentos imobiliários."
+    },
+    {
+      "priority": 31,
+      "rule_id": "R_IMOBILIARIO_HOLDINGS",
+      "activity_type": "SERVICOS_IMOBILIARIOS",
+      "match": {
+        "exact": [
+          "6461100",
+          "6462000"
+        ]
+      },
+      "confidence": 0.95,
+      "rule_type": "LUMEN_BUSINESS_RULE_EXACT",
+      "justification": "Regra interna do Lumen que agrega holdings financeiras e não financeiras ao bucket de serviços imobiliários."
+    },
+    {
+      "priority": 32,
+      "rule_id": "R_IMOBILIARIO_DIVISAO_68",
+      "activity_type": "SERVICOS_IMOBILIARIOS",
+      "match": {
+        "division": [
+          "68"
+        ]
+      },
+      "confidence": 1.0,
+      "rule_type": "CONCLA_DIVISION",
+      "justification": "A Divisão 68 compreende compra, venda, aluguel, corretagem, avaliação e administração de imóveis."
+    },
+    {
+      "priority": 40,
+      "rule_id": "R_SERVICO_REPARACAO_VEICULOS",
+      "activity_type": "SERVICOS",
+      "match": {
+        "exact": [
+          "4520001",
+          "4520002",
+          "4520003",
+          "4520004",
+          "4520005",
+          "4520006",
+          "4520007",
+          "4520008",
+          "4543900"
+        ]
+      },
+      "confidence": 1.0,
+      "rule_type": "CONCLA_NATURE_EXCEPTION",
+      "justification": "Manutenção e reparação de veículos e motocicletas são serviços, embora estejam posicionadas na Seção G."
+    },
+    {
+      "priority": 41,
+      "rule_id": "R_COMERCIO_ENERGIA_3513100",
+      "activity_type": "COMERCIO",
+      "match": {
+        "exact": [
+          "3513100"
+        ]
+      },
+      "confidence": 1.0,
+      "rule_type": "CONCLA_EXACT_SUBCLASS",
+      "justification": "A denominação oficial da subclasse 3513-1/00 é Comércio atacadista de energia elétrica."
+    },
+    {
+      "priority": 42,
+      "rule_id": "R_COMERCIO_SECAO_G",
+      "activity_type": "COMERCIO",
+      "match": {
+        "division": [
+          "45",
+          "46",
+          "47"
+        ],
+        "exclude_exact": [
+          "4520001",
+          "4520002",
+          "4520003",
+          "4520004",
+          "4520005",
+          "4520006",
+          "4520007",
+          "4520008",
+          "4543900"
+        ]
+      },
+      "confidence": 0.99,
+      "rule_type": "CONCLA_SECTION_WITH_EXCEPTIONS",
+      "justification": "A Seção G trata predominantemente de compra e venda de mercadorias sem transformação; reparações explícitas são excluídas para serviços."
+    },
+    {
+      "priority": 50,
+      "rule_id": "R_SERVICOS_MANUTENCAO_DIVISAO_33",
+      "activity_type": "SERVICOS",
+      "match": {
+        "division": [
+          "33"
+        ]
+      },
+      "confidence": 1.0,
+      "rule_type": "CONCLA_NATURE_EXCEPTION",
+      "justification": "A Divisão 33 reúne manutenção, reparação e instalação especializadas, tratadas no Lumen como serviços."
+    },
+    {
+      "priority": 51,
+      "rule_id": "R_SERVICOS_APOIO_AGROPECUARIO",
+      "activity_type": "SERVICOS",
+      "match": {
+        "class_prefix": [
+          "01610",
+          "01628",
+          "01636",
+          "02306"
+        ],
+        "exact": [
+          "0311604",
+          "0312404",
+          "0321305",
+          "0322107"
+        ]
+      },
+      "confidence": 0.95,
+      "rule_type": "CONCLA_NATURE_EXCEPTION",
+      "justification": "Atividades de apoio à agricultura, pecuária, produção florestal, pesca e aquicultura são serviços prestados ao processo produtivo."
+    },
+    {
+      "priority": 60,
+      "rule_id": "R_INDUSTRIA_PRODUCAO_PRIMARIA",
+      "activity_type": "INDUSTRIA",
+      "match": {
+        "division": [
+          "01",
+          "02",
+          "03"
+        ],
+        "exclude_class_prefix": [
+          "01610",
+          "01628",
+          "01636",
+          "02306"
+        ],
+        "exclude_exact": [
+          "0311604",
+          "0312404",
+          "0321305",
+          "0322107"
+        ]
+      },
+      "confidence": 0.92,
+      "rule_type": "LUMEN_PRODUCTION_BUCKET",
+      "justification": "No bucket interno do Lumen, cultivo, criação, silvicultura, pesca e aquicultura produtivas são agrupados com produção/industrialização."
+    },
+    {
+      "priority": 61,
+      "rule_id": "R_INDUSTRIA_EXTRATIVA",
+      "activity_type": "INDUSTRIA",
+      "match": {
+        "division_range": {
+          "from": "05",
+          "to": "09"
+        }
+      },
+      "confidence": 1.0,
+      "rule_type": "CONCLA_SECTION_B",
+      "justification": "As divisões 05 a 09 compõem as indústrias extrativas."
+    },
+    {
+      "priority": 62,
+      "rule_id": "R_INDUSTRIA_TRANSFORMACAO",
+      "activity_type": "INDUSTRIA",
+      "match": {
+        "division_range": {
+          "from": "10",
+          "to": "32"
+        }
+      },
+      "confidence": 1.0,
+      "rule_type": "CONCLA_SECTION_C",
+      "justification": "As divisões 10 a 32 abrangem fabricação e transformação; a Divisão 33 é tratada previamente como serviço."
+    },
+    {
+      "priority": 63,
+      "rule_id": "R_INDUSTRIA_UTILITIES",
+      "activity_type": "INDUSTRIA",
+      "match": {
+        "division": [
+          "35"
+        ],
+        "exclude_exact": [
+          "3513100"
+        ]
+      },
+      "confidence": 0.95,
+      "rule_type": "LUMEN_PRODUCTION_BUCKET",
+      "justification": "Geração, transmissão, distribuição e produção de energia/gás/vapor são utilities produtivas; comércio atacadista de energia é exceção."
+    },
+    {
+      "priority": 64,
+      "rule_id": "R_INDUSTRIA_RECUPERACAO_MATERIAIS",
+      "activity_type": "INDUSTRIA",
+      "match": {
+        "group_prefix": [
+          "383"
+        ]
+      },
+      "confidence": 0.95,
+      "rule_type": "LUMEN_PROCESSING_BUCKET",
+      "justification": "Recuperação de materiais dos grupos 38.3 é tratada como processamento/industrialização."
+    },
+    {
+      "priority": 90,
+      "rule_id": "R_SERVICOS_FALLBACK",
+      "activity_type": "SERVICOS",
+      "match": {
+        "fallback": true
+      },
+      "confidence": 0.9,
+      "rule_type": "LUMEN_DEFAULT",
+      "justification": "Atividades não capturadas pelas categorias específicas são classificadas como serviços."
+    }
+  ],
+  "company_post_processing": {
+    "description": "Regras determinísticas de consolidação dos activity_type no nível da empresa, aplicadas depois que cada CNAE ativo já foi classificado individualmente via classification_contract + rules. Esta etapa nunca reclassifica um CNAE; ela apenas decide quais activity_type sobrevivem no conjunto final da empresa.",
+    "applies_after": "classification_contract + rules (aplicados CNAE a CNAE)",
+    "input": "União (set, sem duplicatas) dos activity_type resultantes de todos os CNAEs ativos da empresa.",
+    "specific_classes": [
+      "TEMPLO_RELIGIOSO",
+      "SERVICOS_MEDICOS_ODONTOLOGICOS",
+      "SERVICOS_IMOBILIARIOS"
+    ],
+    "generic_classes": [
+      "SERVICOS"
+    ],
+    "neutral_classes_always_kept": [
+      "COMERCIO",
+      "INDUSTRIA"
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "step_id": "UNIAO_INICIAL",
+        "description": "A empresa recebe inicialmente a união de todos os activity_type inferidos a partir de cada um dos seus CNAEs ativos, sem nenhuma supressão nesta etapa."
+      },
+      {
+        "step": 2,
+        "step_id": "SUPRESSAO_SERVICOS_GENERICO",
+        "description": "SERVICOS é a categoria residual/genérica do contrato (fallback de priority 90). Se o conjunto da empresa contiver SERVICOS junto de qualquer uma das specific_classes, SERVICOS é removido do conjunto final: a presença de uma classificação mais específica torna o rótulo genérico redundante para fins de segmentação de empresa.",
+        "suppresses_generic_services_when_coexists_with": [
+          "TEMPLO_RELIGIOSO",
+          "SERVICOS_MEDICOS_ODONTOLOGICOS",
+          "SERVICOS_IMOBILIARIOS"
+        ],
+        "note_comercio_industria": "COMERCIO e INDUSTRIA nunca disparam nem sofrem essa supressão: convivem livremente entre si, com SERVICOS e com qualquer specific_class, pois representam naturezas econômicas primárias e não um rótulo genérico."
+      },
+      {
+        "step": 3,
+        "step_id": "SEM_ANULACAO_CRUZADA_ENTRE_CLASSES_ESPECIFICAS",
+        "description": "TEMPLO_RELIGIOSO, SERVICOS_MEDICOS_ODONTOLOGICOS e SERVICOS_IMOBILIARIOS não se anulam automaticamente entre si, nem eliminam COMERCIO ou INDUSTRIA. Qualquer supressão adicional entre duas ou mais specific_classes exigiria uma regra formal, versionada e justificada nesta mesma seção; nenhuma existe nesta versão do contrato."
+      }
+    ],
+    "algorithm_pseudocode": "final_set = union(activity_type for cnae in active_cnaes)\nif final_set & {TEMPLO_RELIGIOSO, SERVICOS_MEDICOS_ODONTOLOGICOS, SERVICOS_IMOBILIARIOS}:\n    final_set.discard('SERVICOS')\nreturn sorted(final_set)",
+    "determinism_guarantees": {
+      "deterministic": true,
+      "auditable": true,
+      "idempotent": true,
+      "idempotency_note": "Reaplicar a consolidação sobre um conjunto já consolidado produz o mesmo conjunto: a regra de supressão depende apenas da composição do set (operação de conjunto, sem estado externo e sem dependência de ordem de avaliação dos CNAEs)."
+    },
+    "examples": [
+      {
+        "input": [
+          "SERVICOS",
+          "SERVICOS_MEDICOS_ODONTOLOGICOS"
+        ],
+        "output": [
+          "SERVICOS_MEDICOS_ODONTOLOGICOS"
+        ],
+        "explanation": "SERVICOS é suprimido por coexistir com uma classe específica (SERVICOS_MEDICOS_ODONTOLOGICOS)."
+      },
+      {
+        "input": [
+          "COMERCIO",
+          "SERVICOS_MEDICOS_ODONTOLOGICOS"
+        ],
+        "output": [
+          "COMERCIO",
+          "SERVICOS_MEDICOS_ODONTOLOGICOS"
+        ],
+        "explanation": "Não havia SERVICOS no conjunto; COMERCIO nunca é suprimido, então o conjunto permanece igual."
+      },
+      {
+        "input": [
+          "INDUSTRIA",
+          "SERVICOS_IMOBILIARIOS",
+          "SERVICOS"
+        ],
+        "output": [
+          "INDUSTRIA",
+          "SERVICOS_IMOBILIARIOS"
+        ],
+        "explanation": "SERVICOS é suprimido por coexistir com SERVICOS_IMOBILIARIOS; INDUSTRIA é preservado por ser classe neutra."
+      },
+      {
+        "input": [
+          "COMERCIO",
+          "INDUSTRIA",
+          "SERVICOS"
+        ],
+        "output": [
+          "COMERCIO",
+          "INDUSTRIA",
+          "SERVICOS"
+        ],
+        "explanation": "Nenhuma specific_class presente no conjunto; a condição de supressão não é satisfeita, então SERVICOS permanece."
+      }
+    ]
+  },
+  "governance": {
+    "manual_review_families": [
+      {
+        "family": "CONSTRUCAO",
+        "current_decision": "SERVICOS, exceto 4110-7/00 em SERVICOS_IMOBILIARIOS",
+        "reason": "A Seção F abrange construção de edifícios, infraestrutura e serviços especializados; não equivale integralmente ao núcleo imobiliário."
+      },
+      {
+        "family": "ASSISTENCIA_SOCIAL_DIVISOES_87_88",
+        "current_decision": "SERVICOS",
+        "reason": "O bucket médico especializado foi reservado à Divisão 86."
+      },
+      {
+        "family": "FINANCEIRO_IMOBILIARIO_ADJACENTE",
+        "current_decision": "SERVICOS",
+        "reason": "Crédito imobiliário, fundos imobiliários, arquitetura e engenharia permanecem fora do núcleo imobiliário, salvo holdings explicitamente incluídas."
+      }
+    ],
+    "source_priority": [
+      "MANUAL_REVIEW",
+      "ECONET",
+      "CONCLA_RULESET"
+    ],
+    "review_policy": "Overrides manuais e da Econet devem ser versionados, auditáveis e não alterar silenciosamente este contrato-base. Esta política cobre igualmente a seção company_post_processing: qualquer nova regra de anulação cruzada entre specific_classes, ou qualquer mudança na lógica de supressão de SERVICOS, deve ser versionada e registrada em metadata.changelog, com motivo e impacto esperado."
+  },
+  "examples": [
+    {
+      "cnae": "9491-0/00",
+      "normalized": "9491000",
+      "activity_type": "TEMPLO_RELIGIOSO",
+      "rule_id": "R_TEMPLO_RELIGIOSO_9491000"
+    },
+    {
+      "cnae": "8630-5/03",
+      "normalized": "8630503",
+      "activity_type": "SERVICOS_MEDICOS_ODONTOLOGICOS",
+      "rule_id": "R_SAUDE_HUMANA_DIVISAO_86"
+    },
+    {
+      "cnae": "6810-2/02",
+      "normalized": "6810202",
+      "activity_type": "SERVICOS_IMOBILIARIOS",
+      "rule_id": "R_IMOBILIARIO_DIVISAO_68"
+    },
+    {
+      "cnae": "4110-7/00",
+      "normalized": "4110700",
+      "activity_type": "SERVICOS_IMOBILIARIOS",
+      "rule_id": "R_IMOBILIARIO_INCORPORACAO"
+    },
+    {
+      "cnae": "4711-3/02",
+      "normalized": "4711302",
+      "activity_type": "COMERCIO",
+      "rule_id": "R_COMERCIO_SECAO_G"
+    },
+    {
+      "cnae": "4520-0/01",
+      "normalized": "4520001",
+      "activity_type": "SERVICOS",
+      "rule_id": "R_SERVICO_REPARACAO_VEICULOS"
+    },
+    {
+      "cnae": "1066-0/00",
+      "normalized": "1066000",
+      "activity_type": "INDUSTRIA",
+      "rule_id": "R_INDUSTRIA_TRANSFORMACAO"
+    },
+    {
+      "cnae": "4120-4/00",
+      "normalized": "4120400",
+      "activity_type": "SERVICOS",
+      "rule_id": "R_SERVICOS_FALLBACK"
+    }
+  ],
+  "official_cnae23_coverage_validation": {
+    "validated_at": "2026-08-11T00:00:00-03:00",
+    "method": "Validação determinística, sem heurística textual: parsing estrutural da planilha oficial CONCLA/IBGE (colunas Seção/Divisão/Grupo/Classe/Subclasse), normalização de cada código de subclasse para 7 dígitos conforme classification_contract.input.normalization, derivação de division/group/class/subclass conforme classification_contract.derived_fields, e aplicação do array 'rules' em ordem de priority (first_match_wins) a cada subclasse individualmente.",
+    "source_artifact": {
+      "file": "CNAE_Subclasses_2_3_Estrutura_Detalhada.xlsx",
+      "provenance": "Download oficial da página de classificações da CONCLA/IBGE, fornecido pelo usuário.",
+      "structure_url": "https://concla.ibge.gov.br/classificacoes/download-concla.html"
+    },
+    "official_subclasses_found_in_source": 1331,
+    "official_subclasses_previously_assumed": 1332,
+    "reconciliation_note": "A validação foi feita contra o arquivo oficial real da CONCLA/IBGE, não contra uma estimativa. A planilha 'Estrutura Detalhada CNAE-Subclasses 2.3' contém 1.331 subclasses distintas, distribuídas em 21 seções (A a U), sem códigos duplicados e sem lacunas visíveis na numeração hierárquica. O número de 1.332 anteriormente citado como alvo de confirmação não se sustenta contra essa fonte primária e é aqui formalmente descartado; 1.331 passa a ser o número oficial de referência deste contrato, até que uma nova publicação da CONCLA indique alteração na estrutura CNAE 2.3.",
+    "subclasses_covered": 1331,
+    "subclasses_without_match": 0,
+    "unmatched_subclasses_detail": [],
+    "coverage_percentage": 100.0,
+    "final_distribution_by_activity_type": {
+      "INDUSTRIA": 536,
+      "COMERCIO": 223,
+      "SERVICOS": 520,
+      "SERVICOS_IMOBILIARIOS": 10,
+      "SERVICOS_MEDICOS_ODONTOLOGICOS": 41,
+      "TEMPLO_RELIGIOSO": 1
+    },
+    "final_distribution_by_rule_id": {
+      "R_INDUSTRIA_PRODUCAO_PRIMARIA": 108,
+      "R_SERVICOS_APOIO_AGROPECUARIO": 14,
+      "R_INDUSTRIA_EXTRATIVA": 45,
+      "R_INDUSTRIA_TRANSFORMACAO": 381,
+      "R_SERVICOS_MANUTENCAO_DIVISAO_33": 39,
+      "R_INDUSTRIA_UTILITIES": 7,
+      "R_COMERCIO_ENERGIA_3513100": 1,
+      "R_SERVICOS_FALLBACK": 454,
+      "R_INDUSTRIA_RECUPERACAO_MATERIAIS": 5,
+      "R_IMOBILIARIO_INCORPORACAO": 1,
+      "R_COMERCIO_SECAO_G": 217,
+      "R_SERVICO_REPARACAO_VEICULOS": 9,
+      "R_IMOBILIARIO_HOLDINGS": 2,
+      "R_IMOBILIARIO_DIVISAO_68": 6,
+      "R_SAUDE_HUMANA_DIVISAO_86": 41,
+      "R_TEMPLO_RELIGIOSO_9491000": 1
+    },
+    "previous_summary_diff": {
+      "previous_report_summary": {
+        "COMERCIO": 218,
+        "INDUSTRIA": 545,
+        "SERVICOS": 517,
+        "SERVICOS_MEDICOS_ODONTOLOGICOS": 41,
+        "SERVICOS_IMOBILIARIOS": 9,
+        "TEMPLO_RELIGIOSO": 1
+      },
+      "current_validated_distribution": {
+        "INDUSTRIA": 546,
+        "SERVICOS": 516,
+        "COMERCIO": 218,
+        "SERVICOS_IMOBILIARIOS": 9,
+        "SERVICOS_MEDICOS_ODONTOLOGICOS": 41,
+        "TEMPLO_RELIGIOSO": 1
+      },
+      "diff": "INDUSTRIA +1 (545 -> 546), SERVICOS -1 (517 -> 516); demais categorias inalteradas.",
+      "diff_reason": "O resumo anterior era declaradamente informativo e não revalidado (previous_report_summary.status = 'informative_not_revalidated_in_regeneration'). Este resultado foi obtido aplicando o mesmo contrato de regras diretamente sobre a estrutura oficial real, e passa a ser a referência reproduzível e auditável do projeto."
+    },
+    "materialized_catalog_reference": {
+      "json": "company_activity_types_cnae23_concla_catalogo_completo.json",
+      "xlsx": "company_activity_types_cnae23_catalogo_completo_com_anexos.xlsx",
+      "note": "Catálogo completo com as 1.331 subclasses classificadas linha a linha, gerado na mesma validação registrada aqui."
+    },
+    "manual_review_overrides": [
+      {
+        "cnae": "0159-8/02",
+        "normalized": "0159802",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "COMERCIO",
+        "rule_id": "R_INDUSTRIA_PRODUCAO_PRIMARIA",
+        "denomination": "Criação de animais de estimação",
+        "anexo_econet_padrao": "I",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "0170-9/00",
+        "normalized": "0170900",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "COMERCIO",
+        "rule_id": "R_INDUSTRIA_PRODUCAO_PRIMARIA",
+        "denomination": "Caça e serviços relacionados",
+        "anexo_econet_padrao": "I",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "0220-9/06",
+        "normalized": "0220906",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "SERVICOS",
+        "rule_id": "R_INDUSTRIA_PRODUCAO_PRIMARIA",
+        "denomination": "Conservação de florestas nativas",
+        "anexo_econet_padrao": "III",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "0910-6/00",
+        "normalized": "0910600",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "SERVICOS",
+        "rule_id": "R_INDUSTRIA_EXTRATIVA",
+        "denomination": "Atividades de apoio à extração de petróleo e gás natural",
+        "anexo_econet_padrao": "III",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "0990-4/01",
+        "normalized": "0990401",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "SERVICOS",
+        "rule_id": "R_INDUSTRIA_EXTRATIVA",
+        "denomination": "Atividades de apoio à extração de minério de ferro",
+        "anexo_econet_padrao": "III",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "0990-4/02",
+        "normalized": "0990402",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "SERVICOS",
+        "rule_id": "R_INDUSTRIA_EXTRATIVA",
+        "denomination": "Atividades de apoio à extração de minerais metálicos não ferrosos",
+        "anexo_econet_padrao": "III",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "0990-4/03",
+        "normalized": "0990403",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "SERVICOS",
+        "rule_id": "R_INDUSTRIA_EXTRATIVA",
+        "denomination": "Atividades de apoio à extração de minerais não metálicos",
+        "anexo_econet_padrao": "III",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "1610-2/05",
+        "normalized": "1610205",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "SERVICOS",
+        "rule_id": "R_INDUSTRIA_TRANSFORMACAO",
+        "denomination": "Serviço de tratamento de madeira realizado sob contrato",
+        "anexo_econet_padrao": "III",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "1822-9/01",
+        "normalized": "1822901",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "SERVICOS",
+        "rule_id": "R_INDUSTRIA_TRANSFORMACAO",
+        "denomination": "Serviços de encadernação e plastificação",
+        "anexo_econet_padrao": "III",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "3250-7/09",
+        "normalized": "3250709",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "SERVICOS",
+        "rule_id": "R_INDUSTRIA_TRANSFORMACAO",
+        "denomination": "Serviço de laboratório óptico",
+        "anexo_econet_padrao": "III",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "5611-2/05",
+        "normalized": "5611205",
+        "from_activity_type": "SERVICOS",
+        "to_activity_type": "COMERCIO",
+        "rule_id": "R_SERVICOS_FALLBACK",
+        "denomination": "Bares e outros estabelecimentos especializados em servir bebidas, com entretenimento",
+        "anexo_econet_padrao": "I",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "5612-1/00",
+        "normalized": "5612100",
+        "from_activity_type": "SERVICOS",
+        "to_activity_type": "COMERCIO",
+        "rule_id": "R_SERVICOS_FALLBACK",
+        "denomination": "Serviços ambulantes de alimentação",
+        "anexo_econet_padrao": "I",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "5620-1/03",
+        "normalized": "5620103",
+        "from_activity_type": "SERVICOS",
+        "to_activity_type": "COMERCIO",
+        "rule_id": "R_SERVICOS_FALLBACK",
+        "denomination": "Cantinas - serviços de alimentação privativos",
+        "anexo_econet_padrao": "I",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "6470-1/03",
+        "normalized": "6470103",
+        "from_activity_type": "SERVICOS",
+        "to_activity_type": "SERVICOS_IMOBILIARIOS",
+        "rule_id": "R_SERVICOS_FALLBACK",
+        "denomination": "Fundos de investimento imobiliários",
+        "anexo_econet_padrao": null,
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.PROHIBITED",
+        "anexo_econet_status": "PROHIBITED"
+      }
+    ],
+    "manual_review_overrides_count": 14
+  },
+  "previous_report_summary": {
+    "status": "informative_not_revalidated_in_regeneration",
+    "processed_subclasses": 1331,
+    "distribution": {
+      "INDUSTRIA": 536,
+      "COMERCIO": 223,
+      "SERVICOS": 520,
+      "SERVICOS_IMOBILIARIOS": 10,
+      "SERVICOS_MEDICOS_ODONTOLOGICOS": 41,
+      "TEMPLO_RELIGIOSO": 1
+    }
+  },
+  "manual_overrides": {
+    "source_priority": "MANUAL_REVIEW",
+    "source_artifact": "company_activity_types_cnae23_catalogo_completo_com_anexos.xlsx",
+    "applied_at": "2026-08-11T00:00:00-03:00",
+    "count": 14,
+    "items": [
+      {
+        "cnae": "0159-8/02",
+        "normalized": "0159802",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "COMERCIO",
+        "rule_id": "R_INDUSTRIA_PRODUCAO_PRIMARIA",
+        "denomination": "Criação de animais de estimação",
+        "anexo_econet_padrao": "I",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "0170-9/00",
+        "normalized": "0170900",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "COMERCIO",
+        "rule_id": "R_INDUSTRIA_PRODUCAO_PRIMARIA",
+        "denomination": "Caça e serviços relacionados",
+        "anexo_econet_padrao": "I",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "0220-9/06",
+        "normalized": "0220906",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "SERVICOS",
+        "rule_id": "R_INDUSTRIA_PRODUCAO_PRIMARIA",
+        "denomination": "Conservação de florestas nativas",
+        "anexo_econet_padrao": "III",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "0910-6/00",
+        "normalized": "0910600",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "SERVICOS",
+        "rule_id": "R_INDUSTRIA_EXTRATIVA",
+        "denomination": "Atividades de apoio à extração de petróleo e gás natural",
+        "anexo_econet_padrao": "III",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "0990-4/01",
+        "normalized": "0990401",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "SERVICOS",
+        "rule_id": "R_INDUSTRIA_EXTRATIVA",
+        "denomination": "Atividades de apoio à extração de minério de ferro",
+        "anexo_econet_padrao": "III",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "0990-4/02",
+        "normalized": "0990402",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "SERVICOS",
+        "rule_id": "R_INDUSTRIA_EXTRATIVA",
+        "denomination": "Atividades de apoio à extração de minerais metálicos não ferrosos",
+        "anexo_econet_padrao": "III",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "0990-4/03",
+        "normalized": "0990403",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "SERVICOS",
+        "rule_id": "R_INDUSTRIA_EXTRATIVA",
+        "denomination": "Atividades de apoio à extração de minerais não metálicos",
+        "anexo_econet_padrao": "III",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "1610-2/05",
+        "normalized": "1610205",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "SERVICOS",
+        "rule_id": "R_INDUSTRIA_TRANSFORMACAO",
+        "denomination": "Serviço de tratamento de madeira realizado sob contrato",
+        "anexo_econet_padrao": "III",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "1822-9/01",
+        "normalized": "1822901",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "SERVICOS",
+        "rule_id": "R_INDUSTRIA_TRANSFORMACAO",
+        "denomination": "Serviços de encadernação e plastificação",
+        "anexo_econet_padrao": "III",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "3250-7/09",
+        "normalized": "3250709",
+        "from_activity_type": "INDUSTRIA",
+        "to_activity_type": "SERVICOS",
+        "rule_id": "R_INDUSTRIA_TRANSFORMACAO",
+        "denomination": "Serviço de laboratório óptico",
+        "anexo_econet_padrao": "III",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "5611-2/05",
+        "normalized": "5611205",
+        "from_activity_type": "SERVICOS",
+        "to_activity_type": "COMERCIO",
+        "rule_id": "R_SERVICOS_FALLBACK",
+        "denomination": "Bares e outros estabelecimentos especializados em servir bebidas, com entretenimento",
+        "anexo_econet_padrao": "I",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "5612-1/00",
+        "normalized": "5612100",
+        "from_activity_type": "SERVICOS",
+        "to_activity_type": "COMERCIO",
+        "rule_id": "R_SERVICOS_FALLBACK",
+        "denomination": "Serviços ambulantes de alimentação",
+        "anexo_econet_padrao": "I",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "5620-1/03",
+        "normalized": "5620103",
+        "from_activity_type": "SERVICOS",
+        "to_activity_type": "COMERCIO",
+        "rule_id": "R_SERVICOS_FALLBACK",
+        "denomination": "Cantinas - serviços de alimentação privativos",
+        "anexo_econet_padrao": "I",
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.ALLOWED",
+        "anexo_econet_status": "OK"
+      },
+      {
+        "cnae": "6470-1/03",
+        "normalized": "6470103",
+        "from_activity_type": "SERVICOS",
+        "to_activity_type": "SERVICOS_IMOBILIARIOS",
+        "rule_id": "R_SERVICOS_FALLBACK",
+        "denomination": "Fundos de investimento imobiliários",
+        "anexo_econet_padrao": null,
+        "anexo_econet_condicional": null,
+        "simples_status_econet": "EconetSemanticStatus.PROHIBITED",
+        "anexo_econet_status": "PROHIBITED"
+      }
+    ]
+  }
+}

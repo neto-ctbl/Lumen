@@ -16,6 +16,7 @@ from backend.app.services.integrations.econtrole.mapper import EControleMappingE
 
 SYNC_STATUS_SYNCED = "SYNCED"
 SYNC_STATUS_DELETED = "DELETED_ECONTROLE"
+SYNC_STATUS_INACTIVE = "INACTIVE_ECONTROLE"
 
 
 @dataclass(slots=True)
@@ -90,6 +91,9 @@ def upsert_company_from_econtrole_payload(
     updated = _apply_upsert(company, mapped)
     session.flush()
     catalog_result = sync_company_cnae_catalog(session, company=company, dry_run=dry_run_catalog)
+    from backend.app.services.integrations.econtrole.webhook_completion import complete_company_after_econtrole_webhook
+
+    complete_company_after_econtrole_webhook(session, organization=organization, company=company)
     return CompanyUpsertResult(company=company, created=created, updated=updated or created, catalog_result=catalog_result)
 
 
@@ -131,6 +135,9 @@ def delete_company_from_econtrole_payload(
         company.raw_econtrole = payload
     session.flush()
     catalog_result = sync_company_cnae_catalog(session, company=company, dry_run=dry_run_catalog)
+    from backend.app.services.integrations.econtrole.webhook_completion import complete_company_after_econtrole_webhook
+
+    complete_company_after_econtrole_webhook(session, organization=organization, company=company)
     return CompanyDeleteResult(company=company, deleted=not already_deleted, catalog_result=catalog_result)
 
 
@@ -172,16 +179,27 @@ def _apply_upsert(company: ExternalCompany, mapped: dict[str, Any]) -> bool:
             setattr(company, field, value)
             changed = True
 
-    if company.active is not True:
-        company.active = True
+    is_inactive = _is_inactive_situacao(mapped.get("situacao"))
+    desired_active = not is_inactive
+    desired_sync_status = SYNC_STATUS_INACTIVE if is_inactive else SYNC_STATUS_SYNCED
+
+    if company.active is not desired_active:
+        company.active = desired_active
         changed = True
-    if company.deleted_at_econtrole is not None:
+    if company.deleted_at_econtrole is not None and desired_active:
         company.deleted_at_econtrole = None
         changed = True
-    if company.sync_status != SYNC_STATUS_SYNCED:
-        company.sync_status = SYNC_STATUS_SYNCED
+    if company.sync_status != desired_sync_status:
+        company.sync_status = desired_sync_status
         changed = True
     return changed
+
+
+def _is_inactive_situacao(value: Any) -> bool:
+    if value is None:
+        return False
+    normalized = str(value).strip().upper()
+    return normalized.startswith("INATIV")
 
 
 def _resolve_deleted_at(payload: dict[str, Any]) -> datetime:

@@ -711,6 +711,49 @@ Aceite:
 - confirmacao explicita: o S6/Acessorias nao foi iniciado neste stage.
 - pendencias visuais e de acabamento de UX ainda mantem o stage em fechamento parcial.
 
+## S5.2 - Completion cadastral do eControle e backfill de reconciliacao
+
+Status: concluido em 2026-08-20
+
+Objetivo:
+- completar automaticamente o cadastro da empresa apos webhook ou reconciliacao com o eControle
+- permitir backfill operacional das empresas ja existentes, inclusive com diagnostico dos payloads invalidos de origem
+
+Escopo:
+- completion pos-webhook do eControle
+- reprocessamento local de `company_cnaes`, regime Acessorias, CNAEs faltantes da Econet e `company_activity_types`
+- inativacao automatica local quando o eControle informar `situacao = INATIVA`
+- backfill de reconciliacao e completion para empresas ja persistidas
+
+Entregues:
+- `backend/app/services/integrations/econtrole/webhook_completion.py`
+- `backend/scripts/backfill_econtrole_companies.py`
+- `backend/tests/test_econtrole_webhook_completion.py`
+- `backend/tests/test_backfill_econtrole_companies.py`
+- ajuste em `backend/app/services/integrations/econtrole/sync.py` para disparar completion no upsert/delete e reconhecer `situacao = INATIVA`
+
+Validacao executada:
+- `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_econtrole_sync.py .\backend\tests\test_econtrole_webhook.py .\backend\tests\test_econtrole_webhook_completion.py .\backend\tests\test_backfill_econtrole_companies.py -q`
+- `.\.venv\Scripts\python.exe .\backend\scripts\backfill_econtrole_companies.py --org-slug neto-contabilidade --dry-run`
+- `.\.venv\Scripts\python.exe -c "from backend.app.db.session import SessionLocal; from backend.scripts.backfill_econtrole_companies import run_backfill; import json; s=SessionLocal(); r=run_backfill(s, org_slug='neto-contabilidade', dry_run=True); print(json.dumps(r, ensure_ascii=False, indent=2)); s.close()"`
+
+Resultados e validacoes reais registradas:
+- reconciliacao dry-run validada em `2026-08-20` contra `http://localhost:8020/api/v1/companies`
+- `228` empresas recebidas do eControle
+- `2` criacoes potenciais e `223` updates potenciais no espelho local
+- `3` payloads invalidos detectados por ausencia de `cnpj`, todos identificados nominalmente no resumo do backfill
+- etapa local do mesmo dry-run processou `250` empresas sem erro
+- `28` retries de Acessorias ficaram pendentes
+- `4` CNAEs ainda estavam ausentes do cache da Econet no momento da validacao
+
+Decisoes novas:
+- `ECONTROLE_API_BASE_URL` deve apontar para a raiz que permita resolver `GET /companies`; no ambiente validado isso ficou em `http://localhost:8020/api/v1`
+- payload do eControle sem `cnpj` e tratado como invalido; o caso nao deve ser “corrigido” no Lumen por inferencia
+- o backfill pode reprocessar apenas o banco local com `--skip-econtrole-sync` quando a API do eControle nao estiver disponivel
+
+Pendencias aceitas:
+- os `3` registros sem `cnpj` permanecem como problema de origem do eControle e podem ser ignorados operacionalmente ate saneamento no sistema fonte
+
 ## S6 - Integração Acessórias: regime, obrigações e entregas
 
 Status: concluido em 2026-07-15
@@ -889,6 +932,53 @@ Confirmacoes de escopo:
 
 Observacao:
 - o S6.2 e micro-stage complementar e nao reabre S7, S8 ou outros stages posteriores
+
+## S6.3 - Retry automatico de regime da Acessorias por empresa
+
+Status: concluido em 2026-08-20
+
+Objetivo:
+- automatizar o retry de sync pontual de regime da Acessorias para empresas que ainda nao existem na fonte no momento do webhook
+- evitar loop infinito para empresas que realmente nunca estarao no Acessorias
+
+Escopo:
+- persistir pendencias de retry na base existente
+- processar apenas retries vencidos
+- fechar pendencias bem-sucedidas
+- cancelar ou esgotar retries sem criar scheduler externo novo
+
+Entregues:
+- `backend/app/services/integrations/econtrole/webhook_completion.py` com processador de retries vencidos
+- `backend/scripts/process_acessorias_retries.py`
+- `backend/app/worker/runner.py` em modo `--once` processando retries da Acessorias
+- ajuste do health do worker para refletir o processador real
+- ampliacao de `backend/tests/test_econtrole_webhook_completion.py`
+- atualizacao de `backend/tests/test_health.py`
+
+Validacao executada:
+- `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_econtrole_webhook_completion.py .\backend\tests\test_backfill_econtrole_companies.py .\backend\tests\test_health.py -q`
+- `.\.venv\Scripts\python.exe .\backend\scripts\process_acessorias_retries.py`
+- `.\.venv\Scripts\python.exe .\backend\scripts\process_acessorias_retries.py --dry-run`
+- `.\.venv\Scripts\python.exe -m backend.app.worker.runner --once`
+
+Resultados e validacoes reais registradas:
+- suite focada aprovada com `15 passed`
+- processador manual e worker `--once` executaram com `selected = 0` no momento da conferencia final, confirmando que nao havia retries vencidos pendentes naquela janela
+- o dry-run do backfill eControle de `2026-08-20` registrou `28` retries pendentes ainda nao vencidos na Acessorias
+
+Decisoes novas:
+- retries de Acessorias sao persistidos em `integration_sync_runs` com `provider = ACESSORIAS` e `job_name = sync_acessorias_company_webhook_retry`
+- retries usam `retry_after = now + 24h`
+- `SUCCESS` encerra a pendencia
+- `EXHAUSTED` e atingido apos `5` tentativas
+- `CANCELLED` e aplicado quando a empresa local estiver inativa ou ausente
+- o worker atual continua simples e orientado a execucao `--once`; isto nao inaugura o macro-stage S16
+
+Confirmacao de escopo:
+- nenhuma migration nova
+- nenhuma fila externa nova
+- nenhum scheduler APScheduler/Celery/RQ dedicado
+- nenhum write-back para o Acessorias alem do snapshot local do Lumen
 
 ## S7 - Sittax read-only: Simples, DAS, DIFAL e documentos fiscais
 
@@ -1897,6 +1987,58 @@ Aceite:
 * `factor_r_potential` sem `missing_cnaes` para a org validada
 * suites focadas do parser, enrichment e servico de Fator R aprovadas
 * cobertura, revisao manual, RBAC e E2E dedicados
+
+### Micro-stage S8.3.2 - Catalogo canonico de atividades, backfill e auditoria de anexos
+
+Status: concluido em 2026-08-20
+
+Objetivo:
+
+* substituir a classificacao heuristica de `company_activity_types` por um catalogo canonico CONCLA/CNAE 2.3 versionado
+* materializar backfill idempotente das classificacoes por empresa
+* operacionalizar auditoria de anexos do Simples em planilha, sem persistir anexos no banco
+
+Entregues:
+
+* `backend/app/data/company_activity_types/company_activity_types_cnae23_concla_mapeamento.json`
+* `backend/app/data/company_activity_types/company_activity_types_cnae23_concla_catalogo_completo.json`
+* `docs/artifacts/company_activity_types/company_activity_types_cnae23_catalogo_completo_com_anexos.xlsx`
+* `backend/app/services/integrations/econet/activity_classifier.py` endurecido para usar o catalogo canonico e consolidacao final da empresa
+* `backend/scripts/backfill_company_activity_types.py`
+* `backend/scripts/export_econet_simples_annex_audit.py`
+* `backend/scripts/fetch_econet_simples_annexes_to_xlsx.py`
+* `backend/tests/test_company_activity_classifier.py`
+* `backend/tests/test_backfill_company_activity_types.py`
+* `backend/tests/test_export_econet_simples_annex_audit_script.py`
+* `backend/tests/test_fetch_econet_simples_annexes_to_xlsx.py`
+
+Validacao executada:
+
+* `.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_company_activity_classifier.py .\backend\tests\test_backfill_company_activity_types.py .\backend\tests\test_export_econet_simples_annex_audit_script.py .\backend\tests\test_fetch_econet_simples_annexes_to_xlsx.py -q`
+* `.\.venv\Scripts\python.exe .\backend\scripts\backfill_company_activity_types.py --org-slug neto-contabilidade --only-active`
+* `.\.venv\Scripts\python.exe .\backend\scripts\export_econet_simples_annex_audit.py --input-xlsx "C:\Users\Maria.clara\Downloads\company_activity_types_cnae23_catalogo_completo.xlsx" --output-xlsx "C:\Users\Maria.clara\Downloads\company_activity_types_cnae23_catalogo_completo_com_anexos.xlsx"`
+
+Resultados e validacoes reais registradas:
+
+* o catalogo canonico passou a conter `1331` subclasses oficiais da CNAE 2.3
+* o backfill real de `company_activity_types` executado em `2026-08-12` processou `242` empresas ativas, com `295` classificacoes criadas, `0` removidas e `0` CNAEs sem mapeamento
+* a auditoria inicial de anexos em planilha mostrou `rows_total = 1331`, `ok = 255`, `prohibited = 9`, `missing_cache = 1067`
+* a coleta posterior dos anexos faltantes foi planejada em lotes de `50` CNAEs, apenas para preencher planilha, sem gravar no banco
+* divergencias de classificacao x anexo foram revisadas manualmente em planilha antes de consolidar os JSONs canonicos
+
+Decisoes novas:
+
+* `company_activity_types` da empresa passam a ser a uniao dos CNAEs ativos classificados no catalogo canonico
+* `SERVICOS` deve ser removido quando coexistir com `TEMPLO_RELIGIOSO`, `SERVICOS_MEDICOS_ODONTOLOGICOS` ou `SERVICOS_IMOBILIARIOS`
+* `COMERCIO` e `INDUSTRIA` podem coexistir com classes especificas
+* anexos do Simples ficam fora do banco nesta etapa; a auditoria operacional acontece em planilha versionada/derivada
+
+Confirmacao de escopo:
+
+* nenhuma migration nova
+* nenhuma coluna nova no banco
+* nenhum anexo do Simples persistido em `econet_cnae_cache`
+* o macro-stage S8 continua pendente; este micro-stage fecha apenas classificacao, backfill e auditoria operacional
 
 ---
 

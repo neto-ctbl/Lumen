@@ -24,6 +24,6 @@ def test_worker_healthcheck_contract() -> None:
     assert response.json() == {
         "status": "ok",
         "service": "lumen-worker",
-        "mode": "stub",
-        "stage": "S1",
+        "mode": "acessorias-retry-processor",
+        "stage": "S6.3",
     }

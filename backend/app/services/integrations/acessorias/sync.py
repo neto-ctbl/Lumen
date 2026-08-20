@@ -97,6 +97,14 @@ class AcessoriasSyncResult:
     dry_run: bool
 
 
+@dataclass(slots=True)
+class AcessoriasCompanySyncResult:
+    payloads_found: int
+    summary: dict[str, Any]
+    errors: list[dict[str, Any]]
+    dry_run: bool
+
+
 class FixtureAcessoriasClient:
     def __init__(
         self,
@@ -152,6 +160,61 @@ def sync_acessorias_companies(
     errors: list[dict[str, Any]],
 ) -> None:
     payloads = list(client.iter_companies())
+    _sync_acessorias_company_payloads(
+        session,
+        organization=organization,
+        payloads=payloads,
+        dry_run=dry_run,
+        summary=summary,
+        errors=errors,
+    )
+
+
+def sync_acessorias_company(
+    session: Session,
+    *,
+    organization: Organization,
+    identifier: str,
+    client: AcessoriasClient | FixtureAcessoriasClient,
+    dry_run: bool = False,
+) -> AcessoriasCompanySyncResult:
+    payload = client.get_company(identifier, registration_data=True)
+    payloads = _coerce_company_payloads(payload)
+    summary = AcessoriasSyncSummary()
+    errors: list[dict[str, Any]] = []
+    _sync_acessorias_company_payloads(
+        session,
+        organization=organization,
+        payloads=payloads,
+        dry_run=dry_run,
+        summary=summary,
+        errors=errors,
+    )
+    return AcessoriasCompanySyncResult(
+        payloads_found=len(payloads),
+        summary=summary.to_dict(),
+        errors=errors,
+        dry_run=dry_run,
+    )
+
+
+def _coerce_company_payloads(payload: list[dict[str, Any]] | dict[str, Any]) -> list[dict[str, Any]]:
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if isinstance(payload, dict):
+        return [payload]
+    raise AcessoriasMappingError("Unexpected company payload format from Acessorias.")
+
+
+def _sync_acessorias_company_payloads(
+    session: Session,
+    *,
+    organization: Organization,
+    payloads: list[dict[str, Any]],
+    dry_run: bool,
+    summary: AcessoriasSyncSummary,
+    errors: list[dict[str, Any]],
+) -> None:
     root_regime_map = _build_root_regime_map(payloads)
 
     for payload in payloads:

@@ -20,7 +20,7 @@ FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     "inscricao_municipal": ("inscricao_municipal", "inscricaoMunicipal"),
     "municipio": ("municipio",),
     "uf": ("uf",),
-    "cnae_principal": ("cnae_principal", "cnaePrincipal"),
+    "cnae_principal": ("cnae_principal", "cnaePrincipal", "cnaes_principal", "cnaesPrincipal"),
     "cnaes_secundarios": ("cnaes_secundarios", "cnaesSecundarios"),
     "updated_at_econtrole": ("updated_at", "updatedAt"),
 }
@@ -53,8 +53,8 @@ def map_econtrole_company_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "inscricao_municipal": _normalize_text(_pick(payload, "inscricao_municipal")),
         "municipio": _normalize_text(_pick(payload, "municipio")),
         "uf": _normalize_uf(_pick(payload, "uf")),
-        "cnae_principal": _normalize_text(_pick(payload, "cnae_principal")),
-        "cnaes_secundarios": [_stringify(item).strip() for item in cnaes_secundarios] if cnaes_secundarios else None,
+        "cnae_principal": _normalize_cnae_item(_pick(payload, "cnae_principal"), primary=True),
+        "cnaes_secundarios": _normalize_secondary_cnaes(cnaes_secundarios),
         "updated_at_econtrole": _parse_datetime(_pick(payload, "updated_at_econtrole")),
         "raw_econtrole": payload,
     }
@@ -93,6 +93,42 @@ def _normalize_uf(value: Any) -> str | None:
     return text.upper()[:2]
 
 
+def _normalize_secondary_cnaes(values: Any) -> list[str] | None:
+    if not values:
+        return None
+    if not isinstance(values, list):
+        raise EControleMappingError("Field 'cnaes_secundarios' must be a list when provided.")
+    normalized: list[str] = []
+    for item in values:
+        code = _normalize_cnae_item(item)
+        if code:
+            normalized.append(code)
+    return normalized or None
+
+
+def _normalize_cnae_item(value: Any, *, primary: bool = False) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, list):
+        for item in value:
+            code = _normalize_cnae_item(item, primary=primary)
+            if code:
+                return code
+        return None
+    if isinstance(value, dict):
+        for key in ("codigo", "code", "cnae", "id", "value"):
+            code = _normalize_text(value.get(key))
+            if code:
+                return code
+        if primary:
+            for item in value.values():
+                code = _normalize_cnae_item(item)
+                if code:
+                    return code
+        return None
+    return _normalize_text(value)
+
+
 def _normalize_text(value: Any) -> str | None:
     if value is None:
         return None
@@ -111,6 +147,7 @@ def _parse_datetime(value: Any) -> datetime | None:
     if text is None:
         return None
     try:
-        return datetime.fromisoformat(text)
+        normalized = text[:-1] + "+00:00" if text.endswith("Z") else text
+        return datetime.fromisoformat(normalized)
     except ValueError as exc:
         raise EControleMappingError("Field 'updated_at' has invalid datetime format.") from exc

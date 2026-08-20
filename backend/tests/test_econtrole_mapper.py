@@ -35,6 +35,32 @@ def test_map_econtrole_company_payload_complete() -> None:
     assert mapped["updated_at_econtrole"].isoformat() == "2026-07-07T10:00:00-03:00"
 
 
+def test_map_econtrole_company_payload_accepts_companies_endpoint_shape() -> None:
+    payload = {
+        "id": "123",
+        "cnpj": "19.163.109/0001-78",
+        "razao_social": "AC SOARES LTDA",
+        "nome_fantasia": "AC Soares",
+        "municipio": "anapolis",
+        "uf": "go",
+        "cnaes_principal": [
+            {"code": "62.03-1-00", "text": "Desenvolvimento de software"},
+        ],
+        "cnaes_secundarios": [
+            {"code": "63.11-9-00", "text": "Tratamento de dados"},
+            {"codigo": "85.99-6-04"},
+        ],
+        "updated_at": "2026-08-19T19:49:53.652773Z",
+    }
+
+    mapped = map_econtrole_company_payload(payload)
+
+    assert mapped["econtrole_company_id"] == "123"
+    assert mapped["cnae_principal"] == "62.03-1-00"
+    assert mapped["cnaes_secundarios"] == ["63.11-9-00", "85.99-6-04"]
+    assert mapped["updated_at_econtrole"].isoformat() == "2026-08-19T19:49:53.652773+00:00"
+
+
 def test_map_econtrole_company_payload_empty_ie_becomes_none() -> None:
     payload = {
         "cnpj": "19163109000178",

@@ -9,6 +9,6 @@ def worker_health() -> dict[str, str]:
     return {
         "status": "ok",
         "service": "lumen-worker",
-        "mode": "stub",
-        "stage": "S1",
+        "mode": "acessorias-retry-processor",
+        "stage": "S6.3",
     }

@@ -186,6 +186,9 @@ agent/failed/
 !docs/**/*.pdf
 !docs/**/*.csv
 !docs/examples/**
+!docs/artifacts/
+!docs/artifacts/company_activity_types/
+!docs/artifacts/company_activity_types/*.xlsx
 
 # Coletor Domínio Folha
 scripts/collectors/dominio/.env

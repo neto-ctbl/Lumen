@@ -1,8 +1,8 @@
 # Lumen - Fiscal Cockpit
 
-Data de referencia: 2026-08-05
+Data de referencia: 2026-08-20
 
-O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage S6.0, o Stage S6, o micro-stage complementar S6.2, o micro-stage S7.0, o micro-stage S7.1, o micro-stage S7.2, o micro-stage S7.3, o micro-stage S7.4, o micro-stage S8.0, o micro-stage S8.1, o micro-stage S8.2, o micro-stage S8.3 e o micro-stage complementar S8.3.1. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5, do frontend fiscal read-only do S5.1, da integracao oficial read-only com o Sistema Acessorias no S6, do backfill operacional retroativo do Acessorias sem alteracao de schema no S6.2 e dos snapshots cadastral e de apuracao do Sittax, o projeto passou a suportar DIFAL, documentos fiscais, tarefas/transmissoes, endpoint manual de sync, persistencia operacional multi-tenant, handoff stateful validado do host `api.sittax.com.br`, contrato observado da Econet documentado com fixtures anonimizadas, a fundacao offline da Econet com model, migration, parser HTML puro e cache idempotente por CNAE, a sessao manual assistida da Econet com cookies em memoria, probe explicito e health local sem rede, o catalogo relacional canonico de CNAEs por empresa, o potencial cadastral de Fator R e a correção semantica do parser da Econet para canonicalizar Fator R como `Anexo V -> Anexo III`.
+O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage complementar S5.2, o micro-stage S6.0, o Stage S6, os micro-stages complementares S6.2 e S6.3, o micro-stage S7.0, o micro-stage S7.1, o micro-stage S7.2, o micro-stage S7.3, o micro-stage S7.4, o micro-stage S8.0, o micro-stage S8.1, o micro-stage S8.2, o micro-stage S8.3 e os micro-stages complementares S8.3.1 e S8.3.2. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5, do frontend fiscal read-only do S5.1, da integracao oficial read-only com o Sistema Acessorias no S6, do backfill operacional retroativo do Acessorias sem alteracao de schema no S6.2, do completion cadastral automatizado do eControle com reconciliacao e backfill dedicado no S5.2, do retry automatico de regime por empresa na Acessorias em S6.3 e dos snapshots cadastral e de apuracao do Sittax, o projeto passou a suportar DIFAL, documentos fiscais, tarefas/transmissoes, endpoint manual de sync, persistencia operacional multi-tenant, handoff stateful validado do host `api.sittax.com.br`, contrato observado da Econet documentado com fixtures anonimizadas, a fundacao offline da Econet com model, migration, parser HTML puro e cache idempotente por CNAE, a sessao manual assistida da Econet com cookies em memoria, probe explicito e health local sem rede, o catalogo relacional canonico de CNAEs por empresa, o potencial cadastral de Fator R, o catalogo canonico CONCLA/CNAE 2.3 para `company_activity_types`, a auditoria de anexos do Simples em planilha e a correção semantica do parser da Econet para canonicalizar Fator R como `Anexo V -> Anexo III`.
 
 ## Escopo real atual
 
@@ -100,6 +100,17 @@ S5.1 entregue:
 - E2E atualizados em `frontend/tests_e2e/smoke.spec.ts`, `shell.spec.ts` e `deliveries.spec.ts`
 - frontend read-only validado como baseline funcional do portal fiscal
 
+S5.2 entregue:
+
+- `backend/app/services/integrations/econtrole/webhook_completion.py`
+- `backend/scripts/backfill_econtrole_companies.py`
+- `backend/tests/test_econtrole_webhook_completion.py`
+- `backend/tests/test_backfill_econtrole_companies.py`
+- completion pos-webhook do eControle para regime da Acessorias, CNAEs faltantes na Econet e `company_activity_types`
+- inativacao automatica local quando o payload do eControle vier com `situacao = INATIVA`
+- backfill operacional para reconciliar listagem atual do eControle, reprocessar empresas locais e opcionalmente marcar ausentes como inativas
+- diagnostico explicito de payloads invalidos do eControle no resumo do backfill
+
 S6.0 entregue:
 
 - `docs/ACESSORIAS_CONTRACT.md`
@@ -141,6 +152,29 @@ S6.2 entregue:
 - filtro opcional `--fiscal-only` no sync mensal e no backfill para persistir apenas entregas pertinentes ao fiscal
 - nenhuma migration nova, nenhuma tabela nova, nenhuma alteracao em `external_companies` e nenhuma alteracao de frontend
 - validacao real concluida em `2026-08-03` com `status = SUCCESS` no intervalo `2026-01` a `2026-07`
+
+S6.3 entregue:
+
+- sync pontual de empresa da Acessorias reaproveitando os mappers e snapshots existentes
+- persistencia de retries pendentes em `integration_sync_runs` com `provider = ACESSORIAS` e `job_name = sync_acessorias_company_webhook_retry`
+- processador de retries vencidos em `backend/scripts/process_acessorias_retries.py`
+- `worker` capaz de processar retries de Acessorias em modo `--once`
+- limite de `5` tentativas para empresas que realmente nao existem na Acessorias, evitando loop infinito
+- cancelamento automatico do retry quando a empresa ficar inativa ou ausente localmente
+
+S8.3.2 entregue:
+
+- `backend/app/data/company_activity_types/company_activity_types_cnae23_concla_mapeamento.json`
+- `backend/app/data/company_activity_types/company_activity_types_cnae23_concla_catalogo_completo.json`
+- `docs/artifacts/company_activity_types/company_activity_types_cnae23_catalogo_completo_com_anexos.xlsx`
+- `backend/scripts/backfill_company_activity_types.py`
+- `backend/scripts/export_econet_simples_annex_audit.py`
+- `backend/scripts/fetch_econet_simples_annexes_to_xlsx.py`
+- `backend/tests/test_company_activity_classifier.py`
+- `backend/tests/test_backfill_company_activity_types.py`
+- catalogo canonico de `1331` subclasses CNAE 2.3 com `activity_type` materializado
+- pos-processamento canonico da empresa para remover `SERVICOS` quando coexistir com `TEMPLO_RELIGIOSO`, `SERVICOS_MEDICOS_ODONTOLOGICOS` ou `SERVICOS_IMOBILIARIOS`
+- auditoria operacional dos anexos do Simples em planilha, sem gravar anexo no banco
 
 Ainda nao existem:
 
@@ -187,7 +221,10 @@ No S4.1, foram materializados seeds logicos de regras-base e competencias, sem c
 O S4.1 foi tratado como micro-stage complementar de fechamento tecnico e nao como stage originalmente enumerado no `PLANO_DESENVOLVIMENTO.md`.
 No S5, foi materializada apenas a integracao cadastral MVP do eControle.
 No S5.1, foram materializados os endpoints read-only `/api/v1/lumen/*`, o frontend fiscal funcional e os estados vazios honestos quando tabelas operacionais ainda estiverem vazias.
+No S5.2, o fluxo do eControle passou a completar cadastro localmente, reprocessar empresas ja existentes e suportar reconciliacao/backfill operacional com diagnostico de payload invalido.
+No S6.3, o worker deixou de ser apenas stub funcional e passou a processar retries vencidos da Acessorias por empresa, com limite de tentativas e cancelamento automatico.
 No S8.0, foram materializados apenas contrato observado da Econet, protecao de artefatos brutos no Git, fixtures HTML sinteticas/sanitizadas e testes offline. No S8.1, foram materializados `econet_cnae_cache`, a migration incremental `20260721_0009`, o parser HTML puro offline, o servico de cache idempotente por CNAE e a suite de testes dedicada. No S8.2, foram materializados sessao assistida exclusivamente em memoria, importacao controlada de cookies allowlisted, cliente HTTP stateful restrito a `https://www.econeteditora.com.br/ferramentas/regimes_cnae/`, endpoints administrativos de import/status/probe/clear, helper operacional de exportacao e health local sem chamadas externas. No S8.3, foram materializados catalogo relacional por empresa, decode seguro por bytes, cache versionado por parser, enriquecimento por CNAE e potencial cadastral de Fator R. No micro-stage complementar S8.3.1, o parser foi endurecido para ignorar menções incidentais em `Nota ECONET`, canonicalizar casos positivos de Fator R para `Anexo V -> Anexo III`, corrigir falsos positivos/negativos historicos do cache e validar o fechamento real da base da Econet. O macro-stage S8 continua pendente; o S8.4 segue nao iniciado.
+No S8.3.2, `company_activity_types` passou a usar catalogo canonico CONCLA/CNAE 2.3 versionado no repositorio, com backfill idempotente e auditoria operacional dos anexos do Simples em planilha.
 No S9.0, foi materializada apenas a fundacao documental da Dominio Folha: contrato tecnico, helper puro de competencia `folha M -> apuracao M+1`, fixtures sinteticas, testes offline e coletor Windows opcional com lock local, retry limitado, `.partial.pdf`, validacao minima de PDF, SHA-256 e manifest lateral, sem migration, sem banco, sem endpoint e sem frontend. No S9.1, o projeto passou a ter parser offline do `Resumo Mensal` com `pypdf` como extrator primario, leitura separada de parser puro de paginas, agrupamento por empresa/competencia, blocos, rubricas, totais, sinais de folha, warnings estruturados, correcao semantica de `has_employee` para excluir `INSS EMPREGADOR` como prova de empregado e validacao real agregada para os PDFs `05/2026` e `06/2026`, ainda sem persistencia, endpoint, watcher ou OCR. No S9.2, a trilha Dominio passou a persistir imports e movimentos com migration incremental propria, idempotencia por `organization_id + file_sha256`, matching exclusivo por `organization_id + cnpj`, resolucao de `fiscal_periods` sempre pela competencia de apuracao `M+1`, `rubrics_summary` deterministico em JSONB, criacao de `fiscal_evidences` apenas para movimentos `MATCHED`, `integration_sync_runs`, auditoria e CLI `backend/scripts/import_dominio_payroll.py` com `--dry-run` e saida segura, sem endpoint HTTP, sem watcher, sem tabela de rubricas e sem alterar DCTFWeb neste stage. A decisao operacional final do S9.2 fixa como fonte canonica mensal um PDF por competencia com filtro `Ativas`; a janela historica de 12 meses para Fator R passa a ser montada a partir dos movimentos persistidos, enquanto o filtro `Fator R` e o modo intervalo ficam opcionais para auditoria, diagnostico ou contingencia.
 
 Observacoes do S8.1:
@@ -233,10 +270,10 @@ INITIAL_ORG_SLUG=lumen
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
-Variaveis novas do S5:
+Variaveis novas do S5 e S5.2:
 
 ```powershell
-ECONTROLE_API_BASE_URL=http://localhost:8090/api
+ECONTROLE_API_BASE_URL=http://localhost:8020/api/v1
 ECONTROLE_API_TOKEN=
 ECONTROLE_WEBHOOK_TOKEN=
 ECONTROLE_TIMEOUT_SECONDS=15
@@ -308,6 +345,14 @@ Observacoes do S5:
 - o endpoint de listagem usa path placeholder MVP isolada em codigo: `GET /companies`
 - nenhum token, cookie, sessao assistida ou payload real deve ser versionado
 
+Observacoes do S5.2:
+
+- o webhook de `company-upsert` agora pode completar cadastro e disparar enriquecimento local sem depender de sync manual separado
+- o completion do eControle usa a Acessorias como fonte oficial de regime, a Econet apenas para CNAEs ausentes do cache e o catalogo CONCLA como fonte canonica de `company_activity_types`
+- o backfill `backend/scripts/backfill_econtrole_companies.py` suporta `--skip-econtrole-sync`, `--skip-local-completion`, `--mark-missing-inactive` e `--dry-run`
+- a reconciliacao completa de 2026-08-20 sobre `neto-contabilidade` retornou `228` empresas no eControle, com `2` criacoes potenciais, `223` updates potenciais e `3` payloads invalidos por ausencia de `cnpj`; estes tres casos foram diagnosticados como dados de origem incompletos e podem ser ignorados operacionalmente
+- a etapa local do mesmo `dry-run` processou `250` empresas sem erro, com `28` retries pendentes da Acessorias e `4` CNAEs ainda ausentes no cache da Econet
+
 Observacoes do S5.1:
 
 - todos os endpoints novos usam o prefixo `/api/v1/lumen`
@@ -339,6 +384,23 @@ Observacoes do S6:
 - `external_companies` permanece como espelho cadastral do eControle e nao recebe o regime canonico
 - o schema atual nao possui historico legal de regime; o snapshot do Acessorias representa apenas o estado atual observado
 - o backfill do S6.2 e reiniciavel por idempotencia, sem precisar de tabela de checkpoint ou migration nova
+
+Observacoes do S6.3:
+
+- retries de regime por empresa passam a ser persistidos como `PENDING` em `integration_sync_runs`
+- o processador automatico reexecuta apenas retries vencidos por `retry_after`
+- `SUCCESS` fecha a pendencia quando a empresa finalmente aparece na Acessorias
+- `EXHAUSTED` e atingido apos `5` tentativas sem sucesso
+- `CANCELLED` e aplicado quando a empresa local ja estiver inativa ou ausente
+- a validacao automatizada executada em 2026-08-20 aprovou `15` testes focados no fluxo de retries
+
+Observacoes do S8.3.2:
+
+- o classificador de `company_activity_types` deixou de depender apenas de heuristica textual e passa a usar um catalogo canonico CONCLA/CNAE 2.3 versionado no repositorio
+- o backfill de `activity_types` pode ser reexecutado de forma idempotente por `backend/scripts/backfill_company_activity_types.py`
+- a auditoria de anexos da Econet foi operacionalizada apenas em planilha; anexos do Simples nao foram persistidos no banco nesta etapa
+- o catalogo final validado contem `1331` subclasses oficiais da CNAE 2.3
+- a regra de consolidacao da empresa permite coexistencia entre `COMERCIO` e `INDUSTRIA` com classes especificas, mas remove `SERVICOS` quando coexistir com `TEMPLO_RELIGIOSO`, `SERVICOS_MEDICOS_ODONTOLOGICOS` ou `SERVICOS_IMOBILIARIOS`
 
 Observacao S3.1:
 
@@ -398,16 +460,18 @@ $logoutBody = @{ refresh_token = $login.refresh_token } | ConvertTo-Json
 Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/v1/auth/logout -Headers $headers -ContentType "application/json" -Body $logoutBody
 ```
 
-### 5. Worker stub
+### 5. Worker e retries da Acessorias
 
 ```powershell
 .\scripts\dev\run_worker.ps1
+.\.venv\Scripts\python.exe .\backend\scripts\process_acessorias_retries.py --dry-run
+.\.venv\Scripts\python.exe -m backend.app.worker.runner --once
 ```
 
 Resultado esperado:
 
-```txt
-Lumen worker stub OK - Stage S1
+```json
+{"worker":"lumen","once":true,"acessorias_retry":{"selected":0,"processed":0,"succeeded":0,"rescheduled":0,"exhausted":0,"cancelled":0,"failed":0}}
 ```
 
 ### 6. Frontend
@@ -828,8 +892,8 @@ Respostas esperadas:
 {
   "status": "ok",
   "service": "lumen-worker",
-  "mode": "stub",
-  "stage": "S1"
+  "mode": "acessorias-retry-processor",
+  "stage": "S6.3"
 }
 ```
 

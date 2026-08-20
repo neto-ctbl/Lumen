@@ -53,6 +53,8 @@ def test_settings() -> Settings:
     os.environ.pop("TEST_DATABASE_URL", None)
     os.environ["LUMEN_TEST_DATABASE_URL"] = DEFAULT_TEST_DATABASE_URL
     os.environ["DATABASE_URL"] = DEFAULT_TEST_DATABASE_URL
+    os.environ["ACESSORIAS_API_TOKEN"] = ""
+    os.environ["ECONET_ASSISTED_SESSION_ENABLED"] = "0"
     get_settings.cache_clear()
     return Settings()
 

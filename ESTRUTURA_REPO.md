@@ -1,6 +1,6 @@
 # Estrutura inicial esperada do repositório Lumen
 
-Data de referência: 2026-07-21
+Data de referência: 2026-08-20
 
 Este documento descreve a organização inicial recomendada para o monorepo do Lumen. A estrutura foi pensada para facilitar trabalho incremental com Codex, separando backend, frontend, agente local, infra, documentação e scripts operacionais.
 
@@ -1519,3 +1519,49 @@ Decisoes materializadas no S9.2:
 - `target_company_count` e `target_list_sha256` pertencem apenas ao escopo `FACTOR_R` e nao devem vazar para imports `Ativas`
 - manifests legados com `selection_scope` ausente e `source_filter_name = Ativas` passam a ser inferidos como `ACTIVE_COMPANIES`
 - a janela historica de 12 meses para Fator R e montada a partir dos movimentos persistidos; filtro `Fator R` e modo intervalo permanecem opcionais para auditoria, diagnostico ou contingencia
+
+## Atualizacao S5.2, S6.3 e S8.3.2 em 2026-08-20
+
+Arquivos materializados no S5.2:
+
+- `backend/app/services/integrations/econtrole/webhook_completion.py`
+- `backend/scripts/backfill_econtrole_companies.py`
+- `backend/tests/test_econtrole_webhook_completion.py`
+- `backend/tests/test_backfill_econtrole_companies.py`
+
+Arquivos materializados no S6.3:
+
+- `backend/scripts/process_acessorias_retries.py`
+- `backend/app/worker/runner.py` atualizado para processar retries vencidos da Acessorias
+- `backend/app/api/v1/endpoints/worker.py` atualizado para refletir o processador real
+- `backend/tests/test_health.py` atualizado para o contrato novo do worker
+
+Arquivos materializados no S8.3.2:
+
+- `backend/app/data/company_activity_types/company_activity_types_cnae23_concla_mapeamento.json`
+- `backend/app/data/company_activity_types/company_activity_types_cnae23_concla_catalogo_completo.json`
+- `docs/artifacts/company_activity_types/company_activity_types_cnae23_catalogo_completo_com_anexos.xlsx`
+- `backend/scripts/backfill_company_activity_types.py`
+- `backend/scripts/export_econet_simples_annex_audit.py`
+- `backend/scripts/fetch_econet_simples_annexes_to_xlsx.py`
+- `backend/tests/test_company_activity_classifier.py`
+- `backend/tests/test_backfill_company_activity_types.py`
+- `backend/tests/test_export_econet_simples_annex_audit_script.py`
+- `backend/tests/test_fetch_econet_simples_annexes_to_xlsx.py`
+
+Decisoes materializadas nesta etapa:
+
+- o fluxo do eControle agora completa cadastro localmente apos webhook ou reconciliacao, incluindo `company_cnaes`, regime da Acessorias, CNAEs faltantes da Econet e `company_activity_types`
+- empresas com `situacao = INATIVA` no eControle passam a ser inativadas localmente sem depender apenas do endpoint de delete
+- retries de Acessorias sao persistidos em `integration_sync_runs`, com janela de `24h`, limite de `5` tentativas e estados `PENDING`, `SUCCESS`, `EXHAUSTED` e `CANCELLED`
+- o worker deixou de ser apenas stub funcional para o caso de uso de retries da Acessorias, embora o macro-stage S16 ainda nao esteja iniciado
+- `company_activity_types` deixam de depender apenas de heuristica textual e passam a usar catalogo canonico CONCLA/CNAE 2.3 versionado no repositorio
+- a auditoria de anexos da Econet ficou operacionalizada em planilha, sem persistencia desses anexos no banco
+
+Validacoes reais registradas nesta etapa:
+
+- backfill dry-run do eControle em `2026-08-20` com `228` empresas recebidas, `2` criacoes potenciais, `223` updates potenciais e `3` payloads invalidos por ausencia de `cnpj`
+- reprocessamento local do mesmo dry-run com `250` empresas, `28` retries pendentes da Acessorias e `4` CNAEs ainda ausentes no cache da Econet
+- processador de retries da Acessorias validado com `15 passed`
+- backfill real de `company_activity_types` em `2026-08-12` com `242` empresas ativas, `295` classificacoes criadas e `0` CNAEs sem mapeamento
+- auditoria inicial de anexos da planilha com `1331` linhas, `255` `OK`, `9` `prohibited` e `1067` `missing_cache`
