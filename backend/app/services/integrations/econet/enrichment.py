@@ -13,7 +13,11 @@ from backend.app.core.enums import EconetEnrichmentItemStatus
 from backend.app.models.econet_cnae_cache import EconetCnaeCache
 from backend.app.services.company_cnae_catalog import get_unique_active_cnaes, sync_organization_cnae_catalog
 from backend.app.services.factor_r import FactorRPotentialResult, get_company_factor_r_potential
-from backend.app.services.integrations.econet.activity_classifier import classify_cache_description, classify_company_activity_types
+from backend.app.services.integrations.econet.activity_classifier import (
+    classify_cache_description,
+    classify_company_activity_types,
+    resolve_catalog_activity_type,
+)
 from backend.app.services.integrations.econet.cache import is_current_parser_version, is_cache_entry_fresh, upsert_econet_cnae_cache
 from backend.app.services.integrations.econet.client import EconetClient
 from backend.app.services.integrations.econet.errors import (
@@ -233,7 +237,12 @@ def _refresh_single_cnae(session: Session, *, client: EconetClient, cnae: str, d
         obligations_simples=obligations_simples,
         obligations_simei=obligations_simei,
     )
-    inferred = classify_cache_description(normalized.description)
+    catalog_classification = resolve_catalog_activity_type(normalized.cnae)
+    inferred = (
+        (catalog_classification.activity_type,)
+        if catalog_classification is not None
+        else classify_cache_description(normalized.description)
+    )
     normalized = replace(
         normalized,
         activity_types=inferred,
