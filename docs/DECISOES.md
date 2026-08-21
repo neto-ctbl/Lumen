@@ -184,3 +184,17 @@ Data de referencia: 2026-07-20
 - `target_company_count` e `target_list_sha256` pertencem somente ao escopo `FACTOR_R` e nao devem vazar para imports `Ativas`.
 - A janela historica de 12 meses para Fator R deve ser montada a partir dos movimentos persistidos; filtro `Fator R` e modo intervalo ficam opcionais para auditoria, diagnostico ou contingencia.
 - O relatorio Dominio comprova movimento de folha/eSocial e componente DP, mas nao comprova transmissao da DCTFWeb nem fato gerador da REINF.
+
+## S9.3 - Origem esperada da DCTFWeb
+
+- O S9.3 persiste uma avaliacao derivada e auditavel por `organization_id + external_company_id + fiscal_period_id`, sem atualizar o status da obrigacao.
+- O universo do S9.3 e toda empresa atualmente ativa (`ExternalCompany.active = true`) da organizacao; como ainda nao ha historico de ativacao por competencia, essa e uma limitacao operacional documentada.
+- Domínio canônica `ACTIVE_COMPANIES` e fonte de cobertura DP; import `FACTOR_R` nao substitui o relatorio mensal.
+- DCTFWeb e interpretada operacionalmente como eSocial + EFD-Reinf + MIT: eSocial/Domínio para DP, REINF/MIT para Fiscal.
+- REINF e detectada apenas por obrigacao/evidencia canonica `REINF`.
+- MIT e detectado apenas a partir da PA `2025-01` pelas obrigacoes canonicas `PIS` e `COFINS`; DAS, regime tributario e `EFD_CONTRIBUICOES` nao inferem MIT.
+- Entrega Acessorias mapeada canonicamente para `DCTFWEB`, assim como status ou evidencia canonicos, observa DCTFWeb mas nao decide isoladamente sua origem DP/Fiscal.
+- A auditoria de `2026-08-21` confirmou que o snapshot `2026-07` nao possui status/evidencia `PIS` ou `COFINS`, nem fontes canonicas DCTFWeb; `MIT = 0` e `dctfweb_observed = 0` representam ausencia das fontes locais, nao conclusao juridica.
+- Empresa ativa sem DP, REINF, MIT ou DCTFWeb observados fica `UNDETERMINED` com `NO_DCTFWEB_COMPONENT_OBSERVED`, departamento esperado nulo e sem alerta acionavel.
+- Falta do relatorio mensal Dominio gera no maximo um alerta por organizacao e periodo, com `company_id = null`.
+- `expected_origin` e `expected_responsible_department` sao sinais operacionais esperados, nao confirmacao de entrega ou conclusao juridica.

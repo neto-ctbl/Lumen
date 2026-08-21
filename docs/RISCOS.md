@@ -88,6 +88,15 @@ Data de referencia: 2026-07-20
 ## S9.2
 
 - Concorrencia entre duas importacoes do mesmo arquivo depende da constraint `organization_id + file_sha256` e do tratamento correto de `IntegrityError`.
+
+## S9.3
+
+- Ausencia de REINF ou DCTFWeb nas fontes locais nao prova ausencia juridica de componente Fiscal ou transmissao; o resultado permanece expectativa operacional.
+- Empresa ativa sem DP, REINF, MIT ou DCTFWeb observados nao e erro operacional por si so; o motor registra `UNDETERMINED` com `NO_DCTFWEB_COMPONENT_OBSERVED` e nao abre alerta.
+- Falta de PDF mensal `ACTIVE_COMPANIES` e cobertura ausente, nunca folha zerada.
+- O S9.3 usa o `ExternalCompany.active` atual porque ainda nao existe historico de ativacao por competencia; reconciliacoes retroativas podem refletir o cadastro corrente.
+- MIT so e inferido por obrigacoes canonicas `PIS` e `COFINS` a partir da PA `2025-01`; DAS, regime tributario e `EFD_CONTRIBUICOES` nao provam MIT.
+- No snapshot auditado `2026-07`, nao havia status/evidencia MIT-related nem fonte canonica DCTFWeb; ausencia local nao deve ser interpretada como ausencia juridica da obrigacao ou entrega.
 - CNPJ invalido, ausente ou sem match nao pode interromper o lote, mas aumenta fila de revisao manual.
 - `raw_text` persistido em movimento exige cuidado para nao vazar em log, erro, auditoria ou `integration_sync_runs`.
 - Retry de import `FAILED` precisa limpar movimentos e evidencias anteriores para nao produzir duplicidade.

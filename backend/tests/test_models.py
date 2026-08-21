@@ -78,6 +78,7 @@ def test_s4_tables_exist(prepared_test_database: None, test_settings) -> None:
         "watcher_file_events",
         "acessorias_company_snapshots",
         "acessorias_delivery_snapshots",
+        "dctfweb_origin_assessments",
     }.issubset(tables)
 
 
@@ -158,6 +159,7 @@ def test_backend_app_models_exports_new_s4_models() -> None:
         "AcessoriasCompanySnapshot",
         "AcessoriasDeliverySnapshot",
         "CompanyActivityType",
+        "DctfwebOriginAssessment",
         "ExternalCompany",
         "FiscalAlert",
         "FiscalEvidence",

@@ -1520,6 +1520,27 @@ Decisoes materializadas no S9.2:
 - manifests legados com `selection_scope` ausente e `source_filter_name = Ativas` passam a ser inferidos como `ACTIVE_COMPANIES`
 - a janela historica de 12 meses para Fator R e montada a partir dos movimentos persistidos; filtro `Fator R` e modo intervalo permanecem opcionais para auditoria, diagnostico ou contingencia
 
+## Atualizacao S9.3
+
+Arquivos materializados no S9.3:
+
+- `backend/app/models/dctfweb_origin.py`
+- `backend/app/services/dctfweb_origins.py`
+- `backend/scripts/reconcile_dctfweb_origins.py`
+- `backend/alembic/versions/20260820_0013_create_dctfweb_origin_assessments.py`
+- `backend/tests/test_dctfweb_origins.py`
+
+Decisoes materializadas no S9.3:
+
+- `dctfweb_origin_assessments` e uma visao derivada, multi-tenant e auditavel; nao altera `fiscal_obligation_statuses`;
+- o universo avaliado e toda empresa atualmente ativa (`ExternalCompany.active = true`) da organizacao, com limitacao documentada por ainda nao haver historico de ativacao por competencia;
+- a cobertura DP consulta apenas imports mensais `ACTIVE_COMPANIES` por competencia de apuracao;
+- DCTFWeb e decomposta operacionalmente em eSocial, EFD-Reinf e MIT; eSocial/Domínio aponta DP, REINF/MIT apontam Fiscal;
+- `REINF` e sinal Fiscal apenas quando a obrigacao/evidencia canonica for `REINF`; MIT e sinal Fiscal apenas a partir da PA `2025-01` por `PIS`/`COFINS`;
+- DCTFWeb observada por entrega Acessorias mapeada, status ou evidencia canonicos nao define origem por si so; ausencia total de sinais persiste `UNDETERMINED` sem alerta;
+- alertas reutilizam `fiscal_alerts`, sao idempotentes e resolvidos quando a condicao desaparece; falta de relatorio mensal Dominio gera no maximo um alerta por organizacao/periodo com `company_id = null`;
+- o processamento e interno e auditado, sem criar uma integracao externa artificial em `integration_sync_runs`.
+
 ## Atualizacao S5.2, S6.3 e S8.3.2 em 2026-08-20
 
 Arquivos materializados no S5.2:

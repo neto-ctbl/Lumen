@@ -2369,21 +2369,33 @@ Pendencias nao bloqueantes:
 
 ### S9.3 - Origem DCTFWeb, departamentos e alertas
 
-Status: planejado
+Status: CONCLUIDO em 2026-08-21, aguardando revisao e commit
 
-Planejamento:
+Entregues:
 
-* `Domínio Folha somente = DP`;
-* `REINF somente = FISCAL`;
-* `MIT/federal somente = FISCAL`;
-* `Domínio Folha + REINF/MIT = COMPARTILHADO`;
-* alertas `DOMINIO_PAYROLL_COMPANY_UNMATCHED`;
-* alertas `DCTFWEB_DP_EXPECTED_NOT_FOUND`;
-* alertas `DCTFWEB_SHARED_ORIGIN_DETECTED`;
-* alertas `DCTFWEB_NEXT_PERIOD_CHECK`;
-* alertas `FACTOR_R_PAYROLL_SIGNAL_FOUND`;
-* alertas `FACTOR_R_NO_PAYROLL_SIGNAL`;
-* regra de alerta posterior em `M+2` em relação à folha original.
+* migration `20260820_0013_create_dctfweb_origin_assessments.py` e tabela auditavel por organizacao, empresa e competencia;
+* motor `backend/app/services/dctfweb_origins.py` e CLI `backend/scripts/reconcile_dctfweb_origins.py` com `--dry-run`;
+* cobertura Domínio por competencia de apuracao: `CONFIRMED_MOVEMENT`, `CONFIRMED_NO_MOVEMENT` e `REPORT_MISSING`;
+* avaliacao de todas as empresas atualmente ativas da organizacao, usando `ExternalCompany.active` como estado operacional corrente por ainda nao existir historico de ativacao;
+* origem esperada `DP`, `FISCAL`, `COMPARTILHADO` ou `UNDETERMINED`, com fingerprint deterministico, reason codes e resumo sem PII;
+* DCTFWeb modelada como composicao operacional de eSocial, EFD-Reinf e MIT: eSocial/Domínio para DP, REINF/MIT para Fiscal;
+* `REINF` detectada apenas por obrigacao/evidencia canonica `REINF`;
+* MIT detectado apenas a partir da PA `2025-01` por obrigacoes canonicas `PIS` e `COFINS`; DAS, regime tributario e `EFD_CONTRIBUICOES` nao inferem MIT;
+* observacao de DCTFWeb por entrega Acessorias, evidencia ou status canonico, sem confundir observacao com entrega confirmada;
+* empresa ativa sem DP, REINF, MIT ou DCTFWeb observados persiste `UNDETERMINED` com `NO_DCTFWEB_COMPONENT_OBSERVED`, sem alerta acionavel;
+* alertas idempotentes e resolviveis para cobertura Domínio ausente agregada por organizacao/periodo, origem compartilhada, revisao mensal, componente DP ainda nao observado e origem indeterminada acionavel;
+* auditoria agregada de execucao real, sem criar `integration_sync_runs` para um processamento derivado interno.
+* auditoria final em `2026-08-21`: catalogo MIT atual com `PIS`/`COFINS`, sem status ou evidencias MIT em `2026-07`; fontes canonicas DCTFWeb (status, evidencia e Acessorias) tambem ausentes, justificando `MIT = 0` e `dctfweb_observed = 0` no snapshot;
+* auditoria confirmou 242 assessments (`DP=127`, `FISCAL=5`, `COMPARTILHADO=8`, `UNDETERMINED=102`), invariante Fiscal = REINF ou MIT sem violacoes, reexecucao idempotente e nenhuma alteracao em `fiscal_obligation_statuses`.
+
+Limites mantidos:
+
+* o stage nao altera `fiscal_obligation_statuses`, nem marca DCTFWeb, REINF ou MIT como entregue;
+* nao calcula Fator R, Anexo III/V, DAS ou divergencias com Sittax;
+* nao cria endpoint HTTP, frontend, watcher, RQ ou scheduler;
+* o PDF `FACTOR_R` nao substitui a cobertura mensal canonica `ACTIVE_COMPANIES`;
+* a base ainda nao possui historico de empresas ativas por competencia; o S9.3 usa o `active` atual;
+* a responsabilidade e origem persistidas sao operacionais esperadas, nao conclusao juridica nem confirmacao de transmissao.
 
 ### S9.4 - API, watcher, frontend e E2E
 

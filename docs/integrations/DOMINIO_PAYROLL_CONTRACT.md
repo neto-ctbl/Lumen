@@ -323,3 +323,19 @@ Regras mantidas:
 - `target_company_count` e `target_list_sha256` pertencem somente ao escopo `FACTOR_R`; imports `ACTIVE_COMPANIES`, `CUSTOM` e `UNKNOWN` devem persistir esses campos como `null`.
 - O filtro `Fator R` e o modo intervalo permanecem opcionais para auditoria, diagnostico ou contingencia; a janela historica de 12 meses deve ser montada a partir dos movimentos persistidos.
 - O S9.2 nao calcula percentual do Fator R, nao estima anexo final, nao gera alertas persistidos e nao cria divergencia fiscal.
+
+## 25. Materializacao do S9.3
+
+O S9.3 deriva origem e responsabilidade operacional esperadas da DCTFWeb, por empresa e competencia de apuracao, sem alterar o status fiscal da obrigacao:
+
+- import `ACTIVE_COMPANIES` e movimento matched da competencia de apuracao confirmam cobertura DP;
+- import `ACTIVE_COMPANIES` sem movimento da empresa confirma ausencia observada de movimento, sem afirmar ausencia juridica de DP;
+- falta de import mensal canonico e `REPORT_MISSING`, nunca ausencia de DP;
+- sinais de empregado, pro-labore, autonomo, INSS, rescisao, ferias ou afastamento provam componente DP; FGTS isolado e apenas suporte;
+- DCTFWeb e tratada operacionalmente como eSocial + EFD-Reinf + MIT: eSocial/Domínio compoe DP; REINF/MIT compoem Fiscal;
+- `REINF` canonica e sinal Fiscal apenas quando a obrigacao/evidencia for explicitamente `REINF`;
+- MIT e sinal Fiscal apenas a partir da PA `2025-01` e, no catalogo atual, apenas por `PIS` e `COFINS`; DAS, regime tributario e `EFD_CONTRIBUICOES` nao inferem MIT;
+- Domínio + REINF/MIT resulta em `COMPARTILHADO`; Fiscal com ausencia DP confirmada resulta em `FISCAL`; Fiscal com cobertura Domínio ausente resulta em `UNDETERMINED`;
+- empresa atualmente ativa sem DP, REINF, MIT ou DCTFWeb observados fica `UNDETERMINED` com `NO_DCTFWEB_COMPONENT_OBSERVED`, sem alerta;
+- observacao de DCTFWeb por status, evidencia ou entrega Acessorias canonicamente mapeada e distinta de entrega confirmada e nao determina origem sozinha;
+- origem esperada e departamento esperado nao substituem `fiscal_obligation_statuses` ou conciliacao final.

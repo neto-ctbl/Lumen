@@ -89,3 +89,11 @@ Data de referencia: 2026-07-15
 - Relatorios reais do Dominio devem permanecer fora do indice do Git, com `scripts/collectors/dominio/Relatorios_Dominio/` protegido por `.gitignore`.
 - O fechamento do S9.2 registra separadamente o risco de historico antigo com PDFs reais no commit `6060711`; a limpeza historica do Git fica fora deste stage.
 - O universo `FACTOR_R` pode gerar apenas CSV e resumo JSON sem nomes, CNPJs ou lista identificavel no manifest lateral.
+
+## S9.3
+
+- `dctfweb_origin_assessments`, alertas e auditoria do S9.3 armazenam apenas agregados, codigos estruturados e IDs tecnicos; nao armazenam CNPJ, nome, raw payroll text ou rubricas completas.
+- A CLI de reconciliacao imprime apenas contadores agregados, inclusive contagens de sinais REINF/MIT e em `--dry-run`.
+- O alerta de relatorio mensal Dominio ausente e agregado por organizacao/periodo com `company_id = null`, evitando multiplicar dados operacionais por empresa quando a falha e da fonte mensal.
+- O S9.3 nao abre PDF, `.env`, manifest lateral ou portal externo.
+- A auditoria de S9.3 consulta apenas agregados por codigo e competencia; nao imprime payload fiscal, CNPJ, nome ou identificador de empresa.
