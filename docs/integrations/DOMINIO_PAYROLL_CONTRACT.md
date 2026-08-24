@@ -199,7 +199,9 @@ Os cenários sintéticos congelados no S9.0 cobrem:
 - `S9.1`: parser offline do PDF
 - `S9.2`: persistência, importador e matching
 - `S9.3`: origem DCTFWeb, departamentos e alertas
-- `S9.4`: API, watcher, frontend e E2E
+- `S9.4.0`: enriquecimento monetario estruturado do historico
+- `S9.4`: FS12 estimado, RBT12 Sittax e reconciliacao de Fator R
+- `S9.5`: API, watcher, frontend e E2E
 
 ## 18. Critérios de aceite
 
@@ -339,3 +341,45 @@ O S9.3 deriva origem e responsabilidade operacional esperadas da DCTFWeb, por em
 - empresa atualmente ativa sem DP, REINF, MIT ou DCTFWeb observados fica `UNDETERMINED` com `NO_DCTFWEB_COMPONENT_OBSERVED`, sem alerta;
 - observacao de DCTFWeb por status, evidencia ou entrega Acessorias canonicamente mapeada e distinta de entrega confirmada e nao determina origem sozinha;
 - origem esperada e departamento esperado nao substituem `fiscal_obligation_statuses` ou conciliacao final.
+
+## 26. Materializacao do S9.4.0
+
+O S9.4.0 prepara a trilha Dominio para o Fator R sem calcular ainda `FS12` ou reconciliacao fiscal:
+
+- `rubrics_summary` evolui internamente para `schema_version = 2` sem migration de banco;
+- os campos do S9.2 (`codes`, `signals`, `blocks`, `rubric_count`) permanecem preservados por compatibilidade;
+- cada movimento passa a carregar `monetary_categories`, `monetary_summary_confidence`, `unclassified_monetary` e `excluded_monetary`;
+- os valores monetarios nascem do parser estruturado do PDF original, usando `Decimal` do inicio ao fim;
+- `gross_total`, `net_total` e `raw_text` persistido nao podem ser usados como atalho para preencher historico monetario;
+- o stage diferencia explicitamente `employee_remuneration`, `pro_labore`, `autonomous`, `thirteenth_salary`, `employer_cpp_observed` e `fgts_observed`;
+- rubrica monetaria nao classificada cai obrigatoriamente em `unclassified_monetary` com warning estruturado `UNCLASSIFIED_MONETARY_RUBRICS`;
+- `employer_cpp_observed` e `fgts_observed` representam valor observado no relatorio, nao comprovacao de recolhimento.
+
+Schema resumido observado no `rubrics_summary` v2:
+
+```json
+{
+  "schema_version": 2,
+  "codes": [],
+  "signals": {},
+  "blocks": [],
+  "monetary_summary_confidence": "COMPLETE|PARTIAL|INSUFFICIENT",
+  "monetary_categories": {
+    "employee_remuneration": {"amount": "0.00", "rubric_count": 0},
+    "pro_labore": {"amount": "0.00", "rubric_count": 0},
+    "autonomous": {"amount": "0.00", "rubric_count": 0},
+    "thirteenth_salary": {"amount": "0.00", "rubric_count": 0},
+    "employer_cpp_observed": {"amount": "0.00", "rubric_count": 0},
+    "fgts_observed": {"amount": "0.00", "rubric_count": 0}
+  },
+  "unclassified_monetary": {"amount": "0.00", "rubric_count": 0},
+  "excluded_monetary": {"amount": "0.00", "rubric_count": 0}
+}
+```
+
+Fechamento operacional validado em 2026-08-21:
+
+- enrichment real do backfill `07/2025` a `06/2026` por reprocessamento dos `12` PDFs locais originais;
+- `1624` movimentos pareados `1:1` e enriquecidos para `schema_version = 2`;
+- segunda execucao idempotente com `movements_updated = 0`;
+- nenhuma nova linha de import, nenhuma nova `fiscal_evidence` e nenhuma alteracao de matching.

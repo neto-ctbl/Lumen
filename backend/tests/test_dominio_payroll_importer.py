@@ -272,7 +272,8 @@ def test_valid_import_creates_import_movements_evidences_period_sync_and_audit(d
     assert payroll_import.total_matched == 1
     assert payroll_import.total_unmatched == 0
     assert movement.net_total == Decimal("2832.29")
-    assert movement.rubrics_summary["schema_version"] == 1
+    assert movement.rubrics_summary["schema_version"] == 2
+    assert movement.rubrics_summary["monetary_categories"]["employee_remuneration"]["amount"] == "3615.81"
     assert json.dumps(sync_run.summary, sort_keys=True).find("raw_text") == -1
     assert "12345678000195" not in json.dumps(sync_run.summary, sort_keys=True)
     assert "sanitized raw text only" not in json.dumps([log.event_metadata for log in audit_logs], sort_keys=True)

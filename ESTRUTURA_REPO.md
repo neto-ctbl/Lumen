@@ -1541,6 +1541,36 @@ Decisoes materializadas no S9.3:
 - alertas reutilizam `fiscal_alerts`, sao idempotentes e resolvidos quando a condicao desaparece; falta de relatorio mensal Dominio gera no maximo um alerta por organizacao/periodo com `company_id = null`;
 - o processamento e interno e auditado, sem criar uma integracao externa artificial em `integration_sync_runs`.
 
+## Atualizacao S9.4.0
+
+Arquivos materializados no S9.4.0:
+
+- `backend/app/services/integrations/dominio/monetary_summary.py`
+- `backend/app/services/integrations/dominio/enrichment.py`
+- `backend/scripts/enrich_dominio_payroll_monetary_summary.py`
+- `backend/tests/test_dominio_payroll_monetary_summary.py`
+- `backend/tests/test_dominio_payroll_monetary_enrichment.py`
+- `backend/tests/test_dominio_payroll_monetary_enrichment_cli.py`
+
+Decisoes materializadas no S9.4.0:
+
+- `rubrics_summary` evoluiu para `schema_version = 2` sem nova migration;
+- o shape v2 preserva os campos do S9.2 e acrescenta resumo monetario estruturado, confidence, `unclassified_monetary` e `excluded_monetary`;
+- o enrichment historico reprocessa o PDF original e atualiza somente `dominio_payroll_company_movements.rubrics_summary`;
+- a classificacao monetaria e conservadora e nao usa `gross_total`, `net_total` ou `raw_text` persistido para preencher lacunas;
+- `employer_cpp_observed` e `fgts_observed` sao observacoes do relatorio, nao prova de recolhimento;
+- o enrichment e idempotente por igualdade material do JSON resultante.
+
+Validacao operacional do S9.4.0 em 2026-08-21:
+
+- dry-run real dos `12` PDFs de `07/2025` a `06/2026`: `imports_found = 12`, `movements_parsed = 1624`, `movements_matched = 1624`, `movements_would_update = 1624`, `schema_v2 = 1624`, `complete = 505`, `partial = 1112`, `insufficient = 7`, `unclassified_monetary_movements = 1119`;
+- persistencia real dos `12` PDFs: `movements_updated = 1624`;
+- segunda execucao real: `movements_updated = 0` e `already_enriched = 1624`;
+- query agregada posterior confirmou `schema_version = 2` em todos os movimentos do backfill;
+- regressao Domínio: `99 passed`;
+- regressao S9.3: `14 passed`;
+- suite backend completa: `560 passed, 1 warning`.
+
 ## Atualizacao S5.2, S6.3 e S8.3.2 em 2026-08-20
 
 Arquivos materializados no S5.2:

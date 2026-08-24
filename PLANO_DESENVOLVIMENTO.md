@@ -2131,7 +2131,8 @@ Validação planejada do S9.0:
 
 - `S9.2` = Persistencia, importador, matching e cobertura documental.
 - `S9.3` = Origem DCTFWeb, departamentos e alertas.
-- `S9.4` = Fator R historico e reconciliacao com Sittax.
+- `S9.4.0` = Enriquecimento monetario estruturado do historico Domínio.
+- `S9.4` = FS12 estimado, RBT12 Sittax e reconciliacao de Fator R.
 - `S9.5` = API, watcher, frontend e E2E.
 
 Alertas planejados para `S9.4`:
@@ -2397,26 +2398,60 @@ Limites mantidos:
 * a base ainda nao possui historico de empresas ativas por competencia; o S9.3 usa o `active` atual;
 * a responsabilidade e origem persistidas sao operacionais esperadas, nao conclusao juridica nem confirmacao de transmissao.
 
-### S9.4 - API, watcher, frontend e E2E
+### S9.4.0 - Enriquecimento monetario estruturado do historico Domínio
+
+Status: concluido e validado em 2026-08-21
+
+Entregues:
+
+* `backend/app/services/integrations/dominio/monetary_summary.py` com `rubrics_summary` `schema_version = 2`;
+* classificacao monetaria conservadora por codigo, secao e contrato observado para `employee_remuneration`, `pro_labore`, `autonomous`, `thirteenth_salary`, `employer_cpp_observed` e `fgts_observed`;
+* preservacao obrigatoria de `unclassified_monetary` e `excluded_monetary`, sem usar `gross_total` como preenchimento;
+* warning estruturado `UNCLASSIFIED_MONETARY_RUBRICS` quando houver valor monetario nao classificado;
+* CLI `backend/scripts/enrich_dominio_payroll_monetary_summary.py` com `--organization-slug`, `--file`, `--directory`, `--dry-run` e `--json`;
+* enrichment real do backfill `07/2025` a `06/2026` por reprocessamento dos PDFs locais originais, sem criar imports, evidencias ou novo periodo fiscal;
+* testes sinteticos focados em Decimal, nao classificacao, separacao de categorias, enrichment e CLI.
+
+Fechamento tecnico S9.4.0 em 2026-08-21:
+
+* o parser ja preservava `calculated_value: Decimal` por rubrica; a limitacao real do `schema_version = 1` era perder esse detalhe ao persistir apenas sinais, codigos e totais agregados por bloco;
+* `rubrics_summary` v2 permanece backward compatible com os campos de `codes`, `signals`, `blocks` e `rubric_count`, mas agora inclui resumo monetario estruturado, `monetary_summary_confidence`, `unclassified_monetary` e `excluded_monetary`;
+* a serializacao monetaria permanece deterministica em string decimal com duas casas, sem `float`;
+* `raw_text` persistido nao entra no enrichment; o backfill reprocessa novamente os PDFs originais;
+* dry-run real dos `12` PDFs: `imports_found = 12`, `movements_parsed = 1624`, `movements_matched = 1624`, `movements_would_update = 1624`, `schema_v2 = 1624`, `complete = 505`, `partial = 1112`, `insufficient = 7`, `unclassified_monetary_movements = 1119`;
+* persistencia real dos `12` PDFs: `movements_updated = 1624`, sem erro de correspondencia;
+* segunda execucao real: `movements_updated = 0` e `already_enriched = 1624`, comprovando idempotencia material;
+* query agregada posterior confirmou `schema_version = 2` em todos os `1624` movimentos da janela `07/2025` a `06/2026`;
+* regressao Domínio completa: `99 passed`;
+* regressao S9.3: `14 passed`;
+* suite backend completa: `560 passed, 1 warning`;
+* `ruff check` e `py_compile` aprovados;
+* nenhum PDF real novo foi adicionado ao Git.
+
+Limites mantidos:
+
+* `monetary_summary` nao e `FS12` oficial e nao substitui apuracao fiscal;
+* o stage nao cria `factor_r_assessments`, nao calcula `FS12`, `RBT12`, percentual de Fator R ou reconciliacao com Sittax;
+* `employer_cpp_observed` e `fgts_observed` continuam sendo observacoes do relatorio, nao prova de recolhimento efetivo;
+* rubricas monetarias desconhecidas permanecem em `unclassified_monetary` em vez de classificacao por aproximacao.
+
+Proximo passo:
+
+* retomar `S9.4` para `fs12_dominio_estimate`, `RBT12` via Sittax e reconciliacao historica de Fator R.
+
+### S9.4 - FS12 estimado, RBT12 Sittax e reconciliacao de Fator R
 
 Status: planejado
 
 Planejamento:
 
-* upload administrativo;
-* histórico de imports;
-* detalhes matched/unmatched;
-* watcher de pasta;
-* leitura de manifest;
-* RBAC;
-* limites de tamanho;
-* validação de assinatura PDF;
-* nome de arquivo sanitizado;
-* arquivos temporários;
-* card da integração;
-* frontend;
-* E2E com fixture sintética;
-* nenhuma execução do Domínio no E2E.
+* `fs12_dominio_estimate` a partir do `rubrics_summary` v2;
+* `RBT12` historico observado via Sittax;
+* reconciliacao `FS12/RBT12` e percentual de Fator R por empresa e competencia;
+* classificacao de completude e divergencia do historico;
+* possivel persistencia derivada para assessments de Fator R;
+* alertas especificos de historico incompleto, threshold e anexo;
+* sem redefinir o contrato de identidade do import Domínio ja estabilizado no S9.2/S9.4.0.
 
 
 ## S10 - Watcher local e motor de evidências por arquivo

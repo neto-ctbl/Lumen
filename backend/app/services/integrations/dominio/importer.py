@@ -29,6 +29,10 @@ from backend.app.services.integrations.dominio.contracts import (
     DominioPayrollCompany,
     DominioPayrollReport,
 )
+from backend.app.services.integrations.dominio.monetary_summary import (
+    DOMINIO_PAYROLL_RUBRICS_SCHEMA_VERSION,
+    merge_rubrics_summary,
+)
 from backend.app.services.integrations.dominio.matching import match_dominio_company_by_cnpj
 from backend.app.services.integrations.dominio.parser import parse_dominio_payroll_pdf
 from backend.app.services.integrations.dominio.selection_scope import (
@@ -39,7 +43,6 @@ from backend.app.services.integrations.dominio.selection_scope import (
 
 DOMINIO_PAYROLL_SYNC_PROVIDER = "DOMINIO_FOLHA"
 DOMINIO_PAYROLL_SYNC_JOB = "import_dominio_payroll_file"
-DOMINIO_PAYROLL_RUBRICS_SCHEMA_VERSION = 1
 IMPORT_STARTED_EVENT = "DOMINIO_PAYROLL_IMPORT_STARTED"
 IMPORT_COMPLETED_EVENT = "DOMINIO_PAYROLL_IMPORT_COMPLETED"
 IMPORT_FAILED_EVENT = "DOMINIO_PAYROLL_IMPORT_FAILED"
@@ -344,6 +347,7 @@ def import_dominio_payroll_file(
                 organization=organization,
                 competence=company.assessment_competence,
             )
+            rubrics_summary, monetary_warnings = _build_rubrics_summary(company)
             movement = DominioPayrollCompanyMovement(
                 import_id=payroll_import.id,
                 organization_id=organization.id,
@@ -377,8 +381,8 @@ def import_dominio_payroll_file(
                 source_page_numbers=list(company.physical_page_numbers),
                 declared_page_count=company.declared_page_count,
                 movement_hash=_compute_movement_hash(company),
-                rubrics_summary=_build_rubrics_summary(company),
-                warnings=_sanitize_warnings(company.warnings),
+                rubrics_summary=rubrics_summary,
+                warnings=_sanitize_warnings((*company.warnings, *monetary_warnings)),
                 raw_text=company.raw_text,
             )
             session.add(movement)
@@ -521,6 +525,7 @@ def _parse_and_prepare(
 ) -> tuple[DominioPayrollReport, _PreparedImportData]:
     report = parser_callable(file_path)
     manifest_metadata = _load_manifest_selection_metadata(file_path)
+    monetary_warning_count = sum(len(_build_rubrics_summary(company)[1]) for company in report.companies)
     matched = 0
     unmatched = 0
     invalid_cnpj = 0
@@ -555,7 +560,10 @@ def _parse_and_prepare(
         total_invalid_cnpj=invalid_cnpj,
         total_missing_cnpj=missing_cnpj,
         total_ambiguous=ambiguous,
-        total_warnings=len(report.warnings) + sum(len(company.warnings) for company in report.companies) + len(scope_warnings),
+        total_warnings=len(report.warnings)
+        + sum(len(company.warnings) for company in report.companies)
+        + monetary_warning_count
+        + len(scope_warnings),
         total_errors=0,
         scope_warnings=scope_warnings,
         source_competences=list(report.detected_source_competences),
@@ -614,10 +622,10 @@ def _get_or_create_period_id(session: Session, *, organization: Organization, co
     return period.id
 
 
-def _build_rubrics_summary(company: DominioPayrollCompany) -> dict[str, Any]:
+def _build_rubrics_summary(company: DominioPayrollCompany) -> tuple[dict[str, Any], list[Any]]:
     codes = sorted({rubric.code for rubric in company.rubrics if rubric.code})
     unknown_codes = sorted({rubric.code for rubric in company.rubrics if not rubric.code})
-    return {
+    base_summary = {
         "schema_version": DOMINIO_PAYROLL_RUBRICS_SCHEMA_VERSION,
         "rubric_count": len(company.rubrics),
         "codes": codes,
@@ -641,6 +649,7 @@ def _build_rubrics_summary(company: DominioPayrollCompany) -> dict[str, Any]:
             for block in company.blocks
         ],
     }
+    return merge_rubrics_summary(company, base_summary=base_summary)
 
 
 def _sum_declared_total(block, section_name: str) -> Decimal | None:
@@ -667,7 +676,7 @@ def _compute_movement_hash(company: DominioPayrollCompany) -> str:
             "net_total": _decimal_to_string(company.net_total),
         },
         "pages": list(company.physical_page_numbers),
-        "rubrics_summary": _build_rubrics_summary(company),
+        "rubrics_summary": _build_rubrics_summary(company)[0],
         "warnings": [warning.code.value for warning in company.warnings],
     }
     return hashlib.sha256(json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()

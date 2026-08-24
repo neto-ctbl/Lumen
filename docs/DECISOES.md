@@ -198,3 +198,14 @@ Data de referencia: 2026-07-20
 - Empresa ativa sem DP, REINF, MIT ou DCTFWeb observados fica `UNDETERMINED` com `NO_DCTFWEB_COMPONENT_OBSERVED`, departamento esperado nulo e sem alerta acionavel.
 - Falta do relatorio mensal Dominio gera no maximo um alerta por organizacao e periodo, com `company_id = null`.
 - `expected_origin` e `expected_responsible_department` sao sinais operacionais esperados, nao confirmacao de entrega ou conclusao juridica.
+
+## S9.4.0 - Enriquecimento monetario estruturado do Dominio
+
+- O bloqueio real do `schema_version = 1` era perder os valores monetarios por rubrica ao persistir somente sinais, codigos e totais gerais de bloco.
+- `rubrics_summary` evoluiu para `schema_version = 2` sem migration, preservando compatibilidade com `codes`, `signals`, `blocks` e `rubric_count`.
+- O resumo monetario do Dominio e apenas materia-prima estruturada; ele nao e `FS12` oficial e nao substitui apuracao fiscal.
+- Toda classificacao monetaria do S9.4.0 precisa ser conservadora, baseada em codigo observado, secao do relatorio e contrato Domínio conhecido; rubrica desconhecida permanece em `unclassified_monetary`.
+- `gross_total`, `net_total` e `raw_text` persistido nao podem preencher historico monetario faltante para Fator R.
+- `employer_cpp_observed` e `fgts_observed` representam valores observados no relatorio, nao prova de recolhimento efetivo.
+- O enrichment historico reutiliza os PDFs originais locais e localiza o import canonico por `organization_id + file_sha256`, sem criar imports, evidencias ou novos periodos.
+- A idempotencia do enrichment e medida por igualdade material do `rubrics_summary`; segunda execucao identica deve resultar em `movements_updated = 0`.

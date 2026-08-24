@@ -101,3 +101,11 @@ Data de referencia: 2026-07-20
 - `raw_text` persistido em movimento exige cuidado para nao vazar em log, erro, auditoria ou `integration_sync_runs`.
 - Retry de import `FAILED` precisa limpar movimentos e evidencias anteriores para nao produzir duplicidade.
 - Arquivo com multiplas competencias de apuracao pode deixar `assessment_period_id` do import nulo e exigir leitura por movimento.
+
+## S9.4.0
+
+- O contrato atual de rubricas monetarias ainda cobre apenas codigos comprovados no repositorio; rubricas novas ou variantes reais podem ampliar `unclassified_monetary` ate novo catalogo conservador.
+- `unclassified_monetary` alto nao e falha tecnica do parser por si so; representa insuficiencia deliberada para evitar classificacao por chute.
+- `thirteenth_salary` pode permanecer zerado no historico mesmo com folha valida quando o relatorio nao provar a separacao com seguranca suficiente.
+- `employer_cpp_observed` e `fgts_observed` podem divergir do recolhimento efetivo; usar esses campos diretamente como pagamento fiscal seria conclusao indevida.
+- Reprocessar historico por PDF exige correspondencia `1:1` por `source_company_key`; qualquer alteracao externa no PDF ou no contrato de parsing pode bloquear enrichment futuro do arquivo.
