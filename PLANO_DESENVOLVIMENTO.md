@@ -2441,7 +2441,7 @@ Proximo passo:
 
 ### S9.4 - FS12 estimado, RBT12 Sittax e reconciliacao de Fator R
 
-Status: planejado
+Status: concluido e validado em 2026-08-26, aguardando revisao e commit
 
 Planejamento:
 
@@ -2452,6 +2452,34 @@ Planejamento:
 * possivel persistencia derivada para assessments de Fator R;
 * alertas especificos de historico incompleto, threshold e anexo;
 * sem redefinir o contrato de identidade do import Domínio ja estabilizado no S9.2/S9.4.0.
+
+Implementacao atual:
+
+* migration `20260824_0014` cria `factor_r_assessments` sem alterar imports, movimentos, snapshots Sittax, cache Econet, DAS ou status fiscal;
+* a reconciliacao usa o resumo monetario v2 persistido, `RBT12` observado no Sittax e Decimal para formula/threshold;
+* `fs12_dominio_estimate` preserva limites de caixa, CPP/FGTS observados, 13o e rubricas nao classificadas;
+* CLI `reconcile_factor_r.py` suporta PA, empresa opcional, dry-run e saida somente agregada.
+* a cobertura da folha consulta exclusivamente imports Domínio canônicos `ACTIVE_COMPANIES`: ausencia da empresa em relatório existente e `CONFIRMED_NO_MOVEMENT`, cobertura historica valida, e nao `REPORT_MISSING`.
+* o modelo atual nao possui data canonica de abertura ou historico de atividade por competencia; o motor nao infere `SHORT_HISTORY` nem preenche meses anteriores com zero.
+* novos imports Domínio ja persistem `rubrics_summary` v2; a folha `07/2026` integra a janela do PA `2026-08`, nunca o PA `2026-07`.
+* Sittax somente promove uma empresa de `POTENTIAL` para `EFFECTIVE` quando tambem existe potencial CNAE canonico; snapshot isolado nao amplia o universo alvo.
+* `factor_r_percent` Sittax e tratado como pontos percentuais observados e normalizado para ratio `Decimal`; anexos dependem de codigo explicito, sem inferencia por descricao livre.
+
+Fechamento tecnico e operacional em 2026-08-26:
+
+* import Domínio de `07/2026` validado e idempotente: `135` movimentos, todos `MATCHED` e com `rubrics_summary schema v2`; o contador de `97` warnings permaneceu coerente por camada (`1` de relatorio, `4` promovidos por empresa e `92` monetarios);
+* PA `2026-06` comprovou a independencia das fontes: `58` targets, `43` snapshots Sittax com `RBT12` e fator observado, mesmo com `58` historicos de folha insuficientes pela ausencia de `06/2025`;
+* o workflow S7 existente `backend/scripts/sync_sittax_apuracoes.py` foi usado em modo read-only para persistir `153` snapshots canonicos de `2026-07`; nao houve reutilizacao de snapshot de outro PA nem acao fiscal externa mutavel;
+* PA `2026-07`: `58` targets (`42 EFFECTIVE`, `16 REVIEW`), `58` FS12 estimadas `LOW`, `43` RBT12/fatores Sittax observados e calculados, `14` fatores `>= 28%`, `29` `< 28%`, `29` matches e `14` divergencias de threshold;
+* os `58` assessments permaneceram idempotentes nas reexecucoes finais, sem criacao ou atualizacao material; os alertas tambem permaneceram idempotentes, com `42` `FACTOR_R_ESTIMATE_INCOMPLETE` de severidade `LOW` e sem alerta falso de historico;
+* fontes canonicas ficaram preservadas: `13` imports Domínio, `1759` movimentos, `1717` evidencias, `196` status de obrigacao e `264` entradas Econet; snapshots Sittax cresceram legitimamente de `154` para `307` pelo workflow S7;
+* testes focados S9.4: `15 passed`; regressao integrada: `149 passed`; suite backend: `572 passed, 1 warning` preexistente; Ruff, `py_compile`, Alembic `20260824_0014 (head)` e `git diff --check` aprovados.
+
+Limites mantidos:
+
+* `fs12_dominio_estimate` continua sendo estimativa conservadora, nao FS12 oficial, e confidence `LOW` nao e promovida pela simples presenca de Sittax;
+* CPP/FGTS observados nao provam recolhimento, caixa nao e presumido e a cobertura de 13o/rubricas nao classificadas continua como limitacao explicita;
+* divergencia de threshold registra revisao tecnica, sem afirmar erro fiscal no Sittax; ausencia global de snapshot nao gera alertas empresariais em massa.
 
 
 ## S10 - Watcher local e motor de evidências por arquivo

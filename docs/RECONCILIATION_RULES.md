@@ -22,3 +22,12 @@ The reconciliation never writes `fiscal_obligation_statuses`. It stores `expecte
 ## S9.3 audit snapshot
 
 The 2026-08-21 audit of `2026-07` found no canonical PIS/COFINS status or evidence, so MIT remained zero. It also found no canonical DCTFWeb status, evidence or mapped Acessorias delivery, so DCTFWeb observed remained zero. These are data-state results, not negative legal conclusions.
+
+## S9.4 Factor R
+
+- The payroll window excludes the assessment PA and contains the preceding twelve source payroll months.
+- `MOVEMENT_FOUND`, `CONFIRMED_NO_MOVEMENT`, and `REPORT_MISSING` are distinct. Only a completed canonical `ACTIVE_COMPANIES` import proves report coverage: absence from that report is valid `CONFIRMED_NO_MOVEMENT`, while a missing canonical report never becomes zero.
+- `fs12_dominio_estimate` uses only classified schema-v2 categories plus observed CPP/FGTS; it is not official FS12.
+- `FS12 / RBT12` uses Decimal. Zero cases return `0.01` except positive FS12 with zero RBT12, which returns the threshold `0.28` without dividing by zero.
+- A ratio at or above `0.28` maps to III; lower maps to V. No rounding is applied before the comparison.
+- A persisted threshold divergence is not automatically an alert. Strong alerts require sufficient component classification and revenue evidence.

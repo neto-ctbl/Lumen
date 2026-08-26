@@ -256,3 +256,7 @@ Classificacao: `TELEMETRY_IGNORE`
 - qualquer mutacao externa
 
 Classificacao: `OUT_OF_SCOPE`
+
+## Consumo S9.4
+
+`rbt12` do snapshot de apuracao e o denominador operacional observado para a reconciliacao. A competencia do snapshot e o PA consultado e confirmado pelo contrato Sittax; ela nao recebe o deslocamento `M -> M+1` exclusivo da folha Domínio. `percentualFatorR` e armazenado como pontos percentuais pelo contrato observado e o S9.4 o normaliza para razao Decimal. `resumosTributacaoSittax` pode fornecer anexos observados sanitizados, mas nao identifica de forma suficiente a receita especifica submetida ao Fator R.

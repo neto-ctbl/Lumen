@@ -160,6 +160,7 @@ def test_backend_app_models_exports_new_s4_models() -> None:
         "AcessoriasDeliverySnapshot",
         "CompanyActivityType",
         "DctfwebOriginAssessment",
+        "FactorRAssessment",
         "ExternalCompany",
         "FiscalAlert",
         "FiscalEvidence",

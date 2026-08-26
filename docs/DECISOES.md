@@ -209,3 +209,16 @@ Data de referencia: 2026-07-20
 - `employer_cpp_observed` e `fgts_observed` representam valores observados no relatorio, nao prova de recolhimento efetivo.
 - O enrichment historico reutiliza os PDFs originais locais e localiza o import canonico por `organization_id + file_sha256`, sem criar imports, evidencias ou novos periodos.
 - A idempotencia do enrichment e medida por igualdade material do `rubrics_summary`; segunda execucao identica deve resultar em `movements_updated = 0`.
+
+## S9.4 - Estimativa FS12 e reconciliacao de Fator R
+
+- `fs12_dominio_estimate` e sempre uma estimativa; o Lumen nao persiste `fs12_official`.
+- A janela madura usa os doze meses de `source_payroll_competence` anteriores ao PA, sem incluir a folha do proprio PA.
+- `RBT12` vem somente de `SittaxApuracaoSnapshot.rbt12`; ausencia nao pode ser reconstruida por soma local de receita.
+- `factor_r_percent` Sittax e percentual em pontos e e normalizado para razao Decimal antes de comparar com `Decimal("0.28")`.
+- `POTENTIAL` cadastral nao equivale a `EFFECTIVE`; evidencia explicita de Fator R no snapshot Sittax do PA permite `EFFECTIVE`.
+- Contratacao de MEI nao e excluida nem incluida genericamente: sem dado estruturado do caso legal especifico, permanece limitacao de cobertura.
+- A cobertura historica de Fator R e provada somente por imports Domínio concluídos no escopo canônico `ACTIVE_COMPANIES`; ausencia da empresa em relatório existente e `CONFIRMED_NO_MOVEMENT`, nao relatorio ausente.
+- Enquanto nao existir data canonica de abertura ou historico de atividade por competencia, o S9.4 nao infere `SHORT_HISTORY` e nao transforma meses anteriores em zero.
+- `total_warnings` do import Domínio soma warnings de relatorio, warnings promovidos ao nivel da empresa, warnings monetarios e warnings de escopo; warnings exclusivamente internos de secao nao entram nesse contador.
+- `resumosTributacaoSittax` nao e promovido a Anexo III/V sem campo ou texto explicito de anexo. A presenca do payload permanece observada, mas nao gera `ANNEX_REVIEW` por inferencia.

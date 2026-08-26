@@ -1,9 +1,15 @@
+# ruff: noqa: E402
 from __future__ import annotations
 
 import argparse
 import json
 import re
 import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from backend.app.db.session import SessionLocal
 from backend.app.services.integrations.sittax.sync import build_fixture_sittax_client, sync_sittax_apuracoes

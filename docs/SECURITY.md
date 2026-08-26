@@ -97,3 +97,9 @@ Data de referencia: 2026-07-15
 - O alerta de relatorio mensal Dominio ausente e agregado por organizacao/periodo com `company_id = null`, evitando multiplicar dados operacionais por empresa quando a falha e da fonte mensal.
 - O S9.3 nao abre PDF, `.env`, manifest lateral ou portal externo.
 - A auditoria de S9.3 consulta apenas agregados por codigo e competencia; nao imprime payload fiscal, CNPJ, nome ou identificador de empresa.
+
+## S9.4
+
+- A CLI `reconcile_factor_r.py` emite somente agregados; nao imprime empresa, CNPJ, valores monetarios, rubricas, raw payroll ou payload Sittax.
+- O assessment guarda breakdowns sem identificadores pessoais e snapshots sanitizados de presenca/origem, nunca payload Sittax bruto adicional.
+- `--dry-run` nao escreve assessments, alertas, auditoria, periodos ou fontes Domínio/Sittax/Econet.

@@ -1571,6 +1571,25 @@ Validacao operacional do S9.4.0 em 2026-08-21:
 - regressao S9.3: `14 passed`;
 - suite backend completa: `560 passed, 1 warning`.
 
+## Atualizacao S9.4
+
+- `backend/app/models/factor_r_assessment.py`: assessment derivado idempotente por organizacao, empresa e PA.
+- `backend/app/services/factor_r_reconciliation.py`: janela, cobertura, estimativa FS12, normalizacao Sittax, reconciliacao e alertas.
+- `backend/scripts/reconcile_factor_r.py`: CLI agregada com `--dry-run` e `--json`.
+- `backend/scripts/sync_sittax_apuracoes.py`: workflow S7 read-only de snapshots Sittax, executavel diretamente da raiz do repositorio.
+- `backend/alembic/versions/20260824_0014_create_factor_r_assessments.py`: persistencia exclusiva do resultado derivado.
+- `docs/FACTOR_R_RECONCILIATION.md`: limites de fonte, confidence e regras de reconciliacao.
+
+Funcionamento validado:
+
+- a cobertura usa imports Domínio canônicos `ACTIVE_COMPANIES`; `MOVEMENT_FOUND` e `CONFIRMED_NO_MOVEMENT` sao estados mutuamente exclusivos de cobertura valida, enquanto somente a ausencia do relatorio e `REPORT_MISSING`;
+- a janela de 12 meses aplica `folha M -> PA M+1`, sem incluir a folha do proprio PA;
+- `fs12_dominio_estimate` deriva exclusivamente de `rubrics_summary` schema v2, com `Decimal`, e nao usa `gross_total`, `raw_text` ou total liquido como preenchimento;
+- o join Sittax usa as FKs canonicas de organizacao, empresa e PA; `factor_r_percent` armazenado em pontos percentuais e normalizado internamente para ratio Decimal;
+- anexos somente sao considerados observados quando o payload Sittax possuir codigo explicito reconhecido; descricao livre nao infere Anexo III ou V;
+- a reconciliacao so amplia `POTENTIAL` para `EFFECTIVE` quando ha potencial CNAE canonico e fator Sittax observado, sem transformar snapshots isolados em novos targets;
+- o reconciliador nao altera imports Domínio, movimentos, evidencias, status fiscais ou cache Econet; o sync S7 somente pode acrescentar/atualizar snapshots locais lidos de endpoint externo read-only.
+
 ## Atualizacao S5.2, S6.3 e S8.3.2 em 2026-08-20
 
 Arquivos materializados no S5.2:

@@ -153,7 +153,9 @@ No futuro:
 
 ## 13. Impacto em Fator R
 
-O PDF é fonte de sinais de folha para análise futura de Fator R. Ausência de sinal no arquivo não equivale a evidência negativa conclusiva.
+O PDF é fonte de sinais de folha para análise futura de Fator R. Para cobertura histórica, somente um import concluído com `selection_scope = ACTIVE_COMPANIES` prova a existência do relatório mensal canônico. A ausência da empresa nesse relatório é `CONFIRMED_NO_MOVEMENT`, cobertura válida de movimento zero observado, e não `REPORT_MISSING`. Ausência do relatório canônico não equivale a evidência negativa conclusiva.
+
+Novos imports usam diretamente `rubrics_summary` `schema_version = 2`; somente o historico anterior ao enrichment exige reprocessamento dos PDFs originais. A folha `M` pode integrar a janela de Fator R do PA `M+1`, mas nunca a do proprio PA `M`.
 
 ## 14. Segurança
 
@@ -383,3 +385,9 @@ Fechamento operacional validado em 2026-08-21:
 - `1624` movimentos pareados `1:1` e enriquecidos para `schema_version = 2`;
 - segunda execucao idempotente com `movements_updated = 0`;
 - nenhuma nova linha de import, nenhuma nova `fiscal_evidence` e nenhuma alteracao de matching.
+
+## 27. Consumo S9.4
+
+O S9.4 le somente `rubrics_summary` schema v2 persistido. Ele nao reabre PDF e nao usa `raw_text`, `gross_total` ou `net_total` para compor `fs12_dominio_estimate`.
+
+As categorias `employee_remuneration`, `pro_labore`, `autonomous`, `thirteenth_salary`, `employer_cpp_observed` e `fgts_observed` sao materia-prima estruturada. CPP/FGTS permanecem observados no relatorio, sem afirmacao de recolhimento efetivo. `unclassified_monetary` e analisado por codigo tecnico quando o contrato permitir; em caso contrario permanece desconhecido e reduz confidence.

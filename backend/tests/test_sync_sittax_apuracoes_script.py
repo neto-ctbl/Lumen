@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
+import sys
 
 import pytest
 
@@ -10,6 +12,19 @@ from backend.scripts import sync_sittax_apuracoes
 
 
 FIXTURES_DIR = Path("backend/tests/fixtures/sittax")
+
+
+def test_script_runs_directly_from_repository_root() -> None:
+    result = subprocess.run(
+        [sys.executable, "backend/scripts/sync_sittax_apuracoes.py", "--help"],
+        cwd=Path.cwd(),
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "Sync Sittax apuracoes" in result.stdout
 
 
 def test_script_parser_supports_expected_arguments() -> None:

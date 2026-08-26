@@ -8,6 +8,7 @@ from backend.app.models.dominio_payroll import (
     DominioPayrollImport,
 )
 from backend.app.models.dctfweb_origin import DctfwebOriginAssessment
+from backend.app.models.factor_r_assessment import FactorRAssessment
 from backend.app.models.econet_cnae_cache import EconetCnaeCache
 from backend.app.models.external_company import ExternalCompany
 from backend.app.models.fiscal_alert import FiscalAlert
@@ -38,6 +39,7 @@ __all__ = [
     "DominioPayrollCompanyMovement",
     "DominioPayrollImport",
     "DctfwebOriginAssessment",
+    "FactorRAssessment",
     "EconetCnaeCache",
     "ExternalCompany",
     "FiscalAlert",

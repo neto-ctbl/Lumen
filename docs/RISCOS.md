@@ -109,3 +109,12 @@ Data de referencia: 2026-07-20
 - `thirteenth_salary` pode permanecer zerado no historico mesmo com folha valida quando o relatorio nao provar a separacao com seguranca suficiente.
 - `employer_cpp_observed` e `fgts_observed` podem divergir do recolhimento efetivo; usar esses campos diretamente como pagamento fiscal seria conclusao indevida.
 - Reprocessar historico por PDF exige correspondencia `1:1` por `source_company_key`; qualquer alteracao externa no PDF ou no contrato de parsing pode bloquear enrichment futuro do arquivo.
+
+## S9.4
+
+- Relatorio mensal Domínio comprova competencia e valores calculados, nao pagamento de remuneracao ou recolhimento de CPP/FGTS; resultados permanecem estimativas.
+- A ausencia de rubrica 13 no resumo mensal nao prova 13o salario zero. O assessment preserva `THIRTEENTH_SALARY_COVERAGE_UNVERIFIED`.
+- Rubricas monetarias sem classificacao oficial podem alterar a FS12. Relevancia desconhecida reduz confidence e bloqueia alerta forte perto do threshold.
+- O modelo atual nao possui data canonica de abertura; empresa com historico curto nao recebe meses anteriores simulados como zero.
+- Cobertura de Fator R deve usar somente imports Domínio canônicos `ACTIVE_COMPANIES`; confundir ausencia de movimento em relatório existente com `REPORT_MISSING` reduz artificialmente a cobertura e produz alertas falsos.
+- Anexos Sittax podem representar receitas distintas; presenca de Anexo III/V nao prova por si uma divergencia de Fator R.
