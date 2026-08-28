@@ -99,6 +99,8 @@ export function CockpitPage({ onOpenCompany }: CockpitPageProps) {
             },
             { key: "obrigacoes", header: "Obrigações", render: (row) => row.obligations_total },
             { key: "pendentes", header: "Pendentes", render: (row) => row.pending_total },
+            { key: "dctfweb", header: "DCTFWeb", render: (row) => row.dctfweb_origin ?? "Sem leitura" },
+            { key: "fator-r", header: "Fator R", render: (row) => row.factor_r_reconciliation_status ?? row.factor_r_status ?? "Não aplicável" },
           ]}
           emptyMessage="Nenhuma empresa encontrada para os filtros atuais."
           rows={rows}

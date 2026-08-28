@@ -45,4 +45,13 @@ export type CompanyDetailResponse = {
   obligations: CompanyObligationPreview[];
   evidences_preview: number;
   divergences_preview: number;
+  dctfweb_origin: string | null;
+  dctfweb_department: string | null;
+  factor_r_status: string | null;
+  factor_r_calculation_status: string | null;
+  factor_r_reconciliation_status: string | null;
+  factor_r_confidence: string | null;
+  factor_r_estimated: string | null;
+  factor_r_observed: string | null;
+  dominio_source_period: string | null;
 };

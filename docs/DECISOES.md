@@ -222,3 +222,23 @@ Data de referencia: 2026-07-20
 - Enquanto nao existir data canonica de abertura ou historico de atividade por competencia, o S9.4 nao infere `SHORT_HISTORY` e nao transforma meses anteriores em zero.
 - `total_warnings` do import Domínio soma warnings de relatorio, warnings promovidos ao nivel da empresa, warnings monetarios e warnings de escopo; warnings exclusivamente internos de secao nao entram nesse contador.
 - `resumosTributacaoSittax` nao e promovido a Anexo III/V sem campo ou texto explicito de anexo. A presenca do payload permanece observada, mas nao gera `ANNEX_REVIEW` por inferencia.
+
+## S9.5-BE - API operacional/read-only
+
+- A API publica continua sob `/api/v1/lumen`; S9.5-BE nao cria um segundo prefixo nem endpoint de upload Domínio.
+- GETs leem somente PostgreSQL/cache local e nao acionam Domínio, Sittax, Acessórias, Econet ou eControle externos.
+- `sourcePeriod` identifica folha Domínio; `period` identifica PA de DCTFWeb e Fator R. A API nao converte implicitamente os dois conceitos.
+- Ausencia em import canonico existente e `CONFIRMED_NO_MOVEMENT`; falta de import e `REPORT_MISSING`, ambos como estado de negocio com HTTP 200 para empresa do tenant.
+- Detail de assessment persistido inexistente retorna 404; a API nao inventa `NOT_APPLICABLE` ou estado calculado em GET.
+- POSTs locais de reconcile sao `ADMIN|DEV`, reutilizam os servicos S9.3/S9.4 e aceitam `dry_run`; eles nao sincronizam fontes externas.
+
+## S9.5 - watcher e leitura operacional
+
+- O watcher Domínio não é o watcher fiscal genérico: opera somente no diretório canônico do collector Domínio e somente para relatórios mensais `ACTIVE_COMPANIES` com manifesto íntegro.
+- A ausência de arquivo válido não aciona nenhuma reconciliação; duplicatas por hash são `ALREADY_IMPORTED` e não criam novo import, evidência ou movimento.
+- `factor_r.incomplete` no dashboard é uma medida de cálculo não concluído (`calculation_status != COMPUTED`), nunca um atalho para alertas abertos.
+- O watcher S9 é exclusivo da folha Domínio; o watcher fiscal geral permanece fora do escopo. Sua singleton key é `organization_slug + diretório canônico`.
+- Dashboard, cockpit e resumo de empresa reutilizam assessments em lote, sem recalculo implicito ou N+1 por empresa.
+- A Company Page recebe `dominio_source_period` resolvido pelo backend. O frontend não deriva competência de folha a partir do PA.
+- Os detalhes de DCTFWeb, Fator R e Folha Domínio são independentes: `404` significa `Não avaliado` somente no card correspondente, sem ocultar dados cadastrais ou os demais cards.
+- S9.5 e o macro-stage S9 foram encerrados após validação de API, frontend, E2E, banco, segurança Git e singleton do watcher. S10 permanece não iniciado.

@@ -10,6 +10,14 @@ import type {
   PeriodListResponse,
 } from "../types/fiscal";
 import type { IntegrationHealthResponse } from "../types/integration";
+import type {
+  DctfwebOriginDetailResponse,
+  DctfwebSummaryResponse,
+  DominioPayrollCompanyResponse,
+  DominioPayrollSummaryResponse,
+  FactorRDetailResponse,
+  FactorRSummaryResponse,
+} from "../types/lumenS9";
 
 type QueryValue = string | number | null | undefined;
 
@@ -80,4 +88,34 @@ export function fetchInstallments(period: string, companyId?: number | null) {
 
 export function fetchIntegrationsHealth() {
   return apiRequest<IntegrationHealthResponse>("/api/v1/lumen/integrations/health");
+}
+
+export function fetchDominioPayrollSummary(sourcePeriod: string) {
+  return apiRequest<DominioPayrollSummaryResponse>(`/api/v1/lumen/dominio/payroll/summary${buildQuery({ sourcePeriod })}`);
+}
+
+export function fetchDctfwebSummary(period: string) {
+  return apiRequest<DctfwebSummaryResponse>(`/api/v1/lumen/dctfweb/summary${buildQuery({ period })}`);
+}
+
+export function fetchFactorRSummary(period: string) {
+  return apiRequest<FactorRSummaryResponse>(`/api/v1/lumen/factor-r/summary${buildQuery({ period })}`);
+}
+
+export function fetchCompanyDominioPayroll(companyId: number, sourcePeriod: string) {
+  return apiRequest<DominioPayrollCompanyResponse>(
+    `/api/v1/lumen/companies/${companyId}/dominio/payroll${buildQuery({ sourcePeriod })}`,
+  );
+}
+
+export function fetchCompanyDctfwebOrigin(companyId: number, period: string) {
+  return apiRequest<DctfwebOriginDetailResponse>(
+    `/api/v1/lumen/companies/${companyId}/dctfweb-origin${buildQuery({ period })}`,
+  );
+}
+
+export function fetchCompanyFactorR(companyId: number, period: string) {
+  return apiRequest<FactorRDetailResponse>(
+    `/api/v1/lumen/companies/${companyId}/factor-r${buildQuery({ period })}`,
+  );
 }

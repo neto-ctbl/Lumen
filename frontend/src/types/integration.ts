@@ -15,6 +15,8 @@ export type IntegrationHealthItem = {
   cache_items?: number | null;
   cache_expired_items?: number | null;
   cache_last_refresh?: string | null;
+  watcher_latest_detected_at?: string | null;
+  watcher_latest_import_at?: string | null;
 };
 
 export type IntegrationHealthResponse = {

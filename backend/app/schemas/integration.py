@@ -27,6 +27,8 @@ class IntegrationHealthItem(BaseModel):
     cache_expired_items: int | None = None
     cache_outdated_parser_items: int | None = None
     cache_last_refresh: str | None = None
+    watcher_latest_detected_at: str | None = None
+    watcher_latest_import_at: str | None = None
 
 
 class IntegrationHealthResponse(BaseModel):

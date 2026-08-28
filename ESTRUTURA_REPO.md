@@ -1590,6 +1590,27 @@ Funcionamento validado:
 - a reconciliacao so amplia `POTENTIAL` para `EFFECTIVE` quando ha potencial CNAE canonico e fator Sittax observado, sem transformar snapshots isolados em novos targets;
 - o reconciliador nao altera imports Domínio, movimentos, evidencias, status fiscais ou cache Econet; o sync S7 somente pode acrescentar/atualizar snapshots locais lidos de endpoint externo read-only.
 
+## Atualizacao S9.5-BE
+
+- `backend/app/schemas/lumen_s9.py`: contratos publicos sanitizados para Domínio, DCTFWeb, Factor R e reconciliacao local.
+- `backend/app/api/v1/endpoints/lumen.py`: novos GETs e POSTs sob o prefixo publico existente `/api/v1/lumen`.
+- `backend/app/services/lumen_read_model.py`: consultas em lote multi-tenant, resumos de assessments e health local Domínio/Sittax.
+- `backend/tests/test_lumen_s95_read_endpoints.py`: cobertura de sanitizacao, cobertura de folha, RBAC, isolamento, zero writes e reconciliacao local.
+
+O S9.5-BE nao criou tabelas nem upload de PDF. Todos os GETs leem somente PostgreSQL/cache local; POSTs de reconcile usam dados persistidos e nao acionam integracoes externas. O watcher, frontend e E2E foram concluídos no fechamento operacional abaixo.
+
+## Atualizacao S9.5 operacional
+
+- `backend/app/services/integrations/dominio/watcher.py`: varredura local e conservadora de relatórios Domínio canônicos, sem mover, renomear ou apagar arquivos.
+- `backend/scripts/watch_dominio_payroll.py`: CLI `--once`, `--dry-run` e `--json`; o diretório padrão é relativo ao repositório.
+- `scripts/dev/run_dominio_payroll_watcher.ps1`: wrapper Windows para iniciar, consultar e parar o watcher contínuo sem duplicar processos por organização.
+- `frontend/src/services/lumenService.ts` e `frontend/src/types/lumenS9.ts`: contratos de consumo dos resumos Domínio, DCTFWeb e Fator R.
+- `frontend/src/features/dashboard`, `cockpit`, `company` e `integrations`: leitura operacional sem payload bruto nem ações fiscais externas. A Company Page busca os detalhes S9 isoladamente, preserva a página quando um detalhe retorna 404 e recebe `dominio_source_period` já resolvido pelo backend.
+
+O watcher grava somente `integration_sync_runs` agregado e usa o importador canônico para qualquer nova escrita de importação. A saúde local inclui `Watcher Domínio` com o último run, detecção e importação agregados. `dashboard.factor_r.incomplete` significa assessment cujo cálculo não está `COMPUTED`; não equivale à contagem de alertas fiscais.
+
+O fechamento S9.5 valida headings acessíveis para `Origem DCTFWeb`, `Fator R` e `Folha Domínio`; o fixture E2E sintético cobre divergência de threshold e baixa confiança no card de Fator R. S9 está concluído; S10 permanece fora do escopo.
+
 ## Atualizacao S5.2, S6.3 e S8.3.2 em 2026-08-20
 
 Arquivos materializados no S5.2:

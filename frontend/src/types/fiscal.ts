@@ -25,6 +25,8 @@ export type DashboardResponse = {
   kpis: DashboardKpis;
   department_totals: Array<{ department: string; total: number }>;
   status_totals: Array<{ status: string; total: number }>;
+  dctfweb: { evaluated: number; dp: number; fiscal: number; shared: number; undetermined: number };
+  factor_r: { targets: number; effective: number; review: number; calculated: number; threshold_divergences: number; incomplete: number };
 };
 
 export type CockpitCompanyRow = {
@@ -41,6 +43,14 @@ export type CockpitCompanyRow = {
   delivered_total: number;
   pending_total: number;
   divergences_total: number;
+  dctfweb_origin: string | null;
+  dctfweb_department: string | null;
+  factor_r_status: string | null;
+  factor_r_calculation_status: string | null;
+  factor_r_reconciliation_status: string | null;
+  factor_r_confidence: string | null;
+  factor_r_estimated: string | null;
+  factor_r_observed: string | null;
 };
 
 export type CockpitResponse = {

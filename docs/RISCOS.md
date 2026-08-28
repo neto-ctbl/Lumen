@@ -118,3 +118,11 @@ Data de referencia: 2026-07-20
 - O modelo atual nao possui data canonica de abertura; empresa com historico curto nao recebe meses anteriores simulados como zero.
 - Cobertura de Fator R deve usar somente imports Domínio canônicos `ACTIVE_COMPANIES`; confundir ausencia de movimento em relatório existente com `REPORT_MISSING` reduz artificialmente a cobertura e produz alertas falsos.
 - Anexos Sittax podem representar receitas distintas; presenca de Anexo III/V nao prova por si uma divergencia de Fator R.
+
+## S9.5 Watcher Domínio
+
+- Processo órfão ou lock stale é recuperado somente depois de validar PID, comando, organização e diretório canônico; PID inválido nunca é encerrado.
+- O lock local fica em `.runtime/`, ignorado pelo Git, e arquivos parciais continuam inelegíveis sem serem movidos ou removidos.
+- Processo legado não gerenciado é conflito operacional e não é encerrado automaticamente pelo wrapper.
+- A validação final confirmou uma única árvore gerenciada por `organization_slug + diretório canônico`; processos filhos do launcher Python fazem parte da mesma árvore e não representam duplicidade operacional.
+- A Company Page não pode derivar competência fonte por conta própria. Alterações futuras devem preservar o campo explícito do backend e os empty states isolados por card.

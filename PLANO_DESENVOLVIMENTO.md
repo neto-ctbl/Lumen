@@ -2481,6 +2481,51 @@ Limites mantidos:
 * CPP/FGTS observados nao provam recolhimento, caixa nao e presumido e a cobertura de 13o/rubricas nao classificadas continua como limitacao explicita;
 * divergencia de threshold registra revisao tecnica, sem afirmar erro fiscal no Sittax; ausencia global de snapshot nao gera alertas empresariais em massa.
 
+### S9.5-BE - API backend operacional/read-only
+
+Status: concluido e validado em 2026-08-26, aguardando revisao e commit
+
+Entregues:
+
+* extensao da API publica existente `/api/v1/lumen`, sem segunda API paralela e sem migration;
+* GETs sanitizados para resumo e detalhe Domínio, DCTFWeb origin, Factor R, dashboard, cockpit, resumo de empresa e health local;
+* POSTs locais de reconcile DCTFWeb e Factor R, restritos a `ADMIN|DEV`, reutilizando os servicos S9.3/S9.4 e aceitando `dry_run`;
+* queries multi-tenant por `organization_id`, paginação limitada e ordenação deterministica;
+* cobertura Domínio com `MOVEMENT_FOUND`, `CONFIRMED_NO_MOVEMENT` e `REPORT_MISSING`, mantendo a semantica `sourcePeriod` separada do PA;
+* health Domínio/Sittax baseado exclusivamente em banco local, sem chamadas externas em GET.
+
+Limites mantidos:
+
+* APIs nunca retornam `raw_text`, PDF, manifest, paths locais, hash de arquivo, payload Sittax bruto, fingerprint, cookie, token ou credencial;
+* GETs nao recalculam assessments nem escrevem audit; o frontend continua compativel pelos campos existentes preservados;
+* upload HTTP de PDF Domínio permanece fora do patch: o fluxo canonico continua collector local mais CLI de importacao;
+* `S9.5-WATCHER`, `S9.5-FE` e `S9.5-E2E` foram validados no fechamento operacional abaixo; não há pendência de suíte para encerramento formal do macro-stage.
+
+### S9.5 - fechamento operacional
+
+Entregas implementadas para validação final:
+
+* dashboard, cockpit e tela da empresa exibem apenas resumos sanitizados de DCTFWeb, Fator R e Domínio; a Company Page busca cada detalhe isoladamente e trata `404` como `Não avaliado`, sem quebrar os outros cards;
+* a compatibilidade é mantida entre dashboard e resumos: `dctfweb.evaluated` deriva das mesmas assessments do summary e `factor_r.calculated` conta assessments com fator estimado;
+* `factor_r.incomplete` identifica cálculo não `COMPUTED`, separado de alertas e divergências;
+* watcher Domínio local observa somente `scripts/collectors/dominio/Relatorios_Dominio`, com `--once` para controle e `--watch` para processo supervisionado; valida manifesto/arquivo estável e encaminha arquivos novos ao importador canônico;
+* o watcher trata duplicatas por `organization + file_sha256`, ignora parciais, não movimenta arquivos e só reconcilia DCTFWeb/Fator R para o PA M+1 do relatório novo;
+* health apresenta o watcher com dados locais persistidos; não há chamada a UI Domínio, Sittax, Acessórias ou Econet durante GETs;
+* o fluxo mantém `folha M -> PA M+1`: a folha `07/2026` participa do PA `2026-08`, nunca do PA `2026-07`.
+
+Limites preservados:
+
+* `fs12_dominio_estimate` continua estimativa derivada e não FS12 oficial;
+* watcher e frontend não criam imports duplicados, fiscal evidence extra, payload bruto ou operação externa mutável;
+* S10 não foi iniciado e o watcher de evidências fiscais genéricas permanece fora do escopo.
+
+Status: concluído em 2026-08-28
+
+* `S9.5-BE`, `S9.5-WATCHER`, `S9.5-FE` e `S9.5-E2E` concluídos.
+* Macro-stage `S9` concluído: API sanitizada, watcher Domínio singleton, frontend operacional e E2E cobrem o fluxo sem alterar fontes canônicas.
+* Validação final: backend `581 passed` com um warning conhecido de compatibilidade Starlette/httpx; frontend `typecheck`, `build`, spec S9 e `7` E2E aprovados; Ruff, `py_compile`, parser PowerShell, OpenAPI e Alembic `20260824_0014` aprovados.
+* O watcher foi validado com uma única árvore gerenciada por `organization_slug + diretório canônico`; `Stop` encerrou a árvore e não restaram processos legados.
+
 
 ## S10 - Watcher local e motor de evidências por arquivo
 

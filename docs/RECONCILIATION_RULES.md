@@ -31,3 +31,10 @@ The 2026-08-21 audit of `2026-07` found no canonical PIS/COFINS status or eviden
 - `FS12 / RBT12` uses Decimal. Zero cases return `0.01` except positive FS12 with zero RBT12, which returns the threshold `0.28` without dividing by zero.
 - A ratio at or above `0.28` maps to III; lower maps to V. No rounding is applied before the comparison.
 - A persisted threshold divergence is not automatically an alert. Strong alerts require sufficient component classification and revenue evidence.
+
+## S9.5 Portal Reading
+
+- The portal reads DCTFWeb origin, Factor R and Domínio payroll details through separate read-only endpoints.
+- A missing detail assessment is an independent `Não avaliado` state, not a failure of the entire Company Page.
+- The backend supplies the Domínio source competence used by the Company Page. The UI never applies `M -> M+1` or its inverse itself.
+- The S9.5 E2E validates headings for all three readings and a synthetic low-confidence threshold divergence. It does not create assessments, alerts, imports or external source activity.

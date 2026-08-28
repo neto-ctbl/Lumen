@@ -26,6 +26,10 @@ export function IntegrationsPage() {
               <span>Conta</span>
               <strong>{item.account_status ? formatStatusLabel(item.account_status) : "Não configurada"}</strong>
             </article>
+            {item.provider === "WATCHER_DOMINIO" ? <>
+              <article><span>Última detecção</span><strong>{formatIsoDate(item.watcher_latest_detected_at ?? null)}</strong></article>
+              <article><span>Último import</span><strong>{formatIsoDate(item.watcher_latest_import_at ?? null)}</strong></article>
+            </> : null}
             <article>
               <span>Ultimo run</span>
               <strong>{item.last_run_status ? formatStatusLabel(item.last_run_status) : "Sem execução"}</strong>

@@ -212,7 +212,15 @@ Os cenários sintéticos congelados no S9.0 cobrem:
 - fixtures sintéticas;
 - coletor Windows com lock, retry, validação mínima, SHA-256 e manifest;
 - nenhum PDF real, log real ou credencial no Git;
-- apenas S9.0 implementado.
+- S9.0 a S9.5 implementados e validados; S10 permanece fora do escopo.
+
+## 18.1 Fechamento S9.5 e S9
+
+- A API `/api/v1/lumen` expõe apenas leituras sanitizadas e reconciliações locais controladas por RBAC.
+- A Company Page consulta DCTFWeb, Fator R e Folha Domínio separadamente. A competência fonte da folha é recebida como `dominio_source_period` do backend, sem cálculo fiscal duplicado no frontend.
+- Ausência de um assessment de detalhe retorna `404` e aparece como `Não avaliado` apenas no card correspondente.
+- O watcher Domínio foi validado com uma única árvore de processos por `organization_slug + diretório canônico`; `Start`, `Status` e `Stop` não duplicam ou deixam processos gerenciados órfãos.
+- A validação final aprovou backend, frontend, E2E, Ruff, `py_compile`, OpenAPI, Alembic e proteção de artefatos reais no Git.
 
 ## 19. Complemento do S9.1
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from backend.app.api.deps import get_current_auth_context, require_roles
@@ -14,9 +14,23 @@ from backend.app.schemas.econet import CompanyCnaeListResponse, FactorRPotential
 from backend.app.schemas.evidence import EvidenceListResponse
 from backend.app.schemas.installment import InstallmentListResponse
 from backend.app.schemas.integration import IntegrationHealthResponse
+from backend.app.schemas.lumen_s9 import (
+    DctfwebOriginItem,
+    DctfwebOriginListResponse,
+    DctfwebSummaryResponse,
+    DominioPayrollCompanyResponse,
+    DominioPayrollSummaryResponse,
+    FactorRDetailResponse,
+    FactorRListResponse,
+    FactorRSummaryResponse,
+    ReconcileRequest,
+    ReconcileResponse,
+)
 from backend.app.schemas.period import PeriodListResponse
 from backend.app.services.auth import AuthContext, ROLE_ADMIN, ROLE_DEV, ROLE_VIEW
 from backend.app.services import lumen_read_model
+from backend.app.services.dctfweb_origins import reconcile_dctfweb_period
+from backend.app.services.factor_r_reconciliation import reconcile_factor_r_period
 
 
 router = APIRouter(prefix="/lumen", tags=["lumen"])
@@ -27,6 +41,18 @@ def _authorized_context(
     context: AuthContext = Depends(get_current_auth_context),
 ) -> AuthContext:
     return context
+
+
+def _admin_context(
+    _: object = Depends(require_roles(ROLE_ADMIN, ROLE_DEV)),
+    context: AuthContext = Depends(get_current_auth_context),
+) -> AuthContext:
+    return context
+
+
+def _read_error(exc: ValueError | LookupError) -> HTTPException:
+    code = status.HTTP_422_UNPROCESSABLE_ENTITY if isinstance(exc, ValueError) else status.HTTP_404_NOT_FOUND
+    return HTTPException(status_code=code, detail=str(exc))
 
 
 @router.get("/companies", response_model=CompanyListResponse)
@@ -181,3 +207,181 @@ def integrations_health(
     db: Session = Depends(get_db),
 ) -> IntegrationHealthResponse:
     return lumen_read_model.get_integrations_health(db, organization_id=context.organization.id)
+
+
+@router.get("/dominio/payroll/summary", response_model=DominioPayrollSummaryResponse)
+def dominio_payroll_summary(
+    sourcePeriod: str = Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+    context: AuthContext = Depends(_authorized_context),
+    db: Session = Depends(get_db),
+) -> DominioPayrollSummaryResponse:
+    try:
+        return lumen_read_model.get_dominio_payroll_summary(
+            db, organization_id=context.organization.id, source_period=sourcePeriod
+        )
+    except ValueError as exc:
+        raise _read_error(exc) from exc
+
+
+@router.get("/companies/{company_id}/dominio/payroll", response_model=DominioPayrollCompanyResponse)
+def dominio_payroll_company(
+    company_id: int,
+    sourcePeriod: str = Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+    context: AuthContext = Depends(_authorized_context),
+    db: Session = Depends(get_db),
+) -> DominioPayrollCompanyResponse:
+    try:
+        response = lumen_read_model.get_dominio_payroll_company(
+            db, organization_id=context.organization.id, company_id=company_id, source_period=sourcePeriod
+        )
+    except ValueError as exc:
+        raise _read_error(exc) from exc
+    if response is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found.")
+    return response
+
+
+@router.get("/dctfweb/origins", response_model=DctfwebOriginListResponse)
+def dctfweb_origins(
+    period: str = Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+    companyId: int | None = None,
+    origin: str | None = None,
+    department: str | None = None,
+    coverage: str | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    context: AuthContext = Depends(_authorized_context),
+    db: Session = Depends(get_db),
+) -> DctfwebOriginListResponse:
+    try:
+        return lumen_read_model.get_dctfweb_origins(
+            db, organization_id=context.organization.id, period=period, company_id=companyId, origin=origin,
+            department=department, coverage=coverage, limit=limit, offset=offset,
+        )
+    except (ValueError, LookupError) as exc:
+        raise _read_error(exc) from exc
+
+
+@router.get("/companies/{company_id}/dctfweb-origin", response_model=DctfwebOriginItem)
+def dctfweb_origin_detail(
+    company_id: int,
+    period: str = Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+    context: AuthContext = Depends(_authorized_context),
+    db: Session = Depends(get_db),
+) -> DctfwebOriginItem:
+    try:
+        response = lumen_read_model.get_dctfweb_origin_detail(
+            db, organization_id=context.organization.id, company_id=company_id, period=period
+        )
+    except (ValueError, LookupError) as exc:
+        raise _read_error(exc) from exc
+    if response is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="DCTFWeb origin assessment not found.")
+    return response
+
+
+@router.get("/dctfweb/summary", response_model=DctfwebSummaryResponse)
+def dctfweb_summary(
+    period: str = Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+    context: AuthContext = Depends(_authorized_context),
+    db: Session = Depends(get_db),
+) -> DctfwebSummaryResponse:
+    try:
+        return lumen_read_model.get_dctfweb_summary(db, organization_id=context.organization.id, period=period)
+    except (ValueError, LookupError) as exc:
+        raise _read_error(exc) from exc
+
+
+@router.get("/factor-r", response_model=FactorRListResponse)
+def factor_r_assessments(
+    period: str = Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+    companyId: int | None = None,
+    applicability: str | None = None,
+    calculationStatus: str | None = None,
+    reconciliationStatus: str | None = None,
+    confidence: str | None = None,
+    thresholdSide: str | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    context: AuthContext = Depends(_authorized_context),
+    db: Session = Depends(get_db),
+) -> FactorRListResponse:
+    try:
+        return lumen_read_model.get_factor_r_assessments(
+            db, organization_id=context.organization.id, period=period, company_id=companyId,
+            applicability=applicability, calculation_status=calculationStatus,
+            reconciliation_status=reconciliationStatus, confidence=confidence, threshold_side=thresholdSide,
+            limit=limit, offset=offset,
+        )
+    except (ValueError, LookupError) as exc:
+        raise _read_error(exc) from exc
+
+
+@router.get("/factor-r/summary", response_model=FactorRSummaryResponse)
+def factor_r_summary(
+    period: str = Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+    context: AuthContext = Depends(_authorized_context),
+    db: Session = Depends(get_db),
+) -> FactorRSummaryResponse:
+    try:
+        return lumen_read_model.get_factor_r_summary(db, organization_id=context.organization.id, period=period)
+    except (ValueError, LookupError) as exc:
+        raise _read_error(exc) from exc
+
+
+@router.get("/companies/{company_id}/factor-r", response_model=FactorRDetailResponse)
+def factor_r_detail(
+    company_id: int,
+    period: str = Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+    context: AuthContext = Depends(_authorized_context),
+    db: Session = Depends(get_db),
+) -> FactorRDetailResponse:
+    try:
+        response = lumen_read_model.get_factor_r_detail(
+            db, organization_id=context.organization.id, company_id=company_id, period=period
+        )
+    except (ValueError, LookupError) as exc:
+        raise _read_error(exc) from exc
+    if response is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Factor R assessment not found.")
+    return response
+
+
+@router.post("/dctfweb/reconcile", response_model=ReconcileResponse)
+def reconcile_dctfweb(
+    body: ReconcileRequest,
+    context: AuthContext = Depends(_admin_context),
+    db: Session = Depends(get_db),
+) -> ReconcileResponse:
+    if body.company_id is not None:
+        try:
+            lumen_read_model._require_company(db, organization_id=context.organization.id, company_id=body.company_id)
+        except LookupError as exc:
+            raise _read_error(exc) from exc
+    try:
+        summary = reconcile_dctfweb_period(
+            db, context.organization, body.period, external_company_id=body.company_id, dry_run=body.dry_run
+        )
+    except ValueError as exc:
+        raise _read_error(exc) from exc
+    return ReconcileResponse(summary=summary.to_dict())
+
+
+@router.post("/factor-r/reconcile", response_model=ReconcileResponse)
+def reconcile_factor_r(
+    body: ReconcileRequest,
+    context: AuthContext = Depends(_admin_context),
+    db: Session = Depends(get_db),
+) -> ReconcileResponse:
+    if body.company_id is not None:
+        try:
+            lumen_read_model._require_company(db, organization_id=context.organization.id, company_id=body.company_id)
+        except LookupError as exc:
+            raise _read_error(exc) from exc
+    try:
+        summary = reconcile_factor_r_period(
+            db, context.organization, body.period, company_id=body.company_id, dry_run=body.dry_run
+        )
+    except ValueError as exc:
+        raise _read_error(exc) from exc
+    return ReconcileResponse(summary=summary.to_dict())

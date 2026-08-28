@@ -1015,8 +1015,24 @@ Respostas esperadas:
 
 ## S9.4 Factor R reconciliation
 
-S9.4 esta tecnicamente e operacionalmente validado, aguardando revisao e commit. Persiste `factor_r_assessments` derivados de Domínio schema v2 e snapshots Sittax, por organizacao, empresa e PA. `fs12_dominio_estimate` nao e FS12 oficial: preserva limitacoes de rubricas nao classificadas, 13o, caixa e recolhimento observado.
+S9.4 esta tecnicamente e operacionalmente validado como parte do fechamento consolidado de S9. Persiste `factor_r_assessments` derivados de Domínio schema v2 e snapshots Sittax, por organizacao, empresa e PA. `fs12_dominio_estimate` nao e FS12 oficial: preserva limitacoes de rubricas nao classificadas, 13o, caixa e recolhimento observado.
 
 A CLI `backend/scripts/reconcile_factor_r.py` le somente fontes persistidas, suporta `--dry-run` e grava apenas assessments, alertas recalculaveis e auditoria agregada. A cobertura Domínio distingue relatorio canonico ausente de `CONFIRMED_NO_MOVEMENT`: ausencia de movimento em relatorio mensal `ACTIVE_COMPANIES` existente e cobertura valida com zero observado, nao historico faltante. A janela respeita `folha M -> PA M+1`: a folha `07/2026` entra no PA `2026-08`, nunca no PA `2026-07`.
 
 A validacao operacional do PA `2026-07` confirmou `58` targets, `58` FS12 estimadas com confidence `LOW`, `43` snapshots Sittax/RBT12/fatores observados correspondentes, `43` fatores calculados, `14` em ou acima de 28% e `29` abaixo. Foram persistidos `29` matches e `14` divergencias de threshold; a confidence baixa limita os alertas fortes. O workflow S7 read-only `backend/scripts/sync_sittax_apuracoes.py` passou a poder ser executado diretamente da raiz e persistiu snapshots canonicos de `2026-07`, sem reutilizar PA anterior nem alterar estado fiscal externo.
+
+## S9.5-BE API read-only
+
+S9.5-BE amplia a API existente `/api/v1/lumen` com endpoints de Domínio, DCTFWeb e Factor R para o portal futuro. GETs usam exclusivamente dados persistidos e aceitam `VIEW`, `ADMIN` e `DEV`; POSTs locais de reconciliacao usam somente `ADMIN` e `DEV`, reutilizam os motores S9.3/S9.4 e suportam `dry_run`.
+
+Os contratos nao expoem folha bruta, descricoes de rubrica, PDF, manifest, paths locais, hashes de arquivo, payload Sittax bruto, fingerprint, cookies ou credenciais. `sourcePeriod` e usado para folha Domínio; `period` representa PA para DCTFWeb e Factor R. O resumo de empresa entrega a competência fonte Domínio já resolvida pelo backend, evitando que o frontend replique a regra `folha M -> PA M+1`.
+
+## S9.5 operacional
+
+O portal Lumen reutiliza a API `/api/v1/lumen` para exibir resumos Domínio, origem esperada da DCTFWeb e reconciliação de Fator R. A Company Page carrega os três detalhes de forma independente e mantém `404` como estado "Não avaliado", sem interromper a leitura cadastral. As leituras de folha usam a competência fonte recebida do backend; DCTFWeb e Fator R usam o PA `period`. Nenhuma tela calcula tributos, envia dados, reprocessa fontes externas ou expõe dados brutos.
+
+O watcher local `backend/scripts/watch_dominio_payroll.py` observa exclusivamente `scripts/collectors/dominio/Relatorios_Dominio`. Use `--once` para validação controlada ou `--watch --interval-seconds 60` em processo supervisionado. Ele aceita apenas `Resumo_Mensal_MM-AAAA.pdf` com manifesto `SUCCESS`, escopo `ACTIVE_COMPANIES`, hash, tamanho e páginas validados. Arquivos parciais, inválidos e já importados não são modificados ou duplicados. Uma importação nova reaproveita o importador Domínio e os reconciliadores locais do PA M+1.
+
+Em Windows, `scripts/dev/run_dominio_payroll_watcher.ps1` padroniza `Start`, `Status` e `Stop` do processo local supervisionado.
+
+S9.5 e o macro-stage S9 estão concluídos e validados. A suíte E2E cobre as leituras S9 no painel, cockpit, integrações e Company Page, incluindo uma divergência de threshold com baixa confiança, sem dados reais em fixtures. S10 permanece pendente.

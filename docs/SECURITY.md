@@ -103,3 +103,17 @@ Data de referencia: 2026-07-15
 - A CLI `reconcile_factor_r.py` emite somente agregados; nao imprime empresa, CNPJ, valores monetarios, rubricas, raw payroll ou payload Sittax.
 - O assessment guarda breakdowns sem identificadores pessoais e snapshots sanitizados de presenca/origem, nunca payload Sittax bruto adicional.
 - `--dry-run` nao escreve assessments, alertas, auditoria, periodos ou fontes Domínio/Sittax/Econet.
+
+## S9.5-BE
+
+- As respostas de Domínio nao retornam `raw_text`, descricao de rubrica, PDF, manifest, caminho local ou hash do arquivo.
+- As respostas de Fator R nao retornam `source_summary`, `fingerprint`, payload Sittax bruto, cookies, tokens, headers ou credenciais.
+- Toda consulta aplica `organization_id` do contexto autenticado; recurso de outro tenant retorna 404.
+- `VIEW` pode apenas consultar; POSTs de reconcile exigem `ADMIN` ou `DEV` e continuam estritamente locais.
+
+## S9.5 Watcher Domínio
+
+- O lock/PID contém somente PID, slug da organização, diretório canônico e instante de início; não contém PII, credenciais, hashes ou dados de folha.
+- O watcher usa dados agregados, não move ou apaga PDFs e mantém relatórios reais fora do Git.
+- A Company Page mostra somente cobertura, competências, sinais agregados, status e confidence; não mostra `raw_text`, rubricas individuais, identificadores pessoais, paths ou arquivos de folha.
+- Os fixtures E2E de DCTFWeb, Fator R e Domínio são integralmente sintéticos.

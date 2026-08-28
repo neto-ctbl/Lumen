@@ -11,8 +11,11 @@ from backend.app.core.enums import FISCAL_REGIME_LABELS, FiscalRegime
 from backend.app.core.config import get_settings
 from backend.app.models.acessorias_company_snapshot import AcessoriasCompanySnapshot
 from backend.app.models.company_cnae import CompanyCnae
+from backend.app.models.dctfweb_origin import DctfwebOriginAssessment
+from backend.app.models.dominio_payroll import DominioPayrollCompanyMovement, DominioPayrollImport
 from backend.app.models.econet_cnae_cache import EconetCnaeCache
 from backend.app.models.external_company import ExternalCompany
+from backend.app.models.factor_r_assessment import FactorRAssessment
 from backend.app.models.fiscal_alert import FiscalAlert
 from backend.app.models.fiscal_evidence import FiscalEvidence
 from backend.app.models.fiscal_installment import FiscalInstallment
@@ -35,7 +38,9 @@ from backend.app.schemas.company import (
 )
 from backend.app.schemas.econet import CompanyCnaeItemResponse, CompanyCnaeListResponse, FactorRPotentialResponse
 from backend.app.schemas.dashboard import (
+    DashboardDctfwebSummary,
     DashboardDepartmentSummary,
+    DashboardFactorRSummary,
     DashboardKpis,
     DashboardResponse,
     DashboardStatusSummary,
@@ -45,10 +50,28 @@ from backend.app.schemas.divergence import DivergenceItem, DivergenceListRespons
 from backend.app.schemas.evidence import EvidenceItem, EvidenceListResponse
 from backend.app.schemas.installment import InstallmentItem, InstallmentListResponse
 from backend.app.schemas.integration import IntegrationHealthItem, IntegrationHealthResponse
+from backend.app.schemas.lumen_s9 import (
+    DctfwebOriginItem,
+    DctfwebOriginListResponse,
+    DctfwebSummaryResponse,
+    DominioMonetarySummary,
+    DominioPayrollCompanyResponse,
+    DominioPayrollSignals,
+    DominioPayrollSummaryResponse,
+    FactorRDetailResponse,
+    FactorRItem,
+    FactorRListResponse,
+    FactorRSummaryResponse,
+)
 from backend.app.schemas.period import PeriodItem, PeriodListResponse
 from backend.app.services.integrations.econet.assisted_session import get_econet_assisted_session
 from backend.app.services.integrations.econet.parser import CURRENT_ECONET_PARSER_VERSION
 from backend.app.services.factor_r import get_company_factor_r_potential as compute_company_factor_r_potential
+from backend.app.services.integrations.dominio.monetary_summary import (
+    MONETARY_SUMMARY_COMPLETE,
+    MONETARY_SUMMARY_INSUFFICIENT,
+    MONETARY_SUMMARY_PARTIAL,
+)
 
 
 STALE_RUN_MINUTES = 15
@@ -60,6 +83,7 @@ PROVIDER_LABELS = {
     "ACESSORIAS": "Acessórias",
     "SITTAX": "Sittax",
     "DOMINIO": "Domínio",
+    "WATCHER_DOMINIO": "Watcher Domínio",
     "ECONET": "Econet",
     "WATCHER_G": "Watcher G:",
 }
@@ -215,6 +239,8 @@ def get_dashboard(db: Session, *, organization_id: int, competencia: str | None)
             ),
             department_totals=[],
             status_totals=[],
+            dctfweb=DashboardDctfwebSummary(),
+            factor_r=DashboardFactorRSummary(),
         )
 
     obligation_rows = db.execute(
@@ -258,6 +284,15 @@ def get_dashboard(db: Session, *, organization_id: int, competencia: str | None)
         department_counts[str(department)] = department_counts.get(str(department), 0) + int(total)
         status_counts[str(status)] = status_counts.get(str(status), 0) + int(total)
 
+    dctfweb_rows = db.scalars(select(DctfwebOriginAssessment).where(
+        DctfwebOriginAssessment.organization_id == organization_id,
+        DctfwebOriginAssessment.fiscal_period_id == period.period_id,
+    )).all()
+    factor_rows = db.scalars(select(FactorRAssessment).where(
+        FactorRAssessment.organization_id == organization_id,
+        FactorRAssessment.fiscal_period_id == period.period_id,
+    )).all()
+
     return DashboardResponse(
         period=period.competencia,
         kpis=DashboardKpis(
@@ -277,6 +312,21 @@ def get_dashboard(db: Session, *, organization_id: int, competencia: str | None)
             DashboardStatusSummary(status=status, total=total)
             for status, total in sorted(status_counts.items())
         ],
+        dctfweb=DashboardDctfwebSummary(
+            evaluated=len(dctfweb_rows),
+            dp=sum(row.expected_origin == "DP" for row in dctfweb_rows),
+            fiscal=sum(row.expected_origin == "FISCAL" for row in dctfweb_rows),
+            shared=sum(row.expected_origin == "COMPARTILHADO" for row in dctfweb_rows),
+            undetermined=sum(row.expected_origin == "UNDETERMINED" for row in dctfweb_rows),
+        ),
+        factor_r=DashboardFactorRSummary(
+            targets=len(factor_rows),
+            effective=sum(row.applicability_status == "EFFECTIVE" for row in factor_rows),
+            review=sum(row.applicability_status == "REVIEW" for row in factor_rows),
+            calculated=sum(row.factor_r_estimated_dominio is not None for row in factor_rows),
+            threshold_divergences=sum(row.reconciliation_status == "THRESHOLD_DIVERGENCE" for row in factor_rows),
+            incomplete=sum(row.calculation_status != "COMPUTED" for row in factor_rows),
+        ),
     )
 
 
@@ -348,6 +398,8 @@ def get_cockpit(
             alert_count_by_company[row.company_id] = alert_count_by_company.get(row.company_id, 0) + 1
 
     snapshots = _snapshot_map(db, organization_id=organization_id, company_ids=[company.id for company in companies])
+    dctfweb_by_company = _dctfweb_by_company(db, organization_id=organization_id, period_id=period.period_id)
+    factor_by_company = _factor_r_by_company(db, organization_id=organization_id, period_id=period.period_id)
     items: list[CockpitCompanyRow] = []
     for company in companies:
         company_statuses = status_by_company.get(company.id, [])
@@ -365,6 +417,8 @@ def get_cockpit(
             continue
 
         first_status = company_statuses[0] if company_statuses else None
+        dctfweb = dctfweb_by_company.get(company.id)
+        factor = factor_by_company.get(company.id)
         items.append(
             CockpitCompanyRow(
                 company_id=company.id,
@@ -380,6 +434,14 @@ def get_cockpit(
                 delivered_total=delivered_total,
                 pending_total=pending_total,
                 divergences_total=divergences_total,
+                dctfweb_origin=dctfweb.expected_origin if dctfweb else None,
+                dctfweb_department=dctfweb.expected_responsible_department if dctfweb else None,
+                factor_r_status=factor.applicability_status if factor else None,
+                factor_r_calculation_status=factor.calculation_status if factor else None,
+                factor_r_reconciliation_status=factor.reconciliation_status if factor else None,
+                factor_r_confidence=factor.fs12_confidence if factor else None,
+                factor_r_estimated=str(factor.factor_r_estimated_dominio) if factor and factor.factor_r_estimated_dominio is not None else None,
+                factor_r_observed=str(factor.factor_r_sittax_observed) if factor and factor.factor_r_sittax_observed is not None else None,
             )
         )
 
@@ -426,6 +488,9 @@ def get_company_summary(db: Session, *, organization_id: int, company_id: int, c
                 FiscalAlert.company_id == company.id,
             )
         ) or 0
+
+    dctfweb = _dctfweb_by_company(db, organization_id=organization_id, period_id=period.period_id).get(company.id)
+    factor = _factor_r_by_company(db, organization_id=organization_id, period_id=period.period_id).get(company.id)
 
     installment_total = db.scalar(
         select(func.count()).select_from(FiscalInstallment).where(
@@ -495,6 +560,15 @@ def get_company_summary(db: Session, *, organization_id: int, company_id: int, c
         ],
         evidences_preview=evidence_total,
         divergences_preview=divergence_total,
+        dctfweb_origin=dctfweb.expected_origin if dctfweb else None,
+        dctfweb_department=dctfweb.expected_responsible_department if dctfweb else None,
+        factor_r_status=factor.applicability_status if factor else None,
+        factor_r_calculation_status=factor.calculation_status if factor else None,
+        factor_r_reconciliation_status=factor.reconciliation_status if factor else None,
+        factor_r_confidence=factor.fs12_confidence if factor else None,
+        factor_r_estimated=str(factor.factor_r_estimated_dominio) if factor and factor.factor_r_estimated_dominio is not None else None,
+        factor_r_observed=str(factor.factor_r_sittax_observed) if factor and factor.factor_r_sittax_observed is not None else None,
+        dominio_source_period=_previous_competence(period.competencia),
     )
 
 
@@ -785,6 +859,63 @@ def get_integrations_health(db: Session, *, organization_id: int) -> Integration
                 if last_run is not None
                 else ("CONFIGURAR" if not configured else "NAO_INICIADA")
             )
+        elif provider == "DOMINIO":
+            note = "Health local baseado em imports e movimentos Domínio persistidos; nao acessa a UI Domínio."
+            imports = db.scalar(
+                select(func.count()).select_from(DominioPayrollImport).where(
+                    DominioPayrollImport.organization_id == organization_id
+                )
+            ) or 0
+            movements = db.scalar(
+                select(func.count()).select_from(DominioPayrollCompanyMovement).where(
+                    DominioPayrollCompanyMovement.organization_id == organization_id
+                )
+            ) or 0
+            items.append(
+                IntegrationHealthItem(
+                    provider=provider,
+                    label=label,
+                    status=last_run.status if last_run is not None else "LOCAL_ONLY",
+                    account_status=account.status if account is not None else "LOCAL_ONLY",
+                    last_run_status=last_run.status if last_run is not None else None,
+                    last_run_at=_iso_date(last_run.finished_at if last_run is not None else None),
+                    processed_count=last_run.processed_count if last_run is not None else 0,
+                    error_count=last_run.error_count if last_run is not None else 0,
+                    note=note,
+                    snapshot_counts={"imports": imports, "movements": movements},
+                    active_run_status=active_run.status if active_run is not None else None,
+                    active_run_started_at=_iso_date(active_run.started_at if active_run is not None else None),
+                    stale_warning=stale_warning,
+                )
+            )
+            continue
+        elif provider == "WATCHER_DOMINIO":
+            note = "Watcher local do diretório Domínio; valida manifest e encaminha somente relatórios canônicos ao importador."
+            latest_detected_at = None
+            latest_import_at = None
+            if last_run is not None:
+                metadata = last_run.run_metadata or {}
+                latest_detected_at = metadata.get("detected_at")
+                latest_import_at = metadata.get("imported_at")
+            items.append(
+                IntegrationHealthItem(
+                    provider=provider,
+                    label=label,
+                    status=last_run.status if last_run is not None else "NAO_INICIADO",
+                    account_status="LOCAL_ONLY",
+                    last_run_status=last_run.status if last_run is not None else None,
+                    last_run_at=_iso_date(last_run.finished_at if last_run is not None else None),
+                    processed_count=last_run.processed_count if last_run is not None else 0,
+                    error_count=last_run.error_count if last_run is not None else 0,
+                    note=note,
+                    active_run_status=active_run.status if active_run is not None else None,
+                    active_run_started_at=_iso_date(active_run.started_at if active_run is not None else None),
+                    stale_warning=stale_warning,
+                    watcher_latest_detected_at=latest_detected_at,
+                    watcher_latest_import_at=latest_import_at,
+                )
+            )
+            continue
         elif provider == "ECONET":
             econet_snapshot = get_econet_assisted_session(settings).snapshot()
             cache_items = db.scalar(select(func.count()).select_from(EconetCnaeCache)) or 0
@@ -899,3 +1030,367 @@ def get_integrations_health(db: Session, *, organization_id: int) -> Integration
         )
 
     return IntegrationHealthResponse(items=items)
+
+
+def get_dominio_payroll_summary(
+    db: Session, *, organization_id: int, source_period: str
+) -> DominioPayrollSummaryResponse:
+    source_date = _source_period_date(source_period)
+    assessment_period = _next_competence(source_date)
+    payroll_import = _canonical_dominio_import(db, organization_id=organization_id, source_period=source_period)
+    if payroll_import is None:
+        return DominioPayrollSummaryResponse(
+            source_period=source_period,
+            assessment_period=assessment_period,
+            canonical_import_present=False,
+        )
+    movements = db.scalars(
+        select(DominioPayrollCompanyMovement).where(DominioPayrollCompanyMovement.import_id == payroll_import.id)
+    ).all()
+    confidence_counts = {MONETARY_SUMMARY_COMPLETE: 0, MONETARY_SUMMARY_PARTIAL: 0, MONETARY_SUMMARY_INSUFFICIENT: 0}
+    schema_v2 = 0
+    unclassified = 0
+    for movement in movements:
+        summary = movement.rubrics_summary or {}
+        if summary.get("schema_version") == 2:
+            schema_v2 += 1
+        confidence = summary.get("monetary_summary_confidence")
+        if confidence in confidence_counts:
+            confidence_counts[confidence] += 1
+        monetary = summary.get("unclassified_monetary")
+        if isinstance(monetary, dict) and monetary.get("rubric_count", 0):
+            unclassified += 1
+    return DominioPayrollSummaryResponse(
+        source_period=source_period,
+        assessment_period=assessment_period,
+        canonical_import_present=True,
+        selection_scope=payroll_import.selection_scope,
+        import_status=payroll_import.status,
+        companies=payroll_import.total_companies,
+        matched=payroll_import.total_matched,
+        unmatched=payroll_import.total_unmatched,
+        warnings=payroll_import.total_warnings,
+        schema_v2_movements=schema_v2,
+        monetary_complete=confidence_counts[MONETARY_SUMMARY_COMPLETE],
+        monetary_partial=confidence_counts[MONETARY_SUMMARY_PARTIAL],
+        monetary_insufficient=confidence_counts[MONETARY_SUMMARY_INSUFFICIENT],
+        unclassified_monetary_movements=unclassified,
+    )
+
+
+def get_dominio_payroll_company(
+    db: Session, *, organization_id: int, company_id: int, source_period: str
+) -> DominioPayrollCompanyResponse | None:
+    _source_period_date(source_period)
+    if not _company_exists(db, organization_id=organization_id, company_id=company_id):
+        return None
+    assessment_period = _next_competence(_source_period_date(source_period))
+    payroll_import = _canonical_dominio_import(db, organization_id=organization_id, source_period=source_period)
+    if payroll_import is None:
+        return DominioPayrollCompanyResponse(
+            company_id=company_id,
+            source_period=source_period,
+            assessment_period=assessment_period,
+            coverage_status="REPORT_MISSING",
+        )
+    movement = db.scalar(
+        select(DominioPayrollCompanyMovement).where(
+            DominioPayrollCompanyMovement.import_id == payroll_import.id,
+            DominioPayrollCompanyMovement.organization_id == organization_id,
+            DominioPayrollCompanyMovement.external_company_id == company_id,
+        )
+    )
+    if movement is None:
+        return DominioPayrollCompanyResponse(
+            company_id=company_id,
+            source_period=source_period,
+            assessment_period=assessment_period,
+            coverage_status="CONFIRMED_NO_MOVEMENT",
+        )
+    summary = movement.rubrics_summary or {}
+    categories = summary.get("monetary_categories") if isinstance(summary.get("monetary_categories"), dict) else {}
+    def amount(category: str) -> str | None:
+        payload = categories.get(category)
+        return payload.get("amount") if isinstance(payload, dict) else None
+    unclassified = summary.get("unclassified_monetary")
+    warning_codes = sorted(
+        str(item.get("code"))
+        for item in (movement.warnings or [])
+        if isinstance(item, dict) and item.get("code")
+    )
+    return DominioPayrollCompanyResponse(
+        company_id=company_id,
+        source_period=source_period,
+        assessment_period=assessment_period,
+        coverage_status="MOVEMENT_FOUND",
+        match_status=movement.match_status,
+        signals=DominioPayrollSignals(
+            has_employee=movement.has_employee,
+            has_pro_labore=movement.has_pro_labore,
+            has_autonomous=movement.has_autonomous,
+            has_inss=movement.has_inss,
+            has_fgts=movement.has_fgts,
+            has_termination=movement.has_termination,
+            has_vacation=movement.has_vacation,
+            has_leave=movement.has_leave,
+        ),
+        monetary_summary=DominioMonetarySummary(
+            schema_version=summary.get("schema_version"),
+            confidence=summary.get("monetary_summary_confidence"),
+            employee_remuneration=amount("employee_remuneration"),
+            pro_labore=amount("pro_labore"),
+            autonomous=amount("autonomous"),
+            thirteenth_salary=amount("thirteenth_salary"),
+            employer_cpp_observed=amount("employer_cpp_observed"),
+            fgts_observed=amount("fgts_observed"),
+            unclassified_monetary_amount=unclassified.get("amount") if isinstance(unclassified, dict) else None,
+        ),
+        warning_codes=warning_codes,
+    )
+
+
+def get_dctfweb_origins(
+    db: Session, *, organization_id: int, period: str, company_id: int | None, origin: str | None,
+    department: str | None, coverage: str | None, limit: int, offset: int,
+) -> DctfwebOriginListResponse:
+    fiscal_period = _required_period(db, organization_id=organization_id, competencia=period)
+    if company_id is not None:
+        _require_company(db, organization_id=organization_id, company_id=company_id)
+    query = select(DctfwebOriginAssessment).where(
+        DctfwebOriginAssessment.organization_id == organization_id,
+        DctfwebOriginAssessment.fiscal_period_id == fiscal_period.id,
+    )
+    if company_id is not None:
+        query = query.where(DctfwebOriginAssessment.external_company_id == company_id)
+    if origin:
+        query = query.where(DctfwebOriginAssessment.expected_origin == origin)
+    if department:
+        query = query.where(DctfwebOriginAssessment.expected_responsible_department == department)
+    if coverage:
+        query = query.where(DctfwebOriginAssessment.dp_coverage_status == coverage)
+    total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
+    rows = db.scalars(query.order_by(DctfwebOriginAssessment.external_company_id, DctfwebOriginAssessment.id).offset(offset).limit(limit)).all()
+    return DctfwebOriginListResponse(period=period, total=total, items=[_dctfweb_item(row) for row in rows])
+
+
+def get_dctfweb_origin_detail(
+    db: Session, *, organization_id: int, company_id: int, period: str
+) -> DctfwebOriginItem | None:
+    fiscal_period = _required_period(db, organization_id=organization_id, competencia=period)
+    _require_company(db, organization_id=organization_id, company_id=company_id)
+    row = db.scalar(select(DctfwebOriginAssessment).where(
+        DctfwebOriginAssessment.organization_id == organization_id,
+        DctfwebOriginAssessment.external_company_id == company_id,
+        DctfwebOriginAssessment.fiscal_period_id == fiscal_period.id,
+    ))
+    return _dctfweb_item(row) if row else None
+
+
+def get_dctfweb_summary(db: Session, *, organization_id: int, period: str) -> DctfwebSummaryResponse:
+    rows = get_dctfweb_origins(
+        db, organization_id=organization_id, period=period, company_id=None, origin=None, department=None,
+        coverage=None, limit=500, offset=0,
+    ).items
+    return DctfwebSummaryResponse(
+        period=period,
+        evaluated=len(rows),
+        dp=sum(row.expected_origin == "DP" for row in rows),
+        fiscal=sum(row.expected_origin == "FISCAL" for row in rows),
+        shared=sum(row.expected_origin == "COMPARTILHADO" for row in rows),
+        undetermined=sum(row.expected_origin == "UNDETERMINED" for row in rows),
+        dominio_report_missing=sum(row.dominio_coverage == "REPORT_MISSING" for row in rows),
+        reinf_signal_companies=sum(row.reinf_signal_present for row in rows),
+        mit_signal_companies=sum(row.mit_signal_present for row in rows),
+        dctfweb_observed=sum(row.dctfweb_observed for row in rows),
+    )
+
+
+def get_factor_r_assessments(
+    db: Session, *, organization_id: int, period: str, company_id: int | None, applicability: str | None,
+    calculation_status: str | None, reconciliation_status: str | None, confidence: str | None,
+    threshold_side: str | None, limit: int, offset: int,
+) -> FactorRListResponse:
+    fiscal_period = _required_period(db, organization_id=organization_id, competencia=period)
+    if company_id is not None:
+        _require_company(db, organization_id=organization_id, company_id=company_id)
+    query = select(FactorRAssessment).where(
+        FactorRAssessment.organization_id == organization_id,
+        FactorRAssessment.fiscal_period_id == fiscal_period.id,
+    )
+    filters = (
+        (company_id, FactorRAssessment.external_company_id), (applicability, FactorRAssessment.applicability_status),
+        (calculation_status, FactorRAssessment.calculation_status), (reconciliation_status, FactorRAssessment.reconciliation_status),
+        (confidence, FactorRAssessment.fs12_confidence), (threshold_side, FactorRAssessment.estimated_threshold_side),
+    )
+    for value, column in filters:
+        if value is not None:
+            query = query.where(column == value)
+    total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
+    rows = db.scalars(query.order_by(FactorRAssessment.external_company_id, FactorRAssessment.id).offset(offset).limit(limit)).all()
+    return FactorRListResponse(period=period, total=total, items=[_factor_r_item(row) for row in rows])
+
+
+def get_factor_r_detail(db: Session, *, organization_id: int, company_id: int, period: str) -> FactorRDetailResponse | None:
+    fiscal_period = _required_period(db, organization_id=organization_id, competencia=period)
+    _require_company(db, organization_id=organization_id, company_id=company_id)
+    row = db.scalar(select(FactorRAssessment).where(
+        FactorRAssessment.organization_id == organization_id,
+        FactorRAssessment.external_company_id == company_id,
+        FactorRAssessment.fiscal_period_id == fiscal_period.id,
+    ))
+    if row is None:
+        return None
+    item = _factor_r_item(row)
+    return FactorRDetailResponse(
+        **item.model_dump(),
+        payroll_window_start=_iso_date(row.payroll_window_start) or "",
+        payroll_window_end=_iso_date(row.payroll_window_end) or "",
+        payroll_months_expected=row.payroll_months_expected,
+        payroll_months_covered=row.payroll_months_covered,
+        payroll_months_with_movement=row.payroll_months_with_movement,
+        payroll_months_confirmed_zero=row.payroll_months_confirmed_zero,
+        payroll_months_missing=row.payroll_months_missing,
+        fs12_dominio_estimate=row.fs12_dominio_estimate,
+        fs12_breakdown={str(key): str(value) for key, value in (row.fs12_breakdown or {}).items()},
+        rbt12_value=row.rbt12_value,
+        rbt12_source=row.rbt12_source,
+        rbt12_confidence=row.rbt12_confidence,
+        estimated_annex=row.estimated_annex,
+        sittax_observed_annexes=list(row.sittax_observed_annexes or []),
+    )
+
+
+def get_factor_r_summary(db: Session, *, organization_id: int, period: str) -> FactorRSummaryResponse:
+    fiscal_period = _required_period(db, organization_id=organization_id, competencia=period)
+    rows = db.scalars(select(FactorRAssessment).where(
+        FactorRAssessment.organization_id == organization_id,
+        FactorRAssessment.fiscal_period_id == fiscal_period.id,
+    )).all()
+    active_companies = db.scalar(select(func.count()).select_from(ExternalCompany).where(
+        ExternalCompany.organization_id == organization_id, ExternalCompany.active.is_(True)
+    )) or 0
+    reasons = [set(row.reason_codes or []) for row in rows]
+    return FactorRSummaryResponse(
+        period=period, target_companies=len(rows),
+        potential=sum(row.applicability_status == "POTENTIAL" for row in rows),
+        effective=sum(row.applicability_status == "EFFECTIVE" for row in rows),
+        review=sum(row.applicability_status == "REVIEW" for row in rows),
+        not_applicable=max(0, active_companies - len(rows)),
+        full_payroll_coverage=sum(row.payroll_months_missing == 0 for row in rows),
+        partial_payroll_coverage=sum(row.payroll_months_missing > 0 for row in rows),
+        fs12_estimated=sum(row.fs12_dominio_estimate is not None for row in rows),
+        fs12_high=sum(row.fs12_confidence == "HIGH" for row in rows),
+        fs12_medium=sum(row.fs12_confidence == "MEDIUM" for row in rows),
+        fs12_low=sum(row.fs12_confidence == "LOW" for row in rows),
+        fs12_insufficient=sum(row.fs12_confidence == "INSUFFICIENT" for row in rows),
+        rbt12_available=sum(row.rbt12_value is not None for row in rows),
+        factor_r_calculated=sum(row.factor_r_estimated_dominio is not None for row in rows),
+        above_or_equal_28=sum(row.estimated_threshold_side == "ABOVE_OR_EQUAL_28" for row in rows),
+        below_28=sum(row.estimated_threshold_side == "BELOW_28" for row in rows),
+        sittax_factor_observed=sum(row.factor_r_sittax_observed is not None for row in rows),
+        threshold_matches=sum(row.reconciliation_status == "MATCH" for row in rows),
+        threshold_divergences=sum(row.reconciliation_status == "THRESHOLD_DIVERGENCE" for row in rows),
+        near_threshold_low_confidence=sum("NEAR_THRESHOLD_LOW_CONFIDENCE" in value for value in reasons),
+        annex_reviews=sum(row.reconciliation_status == "ANNEX_REVIEW" for row in rows),
+        thirteenth_coverage_limitation=sum("THIRTEENTH_SALARY_COVERAGE_UNVERIFIED" in value for value in reasons),
+        unclassified_relevant_limitation=sum(
+            "UNCLASSIFIED_MONETARY_RELEVANT" in value or "UNCLASSIFIED_MONETARY_UNKNOWN" in value for value in reasons
+        ),
+    )
+
+
+def _dctfweb_item(row: DctfwebOriginAssessment) -> DctfwebOriginItem:
+    return DctfwebOriginItem(
+        company_id=row.external_company_id, expected_origin=row.expected_origin,
+        expected_department=row.expected_responsible_department, dominio_coverage=row.dp_coverage_status,
+        dp_signal_present=row.dp_signal_present, reinf_signal_present=row.reinf_signal_present,
+        mit_signal_present=row.mit_signal_present, fiscal_signal_present=row.fiscal_signal_present,
+        dctfweb_observed=row.dctfweb_observed, classification_confidence=row.classification_confidence,
+        reason_codes=list(row.reason_codes or []), evaluated_at=_iso_date(row.evaluated_at) or "",
+    )
+
+
+def _factor_r_item(row: FactorRAssessment) -> FactorRItem:
+    return FactorRItem(
+        company_id=row.external_company_id, applicability_status=row.applicability_status,
+        calculation_status=row.calculation_status, fs12_confidence=row.fs12_confidence,
+        factor_r_estimated=row.factor_r_estimated_dominio, factor_r_sittax_observed=row.factor_r_sittax_observed,
+        factor_r_delta=row.factor_r_delta, threshold_side=row.estimated_threshold_side,
+        reconciliation_status=row.reconciliation_status, reason_codes=list(row.reason_codes or []),
+        evaluated_at=_iso_date(row.evaluated_at) or "",
+    )
+
+
+def _source_period_date(value: str) -> date:
+    try:
+        year, month = value.split("-", maxsplit=1)
+        return date(int(year), int(month), 1)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Competence must be in YYYY-MM format.") from exc
+
+
+def _next_competence(value: date) -> str:
+    year, month = (value.year + 1, 1) if value.month == 12 else (value.year, value.month + 1)
+    return f"{year:04d}-{month:02d}"
+
+
+def _previous_competence(value: str) -> str:
+    source_date = _source_period_date(value)
+    year, month = (source_date.year - 1, 12) if source_date.month == 1 else (source_date.year, source_date.month - 1)
+    return f"{year:04d}-{month:02d}"
+
+
+def _dctfweb_by_company(
+    db: Session, *, organization_id: int, period_id: int | None
+) -> dict[int, DctfwebOriginAssessment]:
+    if period_id is None:
+        return {}
+    return {
+        row.external_company_id: row
+        for row in db.scalars(select(DctfwebOriginAssessment).where(
+            DctfwebOriginAssessment.organization_id == organization_id,
+            DctfwebOriginAssessment.fiscal_period_id == period_id,
+        )).all()
+    }
+
+
+def _factor_r_by_company(db: Session, *, organization_id: int, period_id: int | None) -> dict[int, FactorRAssessment]:
+    if period_id is None:
+        return {}
+    return {
+        row.external_company_id: row
+        for row in db.scalars(select(FactorRAssessment).where(
+            FactorRAssessment.organization_id == organization_id,
+            FactorRAssessment.fiscal_period_id == period_id,
+        )).all()
+    }
+
+
+def _canonical_dominio_import(db: Session, *, organization_id: int, source_period: str) -> DominioPayrollImport | None:
+    rows = db.scalars(select(DominioPayrollImport).where(
+        DominioPayrollImport.organization_id == organization_id,
+        DominioPayrollImport.selection_scope == "ACTIVE_COMPANIES",
+        DominioPayrollImport.status.not_in(("FAILED", "PROCESSING")),
+    ).order_by(DominioPayrollImport.imported_at.desc().nulls_last(), DominioPayrollImport.id.desc())).all()
+    return next((row for row in rows if source_period in (row.source_competences or [])), None)
+
+
+def _company_exists(db: Session, *, organization_id: int, company_id: int) -> bool:
+    return db.scalar(select(ExternalCompany.id).where(
+        ExternalCompany.organization_id == organization_id, ExternalCompany.id == company_id
+    )) is not None
+
+
+def _require_company(db: Session, *, organization_id: int, company_id: int) -> None:
+    if not _company_exists(db, organization_id=organization_id, company_id=company_id):
+        raise LookupError("Company not found.")
+
+
+def _required_period(db: Session, *, organization_id: int, competencia: str) -> FiscalPeriod:
+    _source_period_date(competencia)
+    period = db.scalar(select(FiscalPeriod).where(
+        FiscalPeriod.organization_id == organization_id, FiscalPeriod.competencia == competencia
+    ))
+    if period is None:
+        raise LookupError("Fiscal period not found.")
+    return period

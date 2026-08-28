@@ -24,6 +24,8 @@ const emptyDashboard: DashboardResponse = {
   },
   department_totals: [],
   status_totals: [],
+  dctfweb: { evaluated: 0, dp: 0, fiscal: 0, shared: 0, undetermined: 0 },
+  factor_r: { targets: 0, effective: 0, review: 0, calculated: 0, threshold_divergences: 0, incomplete: 0 },
 };
 
 const heatmapMonths = ["FEV", "MAR", "ABR", "MAI", "JUN", "JUL"];
@@ -99,8 +101,20 @@ export function DashboardPage({ onOpenCockpit }: DashboardPageProps) {
         detail: "Arquivos e sinais rastreados",
         tone: "accent",
       },
+      {
+        label: "DCTFWeb avaliada",
+        value: data.dctfweb.evaluated,
+        detail: `${data.dctfweb.dp} DP · ${data.dctfweb.fiscal} Fiscal · ${data.dctfweb.shared} compartilhada`,
+        tone: "info",
+      },
+      {
+        label: "Fator R calculado",
+        value: data.factor_r.calculated,
+        detail: `${data.factor_r.threshold_divergences} divergências de limiar · ${data.factor_r.incomplete} incompletos`,
+        tone: "accent",
+      },
     ],
-    [data.kpis.delivered_total, data.kpis.divergences_total, data.kpis.evidences_total, data.kpis.pending_total, data.kpis.companies_total],
+    [data.dctfweb, data.factor_r, data.kpis.delivered_total, data.kpis.divergences_total, data.kpis.evidences_total, data.kpis.pending_total, data.kpis.companies_total],
   );
 
   const heatmapRows = useMemo(() => {

@@ -27,3 +27,9 @@ When a PA lacks canonical Sittax snapshots, the existing S7 read-only-source wor
 `resumosTributacaoSittax` is retained as observed payload. It becomes a sanitized annex code only when the payload explicitly provides an annex value that the parser can recognize; the reconciler never infers III or V from descriptive tax-summary fields alone.
 
 The threshold is exactly `Decimal("0.28")`: ratio at or above it maps to III; lower maps to V. Threshold divergence is persisted when observed and estimated sides differ, but its alert requires sufficient component confidence. Near-threshold low-confidence results receive a reason code, not a categorical error conclusion.
+
+## S9.5 operational reading
+
+The Company Page consumes the persisted Factor R detail together with independent DCTFWeb and Domínio detail reads. A `THRESHOLD_DIVERGENCE` is presented as a review-oriented divergence, and `LOW` FS12 confidence is displayed explicitly as low confidence; the interface does not claim that Sittax is wrong. The page does not calculate Factor R, reconstruct RBT12, or infer a payroll competence.
+
+The S9.5 E2E fixture is synthetic and validates an estimated ratio of `0.29`, observed Sittax ratio of `0.27`, threshold divergence, and low confidence. This proves presentation of the persisted assessment without exposing production company data.
