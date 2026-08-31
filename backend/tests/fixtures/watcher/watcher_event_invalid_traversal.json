@@ -1,0 +1,18 @@
+{
+  "schema_version": "1",
+  "event_type": "FILE_STABLE",
+  "relative_path": "..\\EMPRESA EXEMPLO\\Escrita Fiscal\\07-2026\\Guias - Impostos e Parcelamentos\\DAS 07-2026.pdf",
+  "file_name": "DAS 07-2026.pdf",
+  "file_sha256": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+  "file_size": 0,
+  "detected_at": "2026-08-28T18:00:00-03:00",
+  "folder_period": "2026-07",
+  "folder_company": "EMPRESA EXEMPLO",
+  "classifier_hint": "DAS",
+  "pdf_probe": {
+    "is_pdf": true,
+    "page_count": 0,
+    "has_extractable_text": false,
+    "text_length": 0
+  }
+}

@@ -171,6 +171,10 @@ agent/cache/
 agent/spool/
 agent/processed/
 agent/failed/
+agent/.env
+agent/.env.*
+!agent/.env.example
+agent/**/*.local.*
 
 !data/.gitkeep
 !data/examples/

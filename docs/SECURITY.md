@@ -117,3 +117,11 @@ Data de referencia: 2026-07-15
 - O watcher usa dados agregados, não move ou apaga PDFs e mantém relatórios reais fora do Git.
 - A Company Page mostra somente cobertura, competências, sinais agregados, status e confidence; não mostra `raw_text`, rubricas individuais, identificadores pessoais, paths ou arquivos de folha.
 - Os fixtures E2E de DCTFWeb, Fator R e Domínio são integralmente sintéticos.
+
+## S10.0 Watcher fiscal: contrato de segurança
+
+- A root allowlisted inicial é `G:\EMPRESAS`; somente descendentes podem ser elegíveis. Traversal, UNC fora da allowlist e reparse points/symlinks que escapem dela serão rejeitados.
+- Paths Windows são normalizados e comparados case-insensitivamente. Arquivos `.partial`, `.tmp`, `.crdownload` e nomes `~$*` serão ignorados como não finalizados.
+- O futuro token dedicado de agent nunca é versionado ou logado; deve ser redigido, comparado em constant-time e falhar fechado quando ausente.
+- O payload não pode carregar PDF bruto, base64, XML, texto integral, cookie, senha, `Authorization` ou token. Arquivos fiscais reais permanecem fora do Git.
+- S10.0 não fez transmissão externa, não abriu `G:\EMPRESAS` em testes e não criou endpoint ou agente operacional.

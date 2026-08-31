@@ -1035,4 +1035,8 @@ O watcher local `backend/scripts/watch_dominio_payroll.py` observa exclusivament
 
 Em Windows, `scripts/dev/run_dominio_payroll_watcher.ps1` padroniza `Start`, `Status` e `Stop` do processo local supervisionado.
 
-S9.5 e o macro-stage S9 estão concluídos e validados. A suíte E2E cobre as leituras S9 no painel, cockpit, integrações e Company Page, incluindo uma divergência de threshold com baixa confiança, sem dados reais em fixtures. S10 permanece pendente.
+S9.5 e o macro-stage S9 estão concluídos e validados. A suíte E2E cobre as leituras S9 no painel, cockpit, integrações e Company Page, incluindo uma divergência de threshold com baixa confiança, sem dados reais em fixtures.
+
+## S10.0 Watcher fiscal: contrato offline
+
+S10 está em andamento somente no micro-stage S10.0. `docs/WATCHER_AGENT_CONTRACT.md`, `schemas/watcher_event.schema.json`, fixtures sintéticas e um módulo puro de gramática/fingerprint congelam o contrato do futuro agent. Nenhum watcher está ativo, nenhum arquivo de `G:\EMPRESAS` é enviado ou processado, nenhum endpoint funcional foi criado e nenhuma migration foi criada. S11 (parsers fiscais) e S12 (conciliação) não foram iniciados.

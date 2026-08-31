@@ -2529,7 +2529,7 @@ Status: concluído em 2026-08-28
 
 ## S10 - Watcher local e motor de evidências por arquivo
 
-Status: pendente
+Status: em andamento; S10.0 concluido como contrato offline.
 
 Objetivo:
 
@@ -2543,18 +2543,16 @@ Justificativa:
 
 Escopo:
 
-* Agente local.
-* Parser de caminho, empresa e competência.
-* Hash de arquivo.
-* Classificação inicial por nome/caminho.
-* Extração inicial de texto de PDF.
-* Registro de evidências.
-* Idempotência por hash/caminho.
+* S10.0: contrato, seguranca, auth do agent, path grammar e fixtures.
+* S10.1: core offline do agent.
+* S10.2: ingest backend + persistencia/idempotencia.
+* S10.3: watcher Windows operacional.
+* S10.4: worker/reprocessamento/observabilidade/piloto.
 
 Pasta principal alvo:
 
 ```txt
-G:\EMPRESAS\[empresa]\Escrita Fiscal\[competência]\Guias - Impostos e Parcelamentos
+G:\EMPRESAS\[empresa]\Escrita Fiscal\[MM-AAAA]\Guias - Impostos e Parcelamentos
 ```
 
 Palavras-chave iniciais:
@@ -2564,49 +2562,14 @@ DAS, PIS, COFINS, ICMS, ISS, DIFAL, PROTEGE, PGFN, SISPAR, PARC,
 DCTFWEB, DARF, REINF, MIT, IRPJ, CSLL
 ```
 
-Entregáveis agent:
+Regras congeladas no S10.0:
 
-* `agent/watcher/main.py`
-* `agent/watcher/config.py`
-* `agent/watcher/file_detector.py`
-* `agent/watcher/company_resolver.py`
-* `agent/watcher/period_resolver.py`
-* `agent/watcher/hash.py`
-* `agent/watcher/client.py`
-* `agent/parsers/file_name_classifier.py`
-* `agent/parsers/pdf_text_probe.py`
+* A pasta `MM-AAAA` vira `AAAA-MM`, sem aplicar a regra Dominio Folha `M+1`.
+* O primeiro watcher aceitara apenas PDF; XML e OCR ficam fora deste fluxo.
+* S11 permanece reservado aos parsers fiscais e S12 ao motor de conciliacao.
+* S10.2/S10.3 deverao adicionar E2E para evidencias `WATCHER_FILE` e health/estado do Watcher em Integracoes.
 
-Entregáveis backend:
-
-* `backend/app/services/pdf/text_extract.py`
-* `backend/app/services/pdf/classify_tax.py`
-* `backend/app/api/v1/endpoints/watcher.py`
-* endpoint `POST /api/v1/lumen/evidences/watcher-event`
-* job `process_pdf_evidences`
-
-Regras:
-
-* O agente local gera evento e envia para o backend.
-* O backend decide conciliação final.
-* PDF com texto extraível não deve usar OCR.
-* OCR é fallback futuro, não obrigatório neste stage.
-* Arquivo duplicado por hash/caminho não deve gerar evidência duplicada.
-
-Validação:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest .\backend\tests\test_watcher_events.py .\backend\tests\test_pdf_text_extract.py .\backend\tests\test_file_classifier.py -q
-.\.venv\Scripts\python.exe -m ruff check .\backend .\agent
-```
-
-Aceite:
-
-* Arquivo novo gera `watcher_file_event`.
-* Arquivo novo gera ou atualiza `fiscal_evidence`.
-* Reprocessar o mesmo arquivo não duplica evidência.
-* Empresa é resolvida por pasta quando possível.
-* Competência é resolvida por pasta quando possível.
-* Baixa confiança fica como `BAIXA_CONFIANCA` ou `CONFERENCIA_MANUAL`.
+S10.0 nao materializa `agent/watcher/main.py`, endpoint, migration, persistencia, extracao/classificacao PDF, worker ou frontend. Esses itens continuam nos micro-stages posteriores.
 
 ---
 

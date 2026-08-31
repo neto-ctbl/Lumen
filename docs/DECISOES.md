@@ -241,4 +241,12 @@ Data de referencia: 2026-07-20
 - Dashboard, cockpit e resumo de empresa reutilizam assessments em lote, sem recalculo implicito ou N+1 por empresa.
 - A Company Page recebe `dominio_source_period` resolvido pelo backend. O frontend não deriva competência de folha a partir do PA.
 - Os detalhes de DCTFWeb, Fator R e Folha Domínio são independentes: `404` significa `Não avaliado` somente no card correspondente, sem ocultar dados cadastrais ou os demais cards.
-- S9.5 e o macro-stage S9 foram encerrados após validação de API, frontend, E2E, banco, segurança Git e singleton do watcher. S10 permanece não iniciado.
+- S9.5 e o macro-stage S9 foram encerrados após validação de API, frontend, E2E, banco, segurança Git e singleton do watcher. S10 permanece limitado ao contrato offline S10.0.
+
+## S10.0 - Contrato do watcher fiscal
+
+- O watcher fiscal futuro autentica machine-to-machine com `X-Lumen-Agent-Token`, token dedicado por organização; não usa JWT, email ou senha de usuário.
+- A idempotência é `sha256(organization_id + "\\n" + normalized_relative_path + "\\n" + file_sha256)`; `event_type` não participa.
+- A resolução de empresa é estrita por igualdade normalizada, nesta ordem: `apelido_pasta`, `nome_fantasia`, `razao_social`; sem fuzzy, contains ou escolha silenciosa em ambiguidade.
+- O backend é a autoridade para organização, empresa, período, status, evidência e confiança; sinais de pasta do agent não são decisões.
+- S10.2 deverá modelar `watcher_file_event 1 -> 0..1 fiscal_evidence`, por referência nullable/FK/unicidade apropriada. As evidências Domínio existentes não mudam e não haverá unicidade genérica somente por `file_hash`.

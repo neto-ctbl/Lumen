@@ -313,20 +313,10 @@ lumen/
 │     └─ company.spec.ts
 │
 ├─ agent/
-│  ├─ README.md
 │  ├─ watcher/
 │  │  ├─ __init__.py
-│  │  ├─ config.py
-│  │  ├─ main.py
-│  │  ├─ file_detector.py
-│  │  ├─ company_resolver.py
-│  │  ├─ period_resolver.py
-│  │  ├─ hash.py
-│  │  └─ client.py
-│  └─ parsers/
-│     ├─ __init__.py
-│     ├─ file_name_classifier.py
-│     └─ pdf_text_probe.py
+│  │  └─ path_contract.py
+│  └─ __init__.py
 │
 ├─ infra/
 │  ├─ docker-compose.yml
@@ -444,9 +434,9 @@ type LumenUIState = {
 
 ### `agent/`
 
-Contém o watcher/agent local responsável por monitorar pastas fiscais, detectar arquivos novos, extrair metadados básicos, calcular hash e enviar eventos para a API.
+No S10.0 contém somente o módulo puro `watcher/path_contract.py`: gramática de path relativo Windows, conversão fiscal `MM-AAAA -> AAAA-MM` e fingerprint. Não há watcher, acesso a filesystem, rede, banco, endpoint ou worker genérico materializado.
 
-O agente não deve decidir sozinho uma conciliação final. Ele gera evidências e sinais. A conciliação pertence ao backend.
+O futuro agente não decide conciliação final; ele gera sinais, e a autoridade permanece no backend.
 
 ### `infra/`
 
