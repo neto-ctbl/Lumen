@@ -1039,4 +1039,6 @@ S9.5 e o macro-stage S9 estão concluídos e validados. A suíte E2E cobre as le
 
 ## S10.0 Watcher fiscal: contrato offline
 
-S10 está em andamento somente no micro-stage S10.0. `docs/WATCHER_AGENT_CONTRACT.md`, `schemas/watcher_event.schema.json`, fixtures sintéticas e um módulo puro de gramática/fingerprint congelam o contrato do futuro agent. Nenhum watcher está ativo, nenhum arquivo de `G:\EMPRESAS` é enviado ou processado, nenhum endpoint funcional foi criado e nenhuma migration foi criada. S11 (parsers fiscais) e S12 (conciliação) não foram iniciados.
+S10.0 e S10.1 estao concluidos; o macro-stage permanece em andamento. O Lumen agora pode construir offline um watcher-event v1 a partir de um PDF explicitamente fornecido, validando root/gramatica, estabilidade, hash, nome e probe estrutural. Ele nao observa diretorios, nao envia HTTP, nao grava banco e nao gera `fiscal_evidence`. Nenhum arquivo de `G:\EMPRESAS` e aberto pelos testes; nenhum endpoint funcional ou migration foi criado. S11 (parsers fiscais) e S12 (conciliacao) nao foram iniciados.
+
+XML NFS-e permanece fora do watcher S10.1 e sera fonte fiscal separada em micro-stage futuro do S11. O objetivo sera identificar atividades efetivamente geradoras de receita por empresa/competencia para validar uso efetivo de Fator R; a Econet continua sendo apenas potencial cadastral por CNAE. Nao ha parser, tabela, migration ou classificacao NFS-e implementados agora.

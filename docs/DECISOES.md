@@ -241,7 +241,7 @@ Data de referencia: 2026-07-20
 - Dashboard, cockpit e resumo de empresa reutilizam assessments em lote, sem recalculo implicito ou N+1 por empresa.
 - A Company Page recebe `dominio_source_period` resolvido pelo backend. O frontend não deriva competência de folha a partir do PA.
 - Os detalhes de DCTFWeb, Fator R e Folha Domínio são independentes: `404` significa `Não avaliado` somente no card correspondente, sem ocultar dados cadastrais ou os demais cards.
-- S9.5 e o macro-stage S9 foram encerrados após validação de API, frontend, E2E, banco, segurança Git e singleton do watcher. S10 permanece limitado ao contrato offline S10.0.
+- S9.5 e o macro-stage S9 foram encerrados após validação de API, frontend, E2E, banco, segurança Git e singleton do watcher. S10 permanece limitado ao contrato/core offline S10.0/S10.1.
 
 ## S10.0 - Contrato do watcher fiscal
 
@@ -250,3 +250,8 @@ Data de referencia: 2026-07-20
 - A resolução de empresa é estrita por igualdade normalizada, nesta ordem: `apelido_pasta`, `nome_fantasia`, `razao_social`; sem fuzzy, contains ou escolha silenciosa em ambiguidade.
 - O backend é a autoridade para organização, empresa, período, status, evidência e confiança; sinais de pasta do agent não são decisões.
 - S10.2 deverá modelar `watcher_file_event 1 -> 0..1 fiscal_evidence`, por referência nullable/FK/unicidade apropriada. As evidências Domínio existentes não mudam e não haverá unicidade genérica somente por `file_hash`.
+- S10.1 usa exclusivamente `MM-AAAA -> AAAA-MM` da pasta. DARF e familia documental; classificacao de tributo e a distincao entre periodo da pasta, referencia documental e periodo tributario pertencem a S11.
+- XML NFS-e e fonte fiscal distinta de guias/recibos PDF. Sua finalidade futura e identificar, por empresa e competencia, atividades que efetivamente geraram receita; nao deve ser tratada simplesmente como `fiscal_evidence` de guia.
+- A Econet prova somente potencial cadastral de Fator R por CNAE. A validacao efetiva futura cruza `CNAEs/eControle + Econet`, atividades/receitas NFS-e, `FS12/Folha Dominio`, `RBT12/apuracao Sittax` e anexo efetivamente aplicado no Sittax.
+- Nao existe documento MIT proprio salvo pelo escritorio; quando aplicavel, a evidencia documental do fluxo MIT e o recibo da DCTFWeb.
+- A modelagem de NFS-e, incluindo tabelas e migrations, sera decidida somente no micro-stage especifico apos inspecao do schema existente e deve preservar os layouts ja conhecidos pelo projeto.

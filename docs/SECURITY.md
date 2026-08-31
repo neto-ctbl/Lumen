@@ -125,3 +125,4 @@ Data de referencia: 2026-07-15
 - O futuro token dedicado de agent nunca é versionado ou logado; deve ser redigido, comparado em constant-time e falhar fechado quando ausente.
 - O payload não pode carregar PDF bruto, base64, XML, texto integral, cookie, senha, `Authorization` ou token. Arquivos fiscais reais permanecem fora do Git.
 - S10.0 não fez transmissão externa, não abriu `G:\EMPRESAS` em testes e não criou endpoint ou agente operacional.
+- S10.1 valida primeiro a gramatica lexical e, para arquivo existente explicitamente fornecido, rejeita symlink/reparse point e confirma o destino resolvido sob a root. Hash/probe sao cercados por checagem de tamanho/mtime para nao aceitar arquivo alterado durante processamento.

@@ -28,6 +28,14 @@ O payload v1 é definido em `schemas/watcher_event.schema.json`. Ele contém som
 
 S10.2 proporá `watcher_file_event 1 -> 0..1 fiscal_evidence`, provavelmente por `fiscal_evidences.watcher_event_id` nullable, FK e unicidade adequada. Evidências Domínio existentes permanecem inalteradas; não haverá constraint genérica por `file_hash` em `fiscal_evidences`.
 
-## Rollback do S10.0
+## Rollback do S10.1
 
-Não executar rollback sobre a sujeira preexistente. Para reverter somente este micro-stage, use `git restore --` nos arquivos versionados alterados e remova somente os arquivos novos: `agent/`, `docs/WATCHER_AGENT_CONTRACT.md`, `schemas/watcher_event.schema.json`, `backend/tests/test_watcher_contract.py` e `backend/tests/fixtures/watcher/`. Não usar `git reset --hard`, `git clean`, stash ou restauração do repositório inteiro.
+Nao executar rollback sobre a sujeira preexistente. Para reverter somente S10.1 e preservar S10.0, restaure apenas os documentos e `agent/watcher/path_contract.py` alterados neste stage; remova somente `agent/parsers/`, os seis novos modulos do watcher e os testes S10.1. Nao usar `git reset --hard`, `git clean`, stash ou restauracao do repositorio inteiro.
+
+## S10.1 Core offline
+
+S10.1 materializa o core para um arquivo explicitamente fornecido: configuracao lazy, validacao lexical antes de acessar o arquivo, validacao fisica com rejeicao de symlink/reparse point, confirmacao do destino sob a root, SHA-256 streaming e comparacao de tamanho/mtime antes e depois do hash/probe. Alteracao durante processamento falha com `FILE_CHANGED_DURING_PROCESSING`; nao ha retry automatico.
+
+O hint por filename nao le conteudo fiscal: uma keyword conhecida gera o hint, ausencia gera `UNKNOWN` e keywords independentes multiplas geram `AMBIGUOUS`. `PGFN + SISPAR` resulta em `PGFN_SISPAR`. O probe usa `pypdf`, retorna somente metadados e falha com seguranca para PDF invalido, vazio ou protegido; nao executa OCR.
+
+DARF e uma familia documental. Classificacao de tributo e qualquer distincao entre periodo da pasta, referencia documental e periodo tributario ficam para S11; S10.1 usa somente `MM-AAAA -> AAAA-MM` da pasta.

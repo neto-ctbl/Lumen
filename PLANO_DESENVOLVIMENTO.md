@@ -2529,7 +2529,7 @@ Status: concluído em 2026-08-28
 
 ## S10 - Watcher local e motor de evidências por arquivo
 
-Status: em andamento; S10.0 concluido como contrato offline.
+Status: em andamento; S10.0 e S10.1 concluidos, S10.2 pendente.
 
 Objetivo:
 
@@ -2548,6 +2548,10 @@ Escopo:
 * S10.2: ingest backend + persistencia/idempotencia.
 * S10.3: watcher Windows operacional.
 * S10.4: worker/reprocessamento/observabilidade/piloto.
+
+S10.1 materializou somente o core offline: config lazy da root, guardas lexical/fisico de path, extracao de sinais de pasta, filtro PDF/temporarios, SHA-256 streaming, hint por filename, probe estrutural/textual com `pypdf` e builder de payload v1. Nao ha observacao continua, HTTP, banco, endpoint, worker, OCR, parser fiscal ou frontend. Os testes cobrem somente arvores `tmp_path` e PDFs sinteticos gerados dinamicamente.
+
+XMLs de NFS-e sao fonte fiscal distinta das guias/recibos PDF do watcher. S10.1 permanece exclusivamente PDF e offline: nao adiciona `.xml`, nao trata NFS-e como `fiscal_evidence` de guia e nao decide atividade, receita ou Fator R.
 
 Pasta principal alvo:
 
@@ -2594,6 +2598,13 @@ Escopo:
 * Tratamento de guias estaduais sem CNPJ claro.
 * Parcelamentos PGFN/SISPAR.
 * Testes com fixtures anonimizadas.
+* Micro-stage proprio de normalizacao/parser de XML NFS-e para identificar atividades efetivamente geradoras de receita por empresa e competencia, como insumo de Fator R.
+
+Limite do micro-stage NFS-e futuro:
+
+* Preservar os layouts de NFS-e ja conhecidos pelo projeto, sem implementar parser neste patch.
+* Nao definir tabelas ou migrations antes de inspecao especifica do schema existente.
+* XML NFS-e nao sera tratado simplesmente como evidencia de guia PDF.
 
 Entregáveis:
 

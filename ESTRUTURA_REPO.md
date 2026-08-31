@@ -315,7 +315,17 @@ lumen/
 ├─ agent/
 │  ├─ watcher/
 │  │  ├─ __init__.py
-│  │  └─ path_contract.py
+│  │  ├─ company_resolver.py
+│  │  ├─ config.py
+│  │  ├─ file_detector.py
+│  │  ├─ hash.py
+│  │  ├─ path_contract.py
+│  │  ├─ payload_builder.py
+│  │  └─ period_resolver.py
+│  ├─ parsers/
+│  │  ├─ __init__.py
+│  │  ├─ file_name_classifier.py
+│  │  └─ pdf_text_probe.py
 │  └─ __init__.py
 │
 ├─ infra/
@@ -434,7 +444,7 @@ type LumenUIState = {
 
 ### `agent/`
 
-No S10.0 contém somente o módulo puro `watcher/path_contract.py`: gramática de path relativo Windows, conversão fiscal `MM-AAAA -> AAAA-MM` e fingerprint. Não há watcher, acesso a filesystem, rede, banco, endpoint ou worker genérico materializado.
+No S10.1 contem o core offline para um caminho de PDF explicitamente fornecido: configuracao lazy, guardas de path, filtro, hash streaming, sinais de pasta, hint de nome, probe `pypdf` e payload v1. Nao ha loop de watcher, cliente HTTP, banco, endpoint ou worker generico.
 
 O futuro agente não decide conciliação final; ele gera sinais, e a autoridade permanece no backend.
 
