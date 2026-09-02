@@ -255,3 +255,9 @@ Data de referencia: 2026-07-20
 - A Econet prova somente potencial cadastral de Fator R por CNAE. A validacao efetiva futura cruza `CNAEs/eControle + Econet`, atividades/receitas NFS-e, `FS12/Folha Dominio`, `RBT12/apuracao Sittax` e anexo efetivamente aplicado no Sittax.
 - Nao existe documento MIT proprio salvo pelo escritorio; quando aplicavel, a evidencia documental do fluxo MIT e o recibo da DCTFWeb.
 - A modelagem de NFS-e, incluindo tabelas e migrations, sera decidida somente no micro-stage especifico apos inspecao do schema existente e deve preservar os layouts ja conhecidos pelo projeto.
+- S10.2 autentica somente com token M2M dedicado e org slug configurados no servidor; JWT humano, payload e agent nao escolhem tenant.
+- A identidade server-side e `sha256(organization_id + "\\n" + normalized_relative_path + "\\n" + file_sha256)`, sem `event_type`; a unicidade de banco protege replay/race.
+- Matching de empresa e por igualdade normalizada na precedencia `apelido_pasta`, `nome_fantasia`, `razao_social`; ambiguidade em nivel superior encerra a resolucao.
+- Evento valido sem empresa ou periodo resolvido e persistido sem evidence. Evidence `WATCHER_FILE` so nasce com ambos resolvidos e permanece `PENDENTE`, sem alterar obrigacao fiscal.
+- A classificacao fiscal canonica segue a hierarquia `PARSER DE CONTEUDO > NOME DO ARQUIVO > CONTEXTO AUXILIAR`. O `classifier_hint` do watcher e somente sinal por filename, preservado no payload seguro do evento; S10.2 nao o copia para `detected_tax` ou `detected_obligation`.
+- Em S11, parser conclusivo prevalece sobre filename conflitante e o conflito podera gerar flag/revisao; parser inconclusivo com filename conclusivo gera apenas candidato de baixa confianca; ambos inconclusivos exigem conferencia manual. Esta reconciliacao nao e implementada em S10.2.

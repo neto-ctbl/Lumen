@@ -1656,3 +1656,17 @@ Validacoes reais registradas nesta etapa:
 - processador de retries da Acessorias validado com `15 passed`
 - backfill real de `company_activity_types` em `2026-08-12` com `242` empresas ativas, `295` classificacoes criadas e `0` CNAEs sem mapeamento
 - auditoria inicial de anexos da planilha com `1331` linhas, `255` `OK`, `9` `prohibited` e `1067` `missing_cache`
+
+## Atualizacao S10.2
+
+- `backend/app/api/v1/endpoints/lumen.py`: `POST /api/v1/lumen/evidences/watcher-event` com autenticacao M2M dedicada.
+- `backend/app/schemas/watcher.py`: request/response fechado do watcher-event v1.
+- `backend/app/services/watcher_ingest.py`: validacao lexical, resolucao tenant-scoped, fingerprint, idempotencia, evidence minima e auditoria.
+- `backend/app/models/watcher_file_event.py`: `normalized_relative_path` e `idempotency_key` unico.
+- `backend/app/models/fiscal_evidence.py`: `watcher_event_id` nullable, FK `RESTRICT` e unico.
+- `backend/alembic/versions/20260831_0015_add_watcher_ingest_idempotency.py`: schema incremental do ingest.
+- `backend/tests/test_watcher_ingest.py`: cobertura de auth, resolucao, replay, evidence e constraints.
+- Hierarquia operacional materializada: parser de conteudo define identificacao principal/canonica; nome do arquivo e somente hint auxiliar/evidencia complementar; pasta fornece somente contexto de empresa e competencia.
+- Fechamento validado: teste focado `10 passed`, backend `653 passed`, Ruff limpo, frontend typecheck e `7` E2E aprovados; contagens read-only preservadas em `watcher_file_events=0`, `fiscal_evidences=1717` e `fiscal_obligation_statuses=196`.
+
+Nao existe watcher continuo, client HTTP do agent, worker, parser fiscal, OCR ou frontend novo.

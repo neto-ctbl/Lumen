@@ -126,3 +126,5 @@ Data de referencia: 2026-07-15
 - O payload não pode carregar PDF bruto, base64, XML, texto integral, cookie, senha, `Authorization` ou token. Arquivos fiscais reais permanecem fora do Git.
 - S10.0 não fez transmissão externa, não abriu `G:\EMPRESAS` em testes e não criou endpoint ou agente operacional.
 - S10.1 valida primeiro a gramatica lexical e, para arquivo existente explicitamente fornecido, rejeita symlink/reparse point e confirma o destino resolvido sob a root. Hash/probe sao cercados por checagem de tamanho/mtime para nao aceitar arquivo alterado durante processamento.
+- S10.2 recebe apenas metadata pelo header `X-Lumen-Agent-Token`; token e org slug ausentes deixam o endpoint indisponivel, token ausente/invalido recebe resposta generica e a comparacao usa constant-time. Nenhum token, PDF, raw text ou campo de tenant e persistido/retornado.
+- O backend revalida path puramente em memoria e nao abre `G:\EMPRESAS`, PDF, XML ou qualquer arquivo durante ingest. O payload e fechado contra campos extras e a evidencia inicial nao confirma obrigacao fiscal.

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, String, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -15,6 +15,7 @@ class WatcherFileEvent(Base):
     __table_args__ = (
         Index("ix_watcher_file_events_org_status", "organization_id", "status"),
         Index("ix_watcher_file_events_file_hash", "file_hash"),
+        UniqueConstraint("idempotency_key", name="uq_watcher_file_events_idempotency_key"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -23,6 +24,8 @@ class WatcherFileEvent(Base):
     period_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("fiscal_periods.id"), nullable=True, index=True)
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
     file_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    normalized_relative_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
     file_name: Mapped[str] = mapped_column(String(255), nullable=False)
     file_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
     file_size: Mapped[int | None] = mapped_column(BigInteger, nullable=True)

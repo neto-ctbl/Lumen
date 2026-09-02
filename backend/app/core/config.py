@@ -56,6 +56,8 @@ TRACKED_ENV_VARS = (
     "ECONET_ENRICH_DEFAULT_LIMIT",
     "ECONET_ENRICH_MAX_LIMIT",
     "ECONET_ENRICH_REQUEST_DELAY_SECONDS",
+    "LUMEN_WATCHER_AGENT_TOKEN",
+    "LUMEN_WATCHER_AGENT_ORG_SLUG",
     "LUMEN_DISABLE_DOTENV",
 )
 
@@ -116,6 +118,8 @@ class Settings(BaseSettings):
     econet_enrich_default_limit: int = Field(default=5, alias="ECONET_ENRICH_DEFAULT_LIMIT")
     econet_enrich_max_limit: int = Field(default=50, alias="ECONET_ENRICH_MAX_LIMIT")
     econet_enrich_request_delay_seconds: float = Field(default=0.5, alias="ECONET_ENRICH_REQUEST_DELAY_SECONDS")
+    lumen_watcher_agent_token: str | None = Field(default=None, alias="LUMEN_WATCHER_AGENT_TOKEN")
+    lumen_watcher_agent_org_slug: str | None = Field(default=None, alias="LUMEN_WATCHER_AGENT_ORG_SLUG")
 
     @field_validator("database_url", "test_database_url")
     @classmethod

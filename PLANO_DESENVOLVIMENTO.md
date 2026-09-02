@@ -2529,7 +2529,7 @@ Status: concluído em 2026-08-28
 
 ## S10 - Watcher local e motor de evidências por arquivo
 
-Status: em andamento; S10.0 e S10.1 concluidos, S10.2 pendente.
+Status: em andamento; S10.0, S10.1 e S10.2 concluidos; S10.3 pendente.
 
 Objetivo:
 
@@ -2550,6 +2550,12 @@ Escopo:
 * S10.4: worker/reprocessamento/observabilidade/piloto.
 
 S10.1 materializou somente o core offline: config lazy da root, guardas lexical/fisico de path, extracao de sinais de pasta, filtro PDF/temporarios, SHA-256 streaming, hint por filename, probe estrutural/textual com `pypdf` e builder de payload v1. Nao ha observacao continua, HTTP, banco, endpoint, worker, OCR, parser fiscal ou frontend. Os testes cobrem somente arvores `tmp_path` e PDFs sinteticos gerados dinamicamente.
+
+S10.2 materializou o ingest M2M metadata-only em `POST /api/v1/lumen/evidences/watcher-event`: tenant derivado exclusivamente da configuracao, revalidacao lexical sem acesso a filesystem, matching estrito de empresa/periodo, fingerprint server-side e persistencia idempotente. Cria evidence minima somente quando empresa e periodo casam, com `detected_tax` e `detected_obligation` nulos ate parser de conteudo futuro; `classifier_hint` de filename permanece apenas como sinal auxiliar no payload seguro. Nao abre PDF, nao processa XML, nao altera obrigacoes nem inicia watcher continuo.
+
+Hierarquia operacional congelada: `PARSER DE CONTEUDO` define a identificacao principal/canonica; `NOME DO ARQUIVO` fornece somente hint auxiliar ou evidencia complementar; `PASTA` fornece somente contexto de empresa e competencia. S10.2 nao classifica por conteudo e nao promove filename ou pasta a classificacao fiscal definitiva.
+
+Fechamento validado do S10.2: `10 passed` no teste focado de ingest, `653 passed` no backend completo, Ruff limpo, frontend typecheck aprovado, `7 passed` no E2E e `git diff --check` sem erros. Consultas SQL read-only preservaram `watcher_file_events=0`, `fiscal_evidences=1717` e `fiscal_obligation_statuses=196`.
 
 XMLs de NFS-e sao fonte fiscal distinta das guias/recibos PDF do watcher. S10.1 permanece exclusivamente PDF e offline: nao adiciona `.xml`, nao trata NFS-e como `fiscal_evidence` de guia e nao decide atividade, receita ou Fator R.
 
@@ -2577,20 +2583,33 @@ S10.0 nao materializa `agent/watcher/main.py`, endpoint, migration, persistencia
 
 ---
 
-## S11 - Parsers fiscais e classificação de guias/recibos
+## S11 - Parsers e normalizacao documental fiscal
 
 Status: pendente
 
 Objetivo:
 
-* Transformar PDFs e arquivos encontrados em evidências fiscais úteis para conciliação.
+* Transformar documentos fiscais efetivamente preservados em dados normalizados para conciliação futura.
 
 Justificativa:
 
 * Os exemplos reais de guias demonstraram que o conteúdo dos PDFs traz dados suficientes para classificar e extrair campos relevantes.
-* O nome do arquivo ajuda, mas a fonte principal deve ser o conteúdo do PDF.
+* Regra transversal: classificacao por conteudo prevalece sobre classificacao por filename (`PARSER DE CONTEUDO > NOME DO ARQUIVO > CONTEXTO AUXILIAR`).
+* Filename apenas corrobora ou fornece fallback de baixa confianca; parser conclusivo prevalece em conflito, parser inconclusivo com filename conclusivo gera candidato e ambos inconclusivos exigem conferencia manual. A reconciliacao/flag futura pertence a S11.
 
-Escopo:
+### S11.1 - Guias: impostos e parcelamentos
+
+Reservado para DAS, DARF/SENDA, PIS, COFINS, IRPJ, CSLL, ICMS/DARE, DIFAL, DIFAL Consumo/Ativo, PROTEGE, ISS, parcelamentos estaduais, Simples, PERT/RELP, PGFN/SISPAR e demais guias reais do corpus. DARF e familia documental; tributo e classificacao derivada da composicao. Nao assumir `folder_period == document_period == tax_assessment_period`.
+
+### S11.2 - Declaracoes
+
+Reservado para recibo/comprovante DCTFWeb, recibo/fechamento EFD-Reinf e outras declaracoes somente quando existirem na rotina. MIT nao possui documento proprio salvo pelo escritorio; a evidencia documental preservada do fluxo e o recibo DCTFWeb, quando aplicavel. Nao criar parser ficticio de recibo MIT.
+
+### S11.3 - Documentos fiscais
+
+Reservado para XML/ZIP de NFS-e e, quando aplicavel ao fluxo real, NF-e/NFC-e/CT-e. A finalidade central da NFS-e e identificar atividades efetivamente geradoras de receita por empresa/competencia para validar Fator R. O fluxo futuro cruza `CNAEs/eControle + Econet` (potencial), atividades/receitas NFS-e, `FS12/Folha Dominio`, `RBT12/apuracao Sittax`, fator R observado e anexo aplicado no Sittax. Nao ha parser, tabela ou migration de documentos fiscais neste stage.
+
+Escopo comum:
 
 * Parsers por tipo de documento.
 * Campos normalizados.

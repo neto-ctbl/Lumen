@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import BigInteger, Date, DateTime, ForeignKey, Index, Numeric, String, func
+from sqlalchemy import BigInteger, Date, DateTime, ForeignKey, Index, Numeric, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -16,12 +16,18 @@ class FiscalEvidence(Base):
     __table_args__ = (
         Index("ix_fiscal_evidences_org_period", "organization_id", "period_id"),
         Index("ix_fiscal_evidences_file_hash", "file_hash"),
+        UniqueConstraint("watcher_event_id", name="uq_fiscal_evidences_watcher_event_id"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     organization_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("organizations.id"), nullable=False, index=True)
     company_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("external_companies.id"), nullable=True, index=True)
     period_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("fiscal_periods.id"), nullable=True, index=True)
+    watcher_event_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("watcher_file_events.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
     source: Mapped[str] = mapped_column(String(50), nullable=False)
     source_type: Mapped[str] = mapped_column(String(50), nullable=False)
     file_path: Mapped[str | None] = mapped_column(String(500), nullable=True)

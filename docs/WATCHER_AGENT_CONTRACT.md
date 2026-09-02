@@ -39,3 +39,24 @@ S10.1 materializa o core para um arquivo explicitamente fornecido: configuracao 
 O hint por filename nao le conteudo fiscal: uma keyword conhecida gera o hint, ausencia gera `UNKNOWN` e keywords independentes multiplas geram `AMBIGUOUS`. `PGFN + SISPAR` resulta em `PGFN_SISPAR`. O probe usa `pypdf`, retorna somente metadados e falha com seguranca para PDF invalido, vazio ou protegido; nao executa OCR.
 
 DARF e uma familia documental. Classificacao de tributo e qualquer distincao entre periodo da pasta, referencia documental e periodo tributario ficam para S11; S10.1 usa somente `MM-AAAA -> AAAA-MM` da pasta.
+
+## S10.2 Ingest backend
+
+O agent futuro envia o payload v1 para `POST /api/v1/lumen/evidences/watcher-event` com `X-Lumen-Agent-Token`. O servidor exige token e org slug configurados, compara o token em constant-time e deriva a organizacao apenas do slug; JWT humano e campos de tenant no payload nao substituem esta autenticacao.
+
+O backend revalida a gramatica relativa sem acessar filesystem, recalcula `normalized_relative_path` e fingerprint, persiste `watcher_file_event` por chave unica e cria no maximo uma evidence `WATCHER_FILE` vinculada quando empresa e periodo forem resolvidos. Eventos unmatched, ambiguous ou sem periodo continuam persistidos, sem evidence. O backend nao abre PDF, nao recebe binario, nao processa XML e nao executa parser/worker.
+
+`classifier_hint` e sinal auxiliar originado do filename e permanece somente no payload/metadado seguro do watcher event. Ele nunca e classificacao fiscal canonica: a evidence `WATCHER_FILE` nova inicia com `detected_tax = NULL` e `detected_obligation = NULL`. A regra para S11 e `PARSER DE CONTEUDO > NOME DO ARQUIVO > CONTEXTO AUXILIAR`: parser conclusivo prevalece sobre filename conflitante; filename conclusivo sem parser e somente candidato de baixa confianca; ausencia de ambos exige conferencia manual. S10.2 nao implementa essa reconciliacao.
+
+Exemplo local seguro (nao versionar payload real ou segredo):
+
+```bash
+curl -X POST http://localhost:8000/api/v1/lumen/evidences/watcher-event \
+  -H "Content-Type: application/json" \
+  -H "X-Lumen-Agent-Token: <LOCAL_SECRET>" \
+  --data @watcher-event-local.json
+```
+
+## Rollback do S10.2
+
+Nao executar automaticamente. Para preservar S10.0/S10.1 e reverter somente este stage, primeiro execute `python -m alembic -c backend/alembic.ini downgrade -1`; depois restaure somente os arquivos versionados do S10.2 e remova somente `backend/app/schemas/watcher.py`, `backend/app/services/watcher_ingest.py`, `backend/alembic/versions/20260831_0015_add_watcher_ingest_idempotency.py` e `backend/tests/test_watcher_ingest.py`. Nao usar reset hard, clean, stash ou restauracao global.

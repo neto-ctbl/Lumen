@@ -1,10 +1,15 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+import hmac
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.app.api.deps import get_current_auth_context, require_roles
+from backend.app.core.config import get_settings
 from backend.app.db.session import get_db
+from backend.app.models.organization import Organization
 from backend.app.schemas.cockpit import CockpitResponse
 from backend.app.schemas.company import CompanyDetailResponse, CompanyListResponse
 from backend.app.schemas.dashboard import DashboardResponse
@@ -27,10 +32,12 @@ from backend.app.schemas.lumen_s9 import (
     ReconcileResponse,
 )
 from backend.app.schemas.period import PeriodListResponse
+from backend.app.schemas.watcher import WatcherEventIngestRequest, WatcherEventIngestResponse
 from backend.app.services.auth import AuthContext, ROLE_ADMIN, ROLE_DEV, ROLE_VIEW
 from backend.app.services import lumen_read_model
 from backend.app.services.dctfweb_origins import reconcile_dctfweb_period
 from backend.app.services.factor_r_reconciliation import reconcile_factor_r_period
+from backend.app.services.watcher_ingest import WatcherIngestError, ingest_watcher_event
 
 
 router = APIRouter(prefix="/lumen", tags=["lumen"])
@@ -53,6 +60,23 @@ def _admin_context(
 def _read_error(exc: ValueError | LookupError) -> HTTPException:
     code = status.HTTP_422_UNPROCESSABLE_ENTITY if isinstance(exc, ValueError) else status.HTTP_404_NOT_FOUND
     return HTTPException(status_code=code, detail=str(exc))
+
+
+def _watcher_agent_organization(
+    x_lumen_agent_token: str | None = Header(default=None, alias="X-Lumen-Agent-Token"),
+    db: Session = Depends(get_db),
+) -> Organization:
+    settings = get_settings()
+    configured_token = settings.lumen_watcher_agent_token
+    configured_org_slug = settings.lumen_watcher_agent_org_slug
+    if not configured_token or not configured_org_slug:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Watcher ingest is not configured.")
+    if not x_lumen_agent_token or not hmac.compare_digest(x_lumen_agent_token, configured_token):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Watcher authentication failed.")
+    organization = db.scalar(select(Organization).where(Organization.slug == configured_org_slug))
+    if organization is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Watcher ingest is unavailable.")
+    return organization
 
 
 @router.get("/companies", response_model=CompanyListResponse)
@@ -168,6 +192,28 @@ def evidences(
         organization_id=context.organization.id,
         competencia=period,
         company_id=companyId,
+    )
+
+
+@router.post("/evidences/watcher-event", response_model=WatcherEventIngestResponse)
+def ingest_watcher_event_endpoint(
+    body: WatcherEventIngestRequest,
+    organization: Organization = Depends(_watcher_agent_organization),
+    db: Session = Depends(get_db),
+) -> WatcherEventIngestResponse:
+    try:
+        result = ingest_watcher_event(db, organization=organization, payload=body)
+        db.commit()
+    except WatcherIngestError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid watcher event.") from exc
+    return WatcherEventIngestResponse(
+        event_id=result.event.id,
+        evidence_id=result.evidence.id if result.evidence is not None else None,
+        event_created=result.event_created,
+        evidence_created=result.evidence_created,
+        company_resolution=result.company_resolution.value,
+        period_resolution=result.period_resolution.value,
+        status=result.event.status,
     )
 
 
