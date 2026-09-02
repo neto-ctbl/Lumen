@@ -1669,4 +1669,15 @@ Validacoes reais registradas nesta etapa:
 - Hierarquia operacional materializada: parser de conteudo define identificacao principal/canonica; nome do arquivo e somente hint auxiliar/evidencia complementar; pasta fornece somente contexto de empresa e competencia.
 - Fechamento validado: teste focado `10 passed`, backend `653 passed`, Ruff limpo, frontend typecheck e `7` E2E aprovados; contagens read-only preservadas em `watcher_file_events=0`, `fiscal_evidences=1717` e `fiscal_obligation_statuses=196`.
 
-Nao existe watcher continuo, client HTTP do agent, worker, parser fiscal, OCR ou frontend novo.
+S10.2 nao materializou watcher continuo, client HTTP do agent, worker, parser fiscal, OCR ou frontend novo.
+
+## Atualizacao S10.3
+
+- `agent/watcher/scanner.py`: polling incremental restrito a PDFs na gramatica fiscal allowlisted.
+- `agent/watcher/state.py`: state e health JSON locais com escrita atomica; sem token, PDF, texto ou dados fiscais extraidos.
+- `agent/watcher/client.py`: POST M2M metadata-only para o endpoint S10.2, sem JWT ou tenant no body.
+- `agent/watcher/runtime.py` e `agent/watcher/main.py`: baseline sem flood, estabilidade, retry limitado, restart e `--once`/`--status` sanitizado.
+- `scripts/dev/run_fiscal_watcher.ps1`: runner foreground que usa a `.venv` e herda somente configuracao de ambiente.
+- `backend/tests/test_watcher_scanner.py`, `test_watcher_state.py`, `test_watcher_client.py` e `test_watcher_runtime.py`: cobertura offline com `tmp_path`, inclusive client-to-endpoint sem rede externa.
+
+O polling e o mecanismo primario para compatibilidade com unidade de rede. Nenhum piloto real, service/task Windows, parser fiscal, XML/NFS-e, OCR, worker ou frontend de watcher foi materializado; esses itens permanecem em S10.4 ou S11.3.

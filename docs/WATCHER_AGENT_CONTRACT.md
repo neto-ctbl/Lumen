@@ -1,6 +1,6 @@
 # Contrato do Watcher Fiscal
 
-Status: S10.0 concluído como contrato offline. Não existe watcher operacional, endpoint de ingest, persistência ou worker genérico neste stage.
+Status: S10.0 a S10.3 concluidos; o macro-stage S10 permanece em andamento com S10.4 pendente. O agent operacional usa polling e o endpoint de ingest/persistencia e o contrato S10.2; nao existe parser fiscal ou worker generico neste stage.
 
 ## Identidade e autenticação futura
 
@@ -60,3 +60,13 @@ curl -X POST http://localhost:8000/api/v1/lumen/evidences/watcher-event \
 ## Rollback do S10.2
 
 Nao executar automaticamente. Para preservar S10.0/S10.1 e reverter somente este stage, primeiro execute `python -m alembic -c backend/alembic.ini downgrade -1`; depois restaure somente os arquivos versionados do S10.2 e remova somente `backend/app/schemas/watcher.py`, `backend/app/services/watcher_ingest.py`, `backend/alembic/versions/20260831_0015_add_watcher_ingest_idempotency.py` e `backend/tests/test_watcher_ingest.py`. Nao usar reset hard, clean, stash ou restauracao global.
+
+## S10.3 Agent Windows por polling
+
+O mecanismo operacional primario e polling incremental, sem dependencia de notificacoes SMB. O scanner aceita somente PDFs sob a gramatica fiscal allowlisted, ignora temporarios, XML/ZIP e areas fora de `Escrita Fiscal`. O primeiro boot faz inventario/baseline local e nunca envia o historico encontrado; state ausente ou corrompido tambem resulta em baseline sem flood.
+
+O state JSON local e atomico e guarda somente path relativo normalizado, tamanho, mtime, hash, entrega e retry. Nao guarda token, headers, PDF, texto, CNPJ ou resultado de parser. A estabilidade exige tamanho e mtime inalterados pelo intervalo configurado; o builder S10.1 ainda confirma a imutabilidade antes/depois do hash/probe. `FILE_CHANGED_DURING_PROCESSING` retorna o arquivo a observacao.
+
+O client usa somente `X-Lumen-Agent-Token` e metadata v1. `2xx` confirma a entrega local; `400/422` marca a versao do arquivo como rejeitada ate mudanca material; autenticacao, indisponibilidade, `5xx` e rede usam backoff persistente limitado a cinco minutos. `--once` nao ignora baseline ou estabilidade e `--status` le apenas health sanitizado. Nao ha piloto real em `G:\EMPRESAS`, service/task automatico, parser fiscal, OCR ou XML neste stage.
+
+`health.status` representa exclusivamente o lifecycle do processo: `STARTING` antes do primeiro ciclo, `RUNNING` ou `DEGRADED` enquanto o processo continuo esta vivo e `STOPPED` depois de `--once`, Ctrl+C ou encerramento limpo. `STOPPED` preserva diagnostico e timestamps da ultima execucao, inclusive `last_error_code`; resultado historico nao muda de significado ao encerrar o processo. Excecao fatal nao e mascarada como `STOPPED` saudavel: o health fica `DEGRADED` com codigo sanitizado.

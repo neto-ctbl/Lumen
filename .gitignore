@@ -175,6 +175,8 @@ agent/.env
 agent/.env.*
 !agent/.env.example
 agent/**/*.local.*
+agent/.state/
+agent/logs/
 
 !data/.gitkeep
 !data/examples/

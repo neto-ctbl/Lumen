@@ -1043,4 +1043,8 @@ S10.0, S10.1 e S10.2 estao concluidos; o macro-stage permanece em andamento. O L
 
 Operacionalmente, parser de conteudo definira a identificacao principal/canonica; nome do arquivo sera somente hint auxiliar/evidencia complementar; e pasta fornecera somente contexto de empresa e competencia. O fechamento S10.2 foi validado com `10 passed` no ingest, `653 passed` no backend, Ruff limpo, typecheck aprovado, `7 passed` no E2E e contagens read-only inalteradas: `0` watcher events, `1717` evidences e `196` statuses.
 
+S10.3 disponibiliza o agent local por polling incremental, com baseline sem envio de PDFs historicos, state/health locais atomicos, estabilidade por tamanho/mtime e retry limitado para falhas transitorias do backend. O agent envia somente metadata M2M e nao promove filename ou pasta a classificacao fiscal. Use `scripts/dev/run_fiscal_watcher.ps1 -Once` apenas com root sintetica para validacao controlada; o piloto em `G:\EMPRESAS`, health visual, servico Windows e observabilidade operacional ficam em S10.4.
+
+O campo `health.status` descreve somente o lifecycle do processo: `STARTING`, `RUNNING`/`DEGRADED` enquanto vivo e `STOPPED` depois de `--once` ou shutdown limpo. O ultimo diagnostico permanece em `last_error_code` e timestamps, mesmo quando o processo ja encerrou.
+
 XML NFS-e permanece fora do watcher S10.1 e sera fonte fiscal separada em micro-stage futuro do S11. O objetivo sera identificar atividades efetivamente geradoras de receita por empresa/competencia para validar uso efetivo de Fator R; a Econet continua sendo apenas potencial cadastral por CNAE. Nao ha parser, tabela, migration ou classificacao NFS-e implementados agora.

@@ -2529,7 +2529,7 @@ Status: concluído em 2026-08-28
 
 ## S10 - Watcher local e motor de evidências por arquivo
 
-Status: em andamento; S10.0, S10.1 e S10.2 concluidos; S10.3 pendente.
+Status: em andamento; S10.0, S10.1, S10.2 e S10.3 concluidos; S10.4 pendente.
 
 Objetivo:
 
@@ -2552,6 +2552,10 @@ Escopo:
 S10.1 materializou somente o core offline: config lazy da root, guardas lexical/fisico de path, extracao de sinais de pasta, filtro PDF/temporarios, SHA-256 streaming, hint por filename, probe estrutural/textual com `pypdf` e builder de payload v1. Nao ha observacao continua, HTTP, banco, endpoint, worker, OCR, parser fiscal ou frontend. Os testes cobrem somente arvores `tmp_path` e PDFs sinteticos gerados dinamicamente.
 
 S10.2 materializou o ingest M2M metadata-only em `POST /api/v1/lumen/evidences/watcher-event`: tenant derivado exclusivamente da configuracao, revalidacao lexical sem acesso a filesystem, matching estrito de empresa/periodo, fingerprint server-side e persistencia idempotente. Cria evidence minima somente quando empresa e periodo casam, com `detected_tax` e `detected_obligation` nulos ate parser de conteudo futuro; `classifier_hint` de filename permanece apenas como sinal auxiliar no payload seguro. Nao abre PDF, nao processa XML, nao altera obrigacoes nem inicia watcher continuo.
+
+S10.3 materializou o agent Windows operacional por polling incremental. Ele faz baseline local sem enviar historico no primeiro boot, persiste state/health JSON atomicamente, aguarda estabilidade por tamanho/mtime, reutiliza o builder S10.1 e envia apenas metadata ao endpoint S10.2 com token M2M. Erros transitorios usam retry exponencial limitado e persistente; `400/422` ficam rejeitados ate mudanca do arquivo. Nao ha piloto em `G:\EMPRESAS`, parser fiscal, XML, OCR, worker, frontend ou instalacao de servico/task neste stage.
+
+O health S10.3 separa lifecycle de diagnostico: `STARTING`, `RUNNING` e `DEGRADED` descrevem processo vivo; `STOPPED` e gravado ao finalizar `--once` ou shutdown limpo, preservando `last_error_code` e timestamps da ultima execucao para S10.4.
 
 Hierarquia operacional congelada: `PARSER DE CONTEUDO` define a identificacao principal/canonica; `NOME DO ARQUIVO` fornece somente hint auxiliar ou evidencia complementar; `PASTA` fornece somente contexto de empresa e competencia. S10.2 nao classifica por conteudo e nao promove filename ou pasta a classificacao fiscal definitiva.
 
