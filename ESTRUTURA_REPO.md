@@ -1681,3 +1681,11 @@ S10.2 nao materializou watcher continuo, client HTTP do agent, worker, parser fi
 - `backend/tests/test_watcher_scanner.py`, `test_watcher_state.py`, `test_watcher_client.py` e `test_watcher_runtime.py`: cobertura offline com `tmp_path`, inclusive client-to-endpoint sem rede externa.
 
 O polling e o mecanismo primario para compatibilidade com unidade de rede. Nenhum piloto real, service/task Windows, parser fiscal, XML/NFS-e, OCR, worker ou frontend de watcher foi materializado; esses itens permanecem em S10.4 ou S11.3.
+## Atualizacao S10.4
+
+- `backend/app/models/watcher_agent_health.py` e migration `20260902_0016`: ultimo heartbeat sanitizado por organizacao.
+- `backend/app/services/watcher_health.py` e `watcher_reprocess.py`: estado derivado e retry administrativo explicito de eventos sem evidence.
+- `scripts/ops/run_fiscal_watcher_supervised.ps1`: supervisor foreground Windows com backoff.
+- Integracoes consulta a saude read-only; nao controla o processo nem transmite documentos.
+- `backend/tests/test_watcher_reprocess.py`: matching tardio, estados nao resolvidos, idempotencia, isolamento de tenant e ausencia de mutacao de obrigacoes.
+- `frontend/tests_e2e/s10_watcher_health.spec.ts`: estados humanos, redacao de payload e viewport movel do card read-only.

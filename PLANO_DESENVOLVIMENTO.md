@@ -3190,3 +3190,11 @@ Ao final, informe arquivos alterados, comandos de validação e pendências.
 ```
 
 ```
+## Atualizacao S10.4
+
+- O agent envia heartbeat M2M sanitizado e o backend conserva somente o ultimo estado por organizacao. A leitura humana deriva `NEVER_SEEN`, `RUNNING`, `DEGRADED`, `STOPPED` ou `STALE`; ela nao inicia processo, nao varre pasta e nao envia arquivo.
+- O reprocessamento administrativo e local, limitado a watcher events sem evidence; nao reabre PDF, nao altera obrigacoes e nao executa parser.
+- O card de Integracoes exibe somente o estado observado do watcher.
+- O piloto continua manual: bootstrap nao deve apontar para `G:\EMPRESAS`; `--ingest-file` exige arquivo unico e somente transmite com `--confirm-send`. S11 permanece parser por conteudo e S12 conciliacao.
+- Validacao de fechamento: E2E cobre `NEVER_SEEN`, `RUNNING`, `DEGRADED`, `STOPPED`, `STALE`, redacao de payload e viewport movel; a migration `0016` foi validada em downgrade para `0015` e upgrade de volta ao head sem alterar contagens fiscais.
+- Estado: S10.0, S10.1, S10.2 e S10.3 concluidos; S10.4 aguarda piloto real controlado; macro-stage S10 permanece em andamento.

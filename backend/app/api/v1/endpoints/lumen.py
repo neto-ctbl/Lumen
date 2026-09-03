@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hmac
+from dataclasses import asdict
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy import select
@@ -32,12 +33,20 @@ from backend.app.schemas.lumen_s9 import (
     ReconcileResponse,
 )
 from backend.app.schemas.period import PeriodListResponse
-from backend.app.schemas.watcher import WatcherEventIngestRequest, WatcherEventIngestResponse
+from backend.app.schemas.watcher import (
+    WatcherEventIngestRequest,
+    WatcherEventIngestResponse,
+    WatcherHeartbeatRequest,
+    WatcherHealthResponse,
+    WatcherReprocessResponse,
+)
 from backend.app.services.auth import AuthContext, ROLE_ADMIN, ROLE_DEV, ROLE_VIEW
 from backend.app.services import lumen_read_model
 from backend.app.services.dctfweb_origins import reconcile_dctfweb_period
 from backend.app.services.factor_r_reconciliation import reconcile_factor_r_period
 from backend.app.services.watcher_ingest import WatcherIngestError, ingest_watcher_event
+from backend.app.services.watcher_health import get_watcher_health, record_heartbeat
+from backend.app.services.watcher_reprocess import reprocess_unresolved_watcher_events
 
 
 router = APIRouter(prefix="/lumen", tags=["lumen"])
@@ -215,6 +224,38 @@ def ingest_watcher_event_endpoint(
         period_resolution=result.period_resolution.value,
         status=result.event.status,
     )
+
+
+@router.post("/evidences/watcher-heartbeat", status_code=status.HTTP_204_NO_CONTENT)
+def watcher_heartbeat_endpoint(
+    body: WatcherHeartbeatRequest,
+    organization: Organization = Depends(_watcher_agent_organization),
+    db: Session = Depends(get_db),
+) -> None:
+    record_heartbeat(db, organization=organization, payload=body)
+    db.commit()
+
+
+@router.get("/integrations/watcher-health", response_model=WatcherHealthResponse)
+def watcher_health_endpoint(
+    context: AuthContext = Depends(_authorized_context),
+    db: Session = Depends(get_db),
+) -> WatcherHealthResponse:
+    return get_watcher_health(
+        db,
+        organization_id=context.organization.id,
+        stale_seconds=get_settings().lumen_watcher_heartbeat_stale_seconds,
+    )
+
+
+@router.post("/evidences/watcher-events/reprocess", response_model=WatcherReprocessResponse)
+def reprocess_watcher_events_endpoint(
+    context: AuthContext = Depends(_admin_context),
+    db: Session = Depends(get_db),
+) -> WatcherReprocessResponse:
+    result = reprocess_unresolved_watcher_events(db, organization=context.organization)
+    db.commit()
+    return WatcherReprocessResponse(**asdict(result))
 
 
 @router.get("/divergences", response_model=DivergenceListResponse)

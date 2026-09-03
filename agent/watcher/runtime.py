@@ -116,6 +116,47 @@ class WatcherRuntime:
     def mark_fatal(self) -> None:
         self._write_health_payload("DEGRADED", last_error_code="UNEXPECTED_ERROR")
 
+    def heartbeat_payload(self) -> dict[str, object]:
+        """Return only the local health fields allowed by the server contract."""
+        health = self._health
+        counters = {key: int(health.get(key, 0) or 0) for key in (
+            "candidates_seen", "pending_stability", "pending_retry", "sent_success", "rejected",
+        )}
+        return {
+            "status": health.get("status", "STARTING"),
+            "started_at": health.get("started_at"),
+            "last_scan_at": health.get("last_scan_at"),
+            "last_successful_send_at": health.get("last_successful_send_at"),
+            "last_error_code": health.get("last_error_code"),
+            "counters": counters,
+        }
+
+    def send_heartbeat(self) -> ClientResponse:
+        return self._client.send_heartbeat(self.heartbeat_payload())
+
+    def ingest_file(self, path: str | Path, *, confirm_send: bool) -> tuple[dict[str, object], ClientResponse | None]:
+        """Handle one explicit file without invoking the polling scanner."""
+        candidate = Path(path)
+        payload = self._payload_builder(self.config.root, candidate, detected_at=datetime.now(timezone.utc))
+        if not confirm_send:
+            return payload, None
+        response = self._client.send(payload)
+        if response.category == "SUCCESS":
+            stat = candidate.stat()
+            relative_path = str(payload["relative_path"]).casefold()
+            file_sha256 = str(payload["file_sha256"])
+            self._state.files[relative_path] = FileDeliveryState(
+                last_seen_size=stat.st_size,
+                last_seen_mtime_ns=stat.st_mtime_ns,
+                stable_since=self._clock(),
+                last_seen_sha256=file_sha256,
+                last_sent_sha256=file_sha256,
+                delivery_status="SENT",
+            )
+            self._state.initialized = True
+            self._state_store.save(self._state)
+        return payload, response
+
     def _baseline(self, discovered: list[DiscoveredFile], now: float) -> None:
         self._state.files = {
             item.normalized_relative_path: FileDeliveryState(

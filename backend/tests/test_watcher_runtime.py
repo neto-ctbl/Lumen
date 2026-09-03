@@ -150,3 +150,33 @@ def test_status_command_reads_only_sanitized_health(tmp_path: Path, monkeypatch,
     assert "RUNNING" in output
     assert "secret" not in output and "private.pdf" not in output
     assert health_path.read_text(encoding="utf-8") == before
+
+
+def test_explicit_ingest_dry_run_does_not_send_and_confirmed_success_updates_state(tmp_path: Path) -> None:
+    config = _config(tmp_path, tmp_path / "state.json", tmp_path / "health.json")
+    path = watcher_pdf_path(tmp_path, name="manual.pdf")
+    write_synthetic_pdf(path)
+    calls: list[dict[str, object]] = []
+    runtime = WatcherRuntime(
+        config,
+        client=WatcherApiClient(config, transport=lambda _url, body, *_: calls.append(json.loads(body)) or ClientResponse(200, "SUCCESS")),
+    )
+
+    payload, response = runtime.ingest_file(path, confirm_send=False)
+    assert response is None and payload["file_name"] == "manual.pdf" and not calls
+    _, response = runtime.ingest_file(path, confirm_send=True)
+    assert response is not None and response.category == "SUCCESS" and len(calls) == 1
+    item = next(iter(WatcherStateStore(config.state_path).load().state.files.values()))
+    assert item.delivery_status == "SENT" and item.last_seen_sha256 == item.last_sent_sha256
+
+
+def test_manual_ingest_command_records_clean_shutdown(tmp_path: Path, monkeypatch) -> None:
+    state_path, health_path = tmp_path / "state.json", tmp_path / "health.json"
+    path = watcher_pdf_path(tmp_path, name="manual-command.pdf")
+    write_synthetic_pdf(path)
+    monkeypatch.setenv("LUMEN_WATCHER_ROOT", str(tmp_path))
+    monkeypatch.setenv("LUMEN_WATCHER_STATE_PATH", str(state_path))
+    monkeypatch.setenv("LUMEN_WATCHER_HEALTH_PATH", str(health_path))
+
+    assert main(["--ingest-file", str(path)]) == 0
+    assert json.loads(health_path.read_text(encoding="utf-8"))["status"] == "STOPPED"

@@ -265,3 +265,8 @@ Data de referencia: 2026-07-20
 - O primeiro boot do agent fiscal sempre grava baseline local sem enviar PDFs existentes. State ausente/corrompido tambem falha sem flood; arquivos novos ou alterados depois do baseline passam por estabilidade e entrega M2M.
 - State/health do agent sao JSON locais atomicos e sanitizados. `400/422` rejeitam a versao atual sem loop; falhas de auth, backend ou rede usam backoff persistente limitado. O state local e otimizacao operacional, e o backend mantem a autoridade de idempotencia.
 - Em S10.3, `health.status` e lifecycle do processo, nao historico do scan: `STARTING`, `RUNNING`/`DEGRADED` enquanto vivo e `STOPPED` apos `--once` ou shutdown limpo. `last_error_code` e timestamps preservam o diagnostico para telemetria futura S10.4.
+## S10.4
+
+- S10.4 persiste somente o ultimo heartbeat sanitizado por organizacao, sem reutilizar `integration_sync_runs`. O backend deriva `STALE`; estado humano nao controla o agent.
+- Reprocessamento e administrativo, limitado a eventos sem evidence, reutiliza matching estrito e nao abre PDF, chama rede, executa parser ou altera obrigacoes.
+- Arquivo unico manual sem `--confirm-send` e dry-run sem HTTP. Diretorios, glob e varredura retroativa nao sao aceitos nessa via.

@@ -29,6 +29,7 @@ from backend.app.models.sittax_apuracao_snapshot import SittaxApuracaoSnapshot
 from backend.app.models.user import User
 from backend.app.models.user_organization import UserOrganization
 from backend.app.models.watcher_file_event import WatcherFileEvent
+from backend.app.models.watcher_agent_health import WatcherAgentHealth
 
 __all__ = [
     "AcessoriasCompanySnapshot",
@@ -60,4 +61,5 @@ __all__ = [
     "User",
     "UserOrganization",
     "WatcherFileEvent",
+    "WatcherAgentHealth",
 ]

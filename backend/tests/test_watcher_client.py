@@ -84,6 +84,25 @@ def test_client_does_not_attempt_requests_without_a_token(tmp_path: Path) -> Non
     assert not called
 
 
+def test_client_sends_sanitized_heartbeat_to_its_own_endpoint(tmp_path: Path) -> None:
+    captured: dict[str, object] = {}
+
+    def transport(url: str, body: bytes, headers: dict[str, str], _timeout: float) -> ClientResponse:
+        captured.update(url=url, body=json.loads(body), headers=headers)
+        return ClientResponse(204, "SUCCESS")
+
+    result = WatcherApiClient(_config(tmp_path), transport=transport).send_heartbeat({
+        "status": "RUNNING", "started_at": None, "last_scan_at": None, "last_successful_send_at": None,
+        "last_error_code": None,
+        "counters": {"candidates_seen": 0, "pending_stability": 0, "pending_retry": 0, "sent_success": 0, "rejected": 0},
+    })
+
+    assert result.category == "SUCCESS"
+    assert captured["url"] == "http://localhost:8000/api/v1/lumen/evidences/watcher-heartbeat"
+    assert captured["headers"] == {"Content-Type": "application/json", "X-Lumen-Agent-Token": "synthetic-agent-token"}
+    assert "token" not in captured["body"]
+
+
 def test_remote_insecure_http_is_rejected_by_config() -> None:
     with pytest.raises(ValueError, match="HTTPS"):
         WatcherConfig.from_env({"LUMEN_WATCHER_API_BASE_URL": "http://example.test"})

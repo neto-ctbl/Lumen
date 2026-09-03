@@ -9,7 +9,7 @@ import type {
   InstallmentListResponse,
   PeriodListResponse,
 } from "../types/fiscal";
-import type { IntegrationHealthResponse } from "../types/integration";
+import type { IntegrationHealthResponse, WatcherHealthResponse } from "../types/integration";
 import type {
   DctfwebOriginDetailResponse,
   DctfwebSummaryResponse,
@@ -88,6 +88,10 @@ export function fetchInstallments(period: string, companyId?: number | null) {
 
 export function fetchIntegrationsHealth() {
   return apiRequest<IntegrationHealthResponse>("/api/v1/lumen/integrations/health");
+}
+
+export function fetchWatcherHealth() {
+  return apiRequest<WatcherHealthResponse>("/api/v1/lumen/integrations/watcher-health");
 }
 
 export function fetchDominioPayrollSummary(sourcePeriod: string) {

@@ -58,6 +58,7 @@ TRACKED_ENV_VARS = (
     "ECONET_ENRICH_REQUEST_DELAY_SECONDS",
     "LUMEN_WATCHER_AGENT_TOKEN",
     "LUMEN_WATCHER_AGENT_ORG_SLUG",
+    "LUMEN_WATCHER_HEARTBEAT_STALE_SECONDS",
     "LUMEN_DISABLE_DOTENV",
 )
 
@@ -120,6 +121,7 @@ class Settings(BaseSettings):
     econet_enrich_request_delay_seconds: float = Field(default=0.5, alias="ECONET_ENRICH_REQUEST_DELAY_SECONDS")
     lumen_watcher_agent_token: str | None = Field(default=None, alias="LUMEN_WATCHER_AGENT_TOKEN")
     lumen_watcher_agent_org_slug: str | None = Field(default=None, alias="LUMEN_WATCHER_AGENT_ORG_SLUG")
+    lumen_watcher_heartbeat_stale_seconds: int = Field(default=180, alias="LUMEN_WATCHER_HEARTBEAT_STALE_SECONDS")
 
     @field_validator("database_url", "test_database_url")
     @classmethod
@@ -143,6 +145,7 @@ class Settings(BaseSettings):
         "econet_session_max_age_minutes",
         "econet_enrich_default_limit",
         "econet_enrich_max_limit",
+        "lumen_watcher_heartbeat_stale_seconds",
     )
     @classmethod
     def validate_positive_timeout(cls, value: int) -> int:

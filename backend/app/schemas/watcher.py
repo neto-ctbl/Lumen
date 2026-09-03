@@ -38,3 +38,39 @@ class WatcherEventIngestResponse(BaseModel):
     company_resolution: str
     period_resolution: str
     status: str
+
+
+class WatcherHeartbeatCounters(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    candidates_seen: int = Field(ge=0)
+    pending_stability: int = Field(ge=0)
+    pending_retry: int = Field(ge=0)
+    sent_success: int = Field(ge=0)
+    rejected: int = Field(ge=0)
+
+
+class WatcherHeartbeatRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    status: str = Field(pattern=r"^(STARTING|RUNNING|DEGRADED|STOPPED)$")
+    started_at: datetime | None = None
+    last_scan_at: datetime | None = None
+    last_successful_send_at: datetime | None = None
+    last_error_code: str | None = Field(default=None, max_length=100)
+    counters: WatcherHeartbeatCounters
+
+
+class WatcherHealthResponse(BaseModel):
+    status: str
+    reported_status: str | None
+    received_at: datetime | None
+    last_error_code: str | None
+    started_at: datetime | None = None
+    last_scan_at: datetime | None = None
+    last_successful_send_at: datetime | None = None
+    counters: dict[str, int]
+
+
+class WatcherReprocessResponse(BaseModel):
+    inspected: int
+    evidence_created: int
+    unresolved: int

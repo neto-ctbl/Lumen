@@ -22,3 +22,14 @@ export type IntegrationHealthItem = {
 export type IntegrationHealthResponse = {
   items: IntegrationHealthItem[];
 };
+
+export type WatcherHealthResponse = {
+  status: string;
+  reported_status: string | null;
+  received_at: string | null;
+  last_error_code: string | null;
+  started_at?: string | null;
+  last_scan_at?: string | null;
+  last_successful_send_at?: string | null;
+  counters: Record<string, number>;
+};

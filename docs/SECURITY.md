@@ -131,3 +131,7 @@ Data de referencia: 2026-07-15
 - S10.3 mantem token apenas em env/memoria e nunca escreve token, headers, payload, paths, nomes de empresa, hashes completos, PDF ou texto em state, health ou logs padrao. `agent/.state/`, `agent/logs/` e env local do agent ficam fora do Git.
 - O agent rejeita URL HTTP remota; HTTP e permitido somente para `localhost`/loopback em desenvolvimento. Ele envia exclusivamente metadata v1 por `X-Lumen-Agent-Token`, sem JWT humano, org slug ou IDs de tenant.
 - Polling opera somente sob a root allowlisted e reutiliza validacao fisica contra traversal/reparse point. O primeiro boot nao transmite historico e S10.3 nao executa piloto em `G:\EMPRESAS`, OCR, XML/NFS-e ou parser fiscal.
+## S10.4
+
+- Heartbeat aceita somente lifecycle, timestamps e contadores agregados. Token, header, path, empresa, hash, PDF, raw text e IDs de tenant sao rejeitados e nao sao persistidos.
+- Health humano e somente leitura; reprocessamento exige `ADMIN` ou `DEV`, permanece local e nao envia dados externos. O supervisor Windows nao grava token.

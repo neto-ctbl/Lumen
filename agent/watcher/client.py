@@ -27,12 +27,18 @@ class WatcherApiClient:
         self._transport = transport or _urllib_transport
 
     def send(self, payload: dict[str, object]) -> ClientResponse:
+        return self._send_to("/api/v1/lumen/evidences/watcher-event", payload)
+
+    def send_heartbeat(self, payload: dict[str, object]) -> ClientResponse:
+        return self._send_to("/api/v1/lumen/evidences/watcher-heartbeat", payload)
+
+    def _send_to(self, endpoint: str, payload: dict[str, object]) -> ClientResponse:
         if not self._config.agent_token:
             return ClientResponse(None, "AUTH_CONFIGURATION")
         body = json.dumps(payload, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
         headers = {"Content-Type": "application/json", "X-Lumen-Agent-Token": self._config.agent_token}
         return self._transport(
-            f"{self._config.api_base_url}/api/v1/lumen/evidences/watcher-event",
+            f"{self._config.api_base_url}{endpoint}",
             body,
             headers,
             float(self._config.http_timeout_seconds),

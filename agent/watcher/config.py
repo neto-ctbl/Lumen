@@ -14,6 +14,7 @@ DEFAULT_API_BASE_URL = "http://localhost:8000"
 DEFAULT_SCAN_INTERVAL_SECONDS = 15
 DEFAULT_STABLE_SECONDS = 5
 DEFAULT_HTTP_TIMEOUT_SECONDS = 15
+DEFAULT_HEARTBEAT_SECONDS = 60
 DEFAULT_STATE_PATH = Path("agent/.state/watcher_state.json")
 DEFAULT_HEALTH_PATH = Path("agent/.state/watcher_health.json")
 
@@ -26,6 +27,7 @@ class WatcherConfig:
     scan_interval_seconds: int = DEFAULT_SCAN_INTERVAL_SECONDS
     stable_seconds: int = DEFAULT_STABLE_SECONDS
     http_timeout_seconds: int = DEFAULT_HTTP_TIMEOUT_SECONDS
+    heartbeat_seconds: int = DEFAULT_HEARTBEAT_SECONDS
     state_path: Path = DEFAULT_STATE_PATH
     health_path: Path = DEFAULT_HEALTH_PATH
 
@@ -41,6 +43,7 @@ class WatcherConfig:
             scan_interval_seconds=_positive_int(source, "LUMEN_WATCHER_SCAN_INTERVAL_SECONDS", DEFAULT_SCAN_INTERVAL_SECONDS),
             stable_seconds=_positive_int(source, "LUMEN_WATCHER_STABLE_SECONDS", DEFAULT_STABLE_SECONDS, allow_zero=True),
             http_timeout_seconds=_positive_int(source, "LUMEN_WATCHER_HTTP_TIMEOUT_SECONDS", DEFAULT_HTTP_TIMEOUT_SECONDS),
+            heartbeat_seconds=_positive_int(source, "LUMEN_WATCHER_HEARTBEAT_SECONDS", DEFAULT_HEARTBEAT_SECONDS),
             state_path=Path(source.get("LUMEN_WATCHER_STATE_PATH", str(DEFAULT_STATE_PATH))),
             health_path=Path(source.get("LUMEN_WATCHER_HEALTH_PATH", str(DEFAULT_HEALTH_PATH))),
         )
