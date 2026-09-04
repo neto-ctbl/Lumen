@@ -270,3 +270,5 @@ Data de referencia: 2026-07-20
 - S10.4 persiste somente o ultimo heartbeat sanitizado por organizacao, sem reutilizar `integration_sync_runs`. O backend deriva `STALE`; estado humano nao controla o agent.
 - Reprocessamento e administrativo, limitado a eventos sem evidence, reutiliza matching estrito e nao abre PDF, chama rede, executa parser ou altera obrigacoes.
 - Arquivo unico manual sem `--confirm-send` e dry-run sem HTTP. Diretorios, glob e varredura retroativa nao sao aceitos nessa via.
+- Shutdown normal do agent envia um unico heartbeat remoto `STOPPED` depois de persistir o health local `STOPPED`. A tentativa e best-effort e nao cria retry: falha de rede/backend nao impede a saida e o backend podera derivar `STALE`.
+- A fase 1 do piloto real do S10.4 validou baseline sem flood na root oficial e lifecycle remoto: `1385` candidatos foram somente baselinados; sem eventos/evidencias/status fiscais novos; segundo `--once` sem novidades terminou com heartbeat remoto `STOPPED`. O piloto continua manual e faseado.

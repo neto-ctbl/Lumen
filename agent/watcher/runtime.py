@@ -113,6 +113,14 @@ class WatcherRuntime:
         self._state_store.save(self._state)
         self._write_health_payload("STOPPED")
 
+    def stop_and_send_heartbeat(self) -> ClientResponse | None:
+        """Persist a clean stop before one best-effort remote lifecycle update."""
+        self.mark_stopped()
+        try:
+            return self.send_heartbeat()
+        except Exception:  # Shutdown must not be blocked by an unavailable transport.
+            return None
+
     def mark_fatal(self) -> None:
         self._write_health_payload("DEGRADED", last_error_code="UNEXPECTED_ERROR")
 

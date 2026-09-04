@@ -1689,3 +1689,4 @@ O polling e o mecanismo primario para compatibilidade com unidade de rede. Nenhu
 - Integracoes consulta a saude read-only; nao controla o processo nem transmite documentos.
 - `backend/tests/test_watcher_reprocess.py`: matching tardio, estados nao resolvidos, idempotencia, isolamento de tenant e ausencia de mutacao de obrigacoes.
 - `frontend/tests_e2e/s10_watcher_health.spec.ts`: estados humanos, redacao de payload e viewport movel do card read-only.
+- A fase 1 do piloto real confirmou o baseline local e o heartbeat M2M na root oficial sem ingestao de arquivo. O state local e `agent/.state/` continuam artefatos operacionais ignorados pelo Git.

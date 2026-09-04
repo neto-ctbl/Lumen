@@ -1,6 +1,6 @@
 # Contrato do Watcher Fiscal
 
-Status: S10.0 a S10.3 concluidos; o macro-stage S10 permanece em andamento com S10.4 pendente. O agent operacional usa polling e o endpoint de ingest/persistencia e o contrato S10.2; nao existe parser fiscal ou worker generico neste stage.
+Status: S10.0 a S10.3 concluidos; S10.4 concluiu a fase 1 do piloto real e o macro-stage S10 permanece em andamento. O agent operacional usa polling e o endpoint de ingest/persistencia e o contrato S10.2; nao existe parser fiscal ou worker generico neste stage.
 
 ## Identidade e autenticação futura
 
@@ -70,3 +70,9 @@ O state JSON local e atomico e guarda somente path relativo normalizado, tamanho
 O client usa somente `X-Lumen-Agent-Token` e metadata v1. `2xx` confirma a entrega local; `400/422` marca a versao do arquivo como rejeitada ate mudanca material; autenticacao, indisponibilidade, `5xx` e rede usam backoff persistente limitado a cinco minutos. `--once` nao ignora baseline ou estabilidade e `--status` le apenas health sanitizado. Nao ha piloto real em `G:\EMPRESAS`, service/task automatico, parser fiscal, OCR ou XML neste stage.
 
 `health.status` representa exclusivamente o lifecycle do processo: `STARTING` antes do primeiro ciclo, `RUNNING` ou `DEGRADED` enquanto o processo continuo esta vivo e `STOPPED` depois de `--once`, Ctrl+C ou encerramento limpo. `STOPPED` preserva diagnostico e timestamps da ultima execucao, inclusive `last_error_code`; resultado historico nao muda de significado ao encerrar o processo. Excecao fatal nao e mascarada como `STOPPED` saudavel: o health fica `DEGRADED` com codigo sanitizado.
+
+No encerramento normal, o agent primeiro persiste health local `STOPPED` e depois tenta uma unica transmissao M2M do heartbeat `STOPPED`. A transmissao e best-effort: falha de rede ou backend nao bloqueia a saida, nao cria retry de shutdown e deixa o backend elegivel a `STALE` ate o proximo heartbeat.
+
+## Piloto real fase 1
+
+Em 2026-09-04, um baseline controlado na root oficial encontrou `1385` candidatos e gravou somente state local. Nenhum `watcher_file_event` ou `fiscal_evidence` foi criado. Em um segundo `--once`, sem arquivos novos, o backend recebeu o heartbeat final `STOPPED`. Token, nomes de arquivos e caminhos individuais nao foram registrados nesta documentacao.

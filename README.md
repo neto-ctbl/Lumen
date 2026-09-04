@@ -1050,8 +1050,8 @@ O campo `health.status` descreve somente o lifecycle do processo: `STARTING`, `R
 XML NFS-e permanece fora do watcher S10.1 e sera fonte fiscal separada em micro-stage futuro do S11. O objetivo sera identificar atividades efetivamente geradoras de receita por empresa/competencia para validar uso efetivo de Fator R; a Econet continua sendo apenas potencial cadastral por CNAE. Nao ha parser, tabela, migration ou classificacao NFS-e implementados agora.
 ## S10.4 Watcher fiscal
 
-O watcher fiscal possui heartbeat M2M sanitizado, estado humano read-only e reprocessamento administrativo de eventos ainda sem evidence. Nenhuma tela inicia watcher, envia arquivo ou classifica tributo. O piloto permanece manual: use root sintetica ou pasta piloto explicitamente aprovada; nao aponte bootstrap para `G:\EMPRESAS`.
+O watcher fiscal possui heartbeat M2M sanitizado, estado humano read-only e reprocessamento administrativo de eventos ainda sem evidence. Nenhuma tela inicia watcher, envia arquivo ou classifica tributo. A fase 1 do piloto real controlado foi concluida na root oficial: o primeiro baseline encontrou `1385` candidatos, sem criar eventos ou evidencias; um segundo `--once` encerrou o heartbeat remoto em `STOPPED`.
 
 `python -m agent.watcher.main --ingest-file <pdf>` somente valida e gera dry-run. A transmissao exige tambem `--confirm-send`. `scripts/ops/run_fiscal_watcher_supervised.ps1` supervisiona o processo foreground com backoff, sem criar tarefa agendada. Parser de conteudo continua em S11; conciliacao continua em S12.
 
-O fechamento automatizado cobre health humano, reprocessamento local idempotente e downgrade/upgrade da migration de health. S10.4 ainda aguarda piloto real controlado; S10 permanece em andamento e nenhum piloto e iniciado por este repositorio.
+O fechamento automatizado cobre health humano, reprocessamento local idempotente e downgrade/upgrade da migration de health. S10.4 permanece em piloto manual por fases e S10 permanece em andamento; nenhum piloto e iniciado automaticamente pelo repositorio.

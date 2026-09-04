@@ -28,20 +28,20 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.ingest_file:
             exit_code = _manual_ingest(runtime, args.ingest_file, args.confirm_send)
-            runtime.mark_stopped()
+            runtime.stop_and_send_heartbeat()
             return exit_code
         if args.once:
             summary = runtime.run_once()
             print(json.dumps(summary.to_dict(), ensure_ascii=True, sort_keys=True))
             runtime.send_heartbeat()
-            runtime.mark_stopped()
+            runtime.stop_and_send_heartbeat()
             return 0
         while True:
             print(json.dumps(runtime.run_once().to_dict(), ensure_ascii=True, sort_keys=True))
             runtime.send_heartbeat()
             time.sleep(config.scan_interval_seconds)
     except KeyboardInterrupt:
-        runtime.mark_stopped()
+        runtime.stop_and_send_heartbeat()
         return 0
     except Exception:
         runtime.mark_fatal()

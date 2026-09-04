@@ -3,10 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import agent.watcher.main as watcher_main
 from agent.watcher.client import ClientResponse, WatcherApiClient
 from agent.watcher.config import WatcherConfig
 from agent.watcher.main import main
-from agent.watcher.runtime import WatcherRuntime
+from agent.watcher.runtime import RuntimeSummary, WatcherRuntime
 from agent.watcher.state import WatcherStateStore
 from backend.tests.watcher_agent_test_utils import watcher_pdf_path, write_synthetic_pdf
 
@@ -45,18 +46,23 @@ def test_first_boot_baselines_existing_pdfs_without_sending(tmp_path: Path) -> N
 
 def test_runtime_uses_running_while_alive_and_stopped_after_clean_shutdown(tmp_path: Path) -> None:
     config = _config(tmp_path, tmp_path / "state.json", tmp_path / "health.json")
-    runtime = WatcherRuntime(config)
+    heartbeats: list[str] = []
+    runtime = WatcherRuntime(
+        config,
+        client=WatcherApiClient(config, transport=lambda _url, body, *_: heartbeats.append(json.loads(body)["status"]) or ClientResponse(204, "SUCCESS")),
+    )
 
     runtime.mark_starting()
     assert json.loads(config.health_path.read_text(encoding="utf-8"))["status"] == "STARTING"
     assert runtime.run_once().status == "RUNNING"
     assert json.loads(config.health_path.read_text(encoding="utf-8"))["status"] == "RUNNING"
-    runtime.mark_stopped()
+    runtime.stop_and_send_heartbeat()
 
     health = json.loads(config.health_path.read_text(encoding="utf-8"))
     assert health["status"] == "STOPPED"
     assert health["last_error_code"] is None
     assert health["last_scan_at"]
+    assert heartbeats == ["STOPPED"]
 
 
 def test_once_stops_and_preserves_a_degraded_diagnostic(tmp_path: Path, monkeypatch) -> None:
@@ -180,3 +186,76 @@ def test_manual_ingest_command_records_clean_shutdown(tmp_path: Path, monkeypatc
 
     assert main(["--ingest-file", str(path)]) == 0
     assert json.loads(health_path.read_text(encoding="utf-8"))["status"] == "STOPPED"
+
+
+class _LifecycleRuntime:
+    instances: list["_LifecycleRuntime"] = []
+    next_status = "RUNNING"
+    interrupt = False
+
+    def __init__(self, _config: WatcherConfig) -> None:
+        self.statuses: list[str] = []
+        self.__class__.instances.append(self)
+
+    def mark_starting(self) -> None:
+        self.statuses.append("STARTING")
+
+    def run_once(self) -> RuntimeSummary:
+        if self.__class__.interrupt:
+            raise KeyboardInterrupt
+        return RuntimeSummary(self.__class__.next_status, 0, 0, 0, 0, 0, "ROOT_UNAVAILABLE" if self.__class__.next_status == "DEGRADED" else None)
+
+    def send_heartbeat(self) -> ClientResponse:
+        self.statuses.append(self.__class__.next_status)
+        return ClientResponse(204, "SUCCESS")
+
+    def stop_and_send_heartbeat(self) -> ClientResponse:
+        self.statuses.append("STOPPED")
+        return ClientResponse(204, "SUCCESS")
+
+    def mark_fatal(self) -> None:
+        self.statuses.append("FATAL")
+
+    def ingest_file(self, _path: str, *, confirm_send: bool) -> tuple[dict[str, object], ClientResponse | None]:
+        return {"file_sha256": "a" * 64}, ClientResponse(200, "SUCCESS") if confirm_send else None
+
+
+def _fake_lifecycle(monkeypatch, *, status: str = "RUNNING", interrupt: bool = False) -> None:
+    _LifecycleRuntime.instances = []
+    _LifecycleRuntime.next_status = status
+    _LifecycleRuntime.interrupt = interrupt
+    monkeypatch.setattr(watcher_main, "WatcherRuntime", _LifecycleRuntime)
+
+
+def test_once_sends_running_then_final_stopped_heartbeat(monkeypatch) -> None:
+    _fake_lifecycle(monkeypatch)
+    assert watcher_main.main(["--once"]) == 0
+    assert _LifecycleRuntime.instances[-1].statuses == ["STARTING", "RUNNING", "STOPPED"]
+
+
+def test_degraded_once_and_clean_interrupt_finish_with_stopped_heartbeat(monkeypatch) -> None:
+    _fake_lifecycle(monkeypatch, status="DEGRADED")
+    assert watcher_main.main(["--once"]) == 0
+    assert _LifecycleRuntime.instances[-1].statuses[-1] == "STOPPED"
+
+    _fake_lifecycle(monkeypatch, interrupt=True)
+    assert watcher_main.main([]) == 0
+    assert _LifecycleRuntime.instances[-1].statuses[-1] == "STOPPED"
+
+
+def test_manual_dry_run_finishes_with_stopped_heartbeat(monkeypatch) -> None:
+    _fake_lifecycle(monkeypatch)
+    assert watcher_main.main(["--ingest-file", "synthetic.pdf"]) == 0
+    assert _LifecycleRuntime.instances[-1].statuses[-1] == "STOPPED"
+
+
+def test_failed_final_heartbeat_does_not_block_stopped_local_health(tmp_path: Path) -> None:
+    config = _config(tmp_path, tmp_path / "state.json", tmp_path / "health.json")
+
+    def unavailable(*_args: object) -> ClientResponse:
+        raise OSError("synthetic network failure")
+
+    runtime = WatcherRuntime(config, client=WatcherApiClient(config, transport=unavailable))
+    runtime.mark_starting()
+    assert runtime.stop_and_send_heartbeat() is None
+    assert json.loads(config.health_path.read_text(encoding="utf-8"))["status"] == "STOPPED"
