@@ -130,8 +130,9 @@ Data de referencia: 2026-07-15
 - O backend revalida path puramente em memoria e nao abre `G:\EMPRESAS`, PDF, XML ou qualquer arquivo durante ingest. O payload e fechado contra campos extras e a evidencia inicial nao confirma obrigacao fiscal.
 - S10.3 mantem token apenas em env/memoria e nunca escreve token, headers, payload, paths, nomes de empresa, hashes completos, PDF ou texto em state, health ou logs padrao. `agent/.state/`, `agent/logs/` e env local do agent ficam fora do Git.
 - O agent rejeita URL HTTP remota; HTTP e permitido somente para `localhost`/loopback em desenvolvimento. Ele envia exclusivamente metadata v1 por `X-Lumen-Agent-Token`, sem JWT humano, org slug ou IDs de tenant.
-- Polling opera somente sob a root allowlisted e reutiliza validacao fisica contra traversal/reparse point. O primeiro boot nao transmite historico e S10.3 nao executa piloto em `G:\EMPRESAS`, OCR, XML/NFS-e ou parser fiscal.
+- Polling opera somente sob a root allowlisted e reutiliza validacao fisica contra traversal/reparse point. O primeiro boot nao transmite historico. O piloto real controlado de S10.4 exigiu operacao manual explicita; OCR, XML/NFS-e e parser fiscal permanecem fora de S10.
 ## S10.4
 
 - Heartbeat aceita somente lifecycle, timestamps e contadores agregados. Token, header, path, empresa, hash, PDF, raw text e IDs de tenant sao rejeitados e nao sao persistidos.
 - Health humano e somente leitura; reprocessamento exige `ADMIN` ou `DEV`, permanece local e nao envia dados externos. O supervisor Windows nao grava token.
+- A fase 2 do piloto aceitou somente um arquivo explicitamente informado e exigiu `--confirm-send` para transmitir metadata. O dry-run nao alterou o banco; o repositorio nao registra nome, path, hash, texto ou bytes do PDF real. O replay idempotente nao duplicou evento ou evidence e nenhuma obrigacao fiscal foi modificada.

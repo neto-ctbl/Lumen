@@ -1680,7 +1680,7 @@ S10.2 nao materializou watcher continuo, client HTTP do agent, worker, parser fi
 - `scripts/dev/run_fiscal_watcher.ps1`: runner foreground que usa a `.venv` e herda somente configuracao de ambiente.
 - `backend/tests/test_watcher_scanner.py`, `test_watcher_state.py`, `test_watcher_client.py` e `test_watcher_runtime.py`: cobertura offline com `tmp_path`, inclusive client-to-endpoint sem rede externa.
 
-O polling e o mecanismo primario para compatibilidade com unidade de rede. Nenhum piloto real, service/task Windows, parser fiscal, XML/NFS-e, OCR, worker ou frontend de watcher foi materializado; esses itens permanecem em S10.4 ou S11.3.
+O polling e o mecanismo primario para compatibilidade com unidade de rede. O piloto real controlado foi materializado somente em S10.4; service/task Windows automatico, parser fiscal, XML/NFS-e, OCR e worker permanecem em S11 ou posteriores.
 ## Atualizacao S10.4
 
 - `backend/app/models/watcher_agent_health.py` e migration `20260902_0016`: ultimo heartbeat sanitizado por organizacao.
@@ -1689,4 +1689,5 @@ O polling e o mecanismo primario para compatibilidade com unidade de rede. Nenhu
 - Integracoes consulta a saude read-only; nao controla o processo nem transmite documentos.
 - `backend/tests/test_watcher_reprocess.py`: matching tardio, estados nao resolvidos, idempotencia, isolamento de tenant e ausencia de mutacao de obrigacoes.
 - `frontend/tests_e2e/s10_watcher_health.spec.ts`: estados humanos, redacao de payload e viewport movel do card read-only.
-- A fase 1 do piloto real confirmou o baseline local e o heartbeat M2M na root oficial sem ingestao de arquivo. O state local e `agent/.state/` continuam artefatos operacionais ignorados pelo Git.
+- A fase 1 do piloto real confirmou o baseline local e o heartbeat M2M na root oficial sem ingestao de arquivo. A fase 2 confirmou dry-run manual, envio M2M explicito de um unico PDF real, criacao de um evento/evidence vinculados e replay idempotente, sem parser ou classificacao canonica. O state local e `agent/.state/` continuam artefatos operacionais ignorados pelo Git.
+- O macro-stage S10 foi concluido com o piloto manual controlado; nenhuma rotina automatica de varredura, transmissao ou agendamento foi adicionada ao repositorio.

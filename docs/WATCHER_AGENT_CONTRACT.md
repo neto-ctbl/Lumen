@@ -1,6 +1,6 @@
 # Contrato do Watcher Fiscal
 
-Status: S10.0 a S10.3 concluidos; S10.4 concluiu a fase 1 do piloto real e o macro-stage S10 permanece em andamento. O agent operacional usa polling e o endpoint de ingest/persistencia e o contrato S10.2; nao existe parser fiscal ou worker generico neste stage.
+Status: S10.0 a S10.4 concluidos, incluindo as fases 1 e 2 do piloto real controlado. O agent operacional usa polling e o endpoint de ingest/persistencia e o contrato S10.2; nao existe parser fiscal ou worker generico neste stage.
 
 ## Identidade e autenticação futura
 
@@ -67,7 +67,7 @@ O mecanismo operacional primario e polling incremental, sem dependencia de notif
 
 O state JSON local e atomico e guarda somente path relativo normalizado, tamanho, mtime, hash, entrega e retry. Nao guarda token, headers, PDF, texto, CNPJ ou resultado de parser. A estabilidade exige tamanho e mtime inalterados pelo intervalo configurado; o builder S10.1 ainda confirma a imutabilidade antes/depois do hash/probe. `FILE_CHANGED_DURING_PROCESSING` retorna o arquivo a observacao.
 
-O client usa somente `X-Lumen-Agent-Token` e metadata v1. `2xx` confirma a entrega local; `400/422` marca a versao do arquivo como rejeitada ate mudanca material; autenticacao, indisponibilidade, `5xx` e rede usam backoff persistente limitado a cinco minutos. `--once` nao ignora baseline ou estabilidade e `--status` le apenas health sanitizado. Nao ha piloto real em `G:\EMPRESAS`, service/task automatico, parser fiscal, OCR ou XML neste stage.
+O client usa somente `X-Lumen-Agent-Token` e metadata v1. `2xx` confirma a entrega local; `400/422` marca a versao do arquivo como rejeitada ate mudanca material; autenticacao, indisponibilidade, `5xx` e rede usam backoff persistente limitado a cinco minutos. `--once` nao ignora baseline ou estabilidade e `--status` le apenas health sanitizado. O piloto real controlado ocorreu somente no S10.4; service/task automatico, parser fiscal, OCR e XML continuam fora deste stage.
 
 `health.status` representa exclusivamente o lifecycle do processo: `STARTING` antes do primeiro ciclo, `RUNNING` ou `DEGRADED` enquanto o processo continuo esta vivo e `STOPPED` depois de `--once`, Ctrl+C ou encerramento limpo. `STOPPED` preserva diagnostico e timestamps da ultima execucao, inclusive `last_error_code`; resultado historico nao muda de significado ao encerrar o processo. Excecao fatal nao e mascarada como `STOPPED` saudavel: o health fica `DEGRADED` com codigo sanitizado.
 
@@ -76,3 +76,9 @@ No encerramento normal, o agent primeiro persiste health local `STOPPED` e depoi
 ## Piloto real fase 1
 
 Em 2026-09-04, um baseline controlado na root oficial encontrou `1385` candidatos e gravou somente state local. Nenhum `watcher_file_event` ou `fiscal_evidence` foi criado. Em um segundo `--once`, sem arquivos novos, o backend recebeu o heartbeat final `STOPPED`. Token, nomes de arquivos e caminhos individuais nao foram registrados nesta documentacao.
+
+## Piloto real fase 2 e fechamento S10
+
+Em 2026-09-04, um unico PDF real foi selecionado manualmente para validar o caminho de ingest. O `--ingest-file` sem `--confirm-send` retornou dry-run valido e nao alterou o banco. O envio posterior, com confirmacao explicita, retornou HTTP `200`, criou exatamente um evento `FILE_STABLE` pendente e uma evidence `WATCHER_FILE` pendente vinculada. A evidence continuou com `detected_tax`, `detected_obligation` e `confidence` nulos: filename e pasta nao se tornam classificacao canonica sem parser de conteudo.
+
+O replay confirmado do mesmo arquivo preservou um unico evento e uma unica evidence, validando a fingerprint idempotente. Nenhuma obrigacao fiscal foi alterada. Nomes, paths, hash, texto e conteudo do PDF real nao sao persistidos nesta documentacao nem versionados. Com as fases 1 e 2 aprovadas, o macro-stage S10 esta concluido; S11 permanece responsavel por parser/classificacao por conteudo e S12 por conciliacao.

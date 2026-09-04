@@ -2529,7 +2529,7 @@ Status: concluído em 2026-08-28
 
 ## S10 - Watcher local e motor de evidências por arquivo
 
-Status: em andamento; S10.0, S10.1, S10.2 e S10.3 concluidos; S10.4 com fase 1 de piloto real concluida e fases posteriores pendentes.
+Status: concluido em 2026-09-04; S10.0 a S10.4 concluidos, incluindo as fases 1 e 2 do piloto real controlado.
 
 Objetivo:
 
@@ -2581,7 +2581,7 @@ Regras congeladas no S10.0:
 * A pasta `MM-AAAA` vira `AAAA-MM`, sem aplicar a regra Dominio Folha `M+1`.
 * O primeiro watcher aceitara apenas PDF; XML e OCR ficam fora deste fluxo.
 * S11 permanece reservado aos parsers fiscais e S12 ao motor de conciliacao.
-* S10.2/S10.3 deverao adicionar E2E para evidencias `WATCHER_FILE` e health/estado do Watcher em Integracoes.
+* S10.2/S10.3 adicionaram cobertura de backend; S10.4 adicionou E2E para health/estado do Watcher em Integracoes. A evidencia real de fase 2 foi validada por piloto manual controlado, sem fixture real no repositorio.
 
 S10.0 nao materializa `agent/watcher/main.py`, endpoint, migration, persistencia, extracao/classificacao PDF, worker ou frontend. Esses itens continuam nos micro-stages posteriores.
 
@@ -3195,7 +3195,8 @@ Ao final, informe arquivos alterados, comandos de validação e pendências.
 - O agent envia heartbeat M2M sanitizado e o backend conserva somente o ultimo estado por organizacao. A leitura humana deriva `NEVER_SEEN`, `RUNNING`, `DEGRADED`, `STOPPED` ou `STALE`; ela nao inicia processo, nao varre pasta e nao envia arquivo.
 - O reprocessamento administrativo e local, limitado a watcher events sem evidence; nao reabre PDF, nao altera obrigacoes e nao executa parser.
 - O card de Integracoes exibe somente o estado observado do watcher.
-- O piloto continua manual: bootstrap nao deve apontar para `G:\EMPRESAS`; `--ingest-file` exige arquivo unico e somente transmite com `--confirm-send`. S11 permanece parser por conteudo e S12 conciliacao.
+- O piloto permaneceu manual e controlado: bootstrap nao aponta automaticamente para `G:\EMPRESAS`; `--ingest-file` exige arquivo unico e somente transmite com `--confirm-send`. S11 permanece parser por conteudo e S12 conciliacao.
 - Validacao de fechamento: E2E cobre `NEVER_SEEN`, `RUNNING`, `DEGRADED`, `STOPPED`, `STALE`, redacao de payload e viewport movel; a migration `0016` foi validada em downgrade para `0015` e upgrade de volta ao head sem alterar contagens fiscais.
 - Fase 1 do piloto real, em 2026-09-04: primeiro baseline controlado na root oficial encontrou `1385` candidatos e persistiu `1385` entradas locais, sem criar `watcher_file_events`, `fiscal_evidences` ou mutar `fiscal_obligation_statuses`. O heartbeat M2M foi persistido e o segundo `--once`, sem arquivos novos, encerrou remotamente em `STOPPED`.
-- Estado: S10.0, S10.1, S10.2 e S10.3 concluidos; S10.4 concluiu a fase 1 do piloto real e aguarda as proximas fases controladas; macro-stage S10 permanece em andamento.
+- Fase 2 do piloto real, em 2026-09-04: um unico PDF real, escolhido manualmente, passou primeiro por `--ingest-file` em dry-run valido, sem mutacao. O envio explicito com `--confirm-send` retornou HTTP `200`, criou exatamente um `watcher_file_event` `FILE_STABLE`/`PENDING` e uma `fiscal_evidence` vinculada `WATCHER_FILE`/`WATCHER_INGEST` em `PENDENTE`. `detected_tax`, `detected_obligation` e `confidence` permaneceram nulos; nenhum parser ou classificacao canonica foi executado. O replay confirmado preservou um evento e uma evidence, provando idempotencia. As contagens finais foram `watcher_file_events=1`, `fiscal_evidences=1718`, `fiscal_obligation_statuses=196` e `watcher_agent_health=1` com estado remoto `STOPPED`.
+- Estado: macro-stage S10 concluido. O watcher continua sem agendamento automatico; S11 permanece responsavel por parser/classificacao por conteudo e S12 por conciliacao.
