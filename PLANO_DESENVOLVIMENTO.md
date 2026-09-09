@@ -2587,6 +2587,31 @@ S10.0 nao materializa `agent/watcher/main.py`, endpoint, migration, persistencia
 
 ---
 
+## S10.5 - Catalogo Fiscal de Referencia CNAE/NBS/LC
+
+Status: concluido em 2026-09-04.
+
+Materializa um catalogo global, versionado e somente leitura nas tabelas `fiscal_reference_datasets` e `fiscal_reference_entries`, criadas pela migration `20260904_0017_create_fiscal_reference_catalog.py`. As tres fontes XLSX externas sao importadas pela CLI `python -m backend.scripts.import_fiscal_reference_tables`, com SHA-256 streaming, parser `fiscal-reference-v2`, `raw_payload` fisico, historico e uma unica versao ativa por fonte. O parser do workbook LC116 x NBS resolve apenas celulas mescladas reais pela ancora de cada range; anchors vazias e blanks nao mesclados permanecem `NULL`, sem forward-fill generico. A consulta autenticada `GET /api/v1/lumen/fiscal-reference/search` correlaciona CNAE, LC 116, NBS e classificacoes IBS/CBS, sem determinar enquadramento fiscal ou gerar efeito em dados operacionais.
+
+Entregaveis materializados:
+
+* modelos, schemas e servicos de catalogo em `backend/app/models/fiscal_reference.py`, `backend/app/schemas/fiscal_reference.py`, `backend/app/services/fiscal_reference.py` e `backend/app/services/fiscal_reference_search.py`;
+* endpoint autenticado de pesquisa, CLI de importacao por caminhos explicitos e tela global `/lumen/consultas`;
+* testes de backend em `backend/tests/test_fiscal_reference.py` e E2E em `frontend/tests_e2e/fiscal_reference.spec.ts`;
+* dependencia `openpyxl` no `requirements.txt` para leitura dos XLSX.
+
+Validacao de fechamento, repetida em 2026-09-08 sem escrita em codigo ou banco:
+
+* fontes ativas por SHA-256: CNAE x LC116 `34810785be69bbaacc0722215342ddb98d15ebc4b9a4b3a91b834f090d701bee`, Anexo VIII LC116 x NBS `58ed01e76ce1534c6beeabd2004db6c145a7e383bfa71114e2c1c32b49a460a5` e cTribNac x NBS `171205faf93d9f5a9baeed4a9a61b1cd41cdad932b55fd68c80c897aeff53160`;
+* auditoria fonte x banco: arquivo 1 `1265/1265`, arquivo 2 `1739/1739` e arquivo 3 `2403/2403`, todos com `missing=0`, `extra=0` e `field mismatches=0`;
+* arquivo 2: `2034` ranges mesclados, todos corretos; `unmerged blanks filled=0`, `unexplained fills=0` e `INDOP_RULE` com quatro linhas, sem missing, extra ou mismatch;
+* relacoes sem divergencia: CNAE -> LC116 (`1264`), LC116 -> NBS -> cClassTrib -> IndOp (`1736`) e cTribNac -> NBS -> cClassTrib -> CST -> IndOp (`2403`);
+* correlacao transitiva: `10277` pares CNAE/NBS derivados, sem pares invalidos ou ausentes; `5407` referencias retornaveis pela pesquisa, todas explicadas por linha fisica de uma fonte;
+* casos criticos de merge conferidos nas linhas `2-6`, `125-129` e `1736-1738` da aba `tabela geral`;
+* regressao automatizada do fechamento: backend `697 passed, 1 warning`, `ruff check backend`, `npm run typecheck`, `npm run build` e E2E `14 passed`.
+
+A tela `Consulta Fiscal` em `/lumen/consultas` e global: empresa e competencia selecionadas nao alteram seu resultado. O stage nao altera empresas, competencias ou obrigacoes e nao substitui analise tributaria humana. S10 permanece concluido; S11 ainda nao foi iniciado e S12 permanece fora de escopo.
+
 ## S11 - Parsers e normalizacao documental fiscal
 
 Status: pendente
@@ -2594,24 +2619,52 @@ Status: pendente
 Objetivo:
 
 * Transformar documentos fiscais efetivamente preservados em dados normalizados para conciliação futura.
+* Descobrir a disponibilidade documental por empresa e competencia sem presumir que o historico tenha a mesma riqueza de fontes em todos os periodos.
 
 Justificativa:
 
 * Os exemplos reais de guias demonstraram que o conteúdo dos PDFs traz dados suficientes para classificar e extrair campos relevantes.
 * Regra transversal: classificacao por conteudo prevalece sobre classificacao por filename (`PARSER DE CONTEUDO > NOME DO ARQUIVO > CONTEXTO AUXILIAR`).
-* Filename apenas corrobora ou fornece fallback de baixa confianca; parser conclusivo prevalece em conflito, parser inconclusivo com filename conclusivo gera candidato e ambos inconclusivos exigem conferencia manual. A reconciliacao/flag futura pertence a S11.
+* Filename apenas corrobora ou fornece fallback de baixa confianca; parser conclusivo prevalece em conflito, parser inconclusivo com filename conclusivo gera candidato e ambos inconclusivos exigem conferencia manual. A reconciliacao e a decisao de flag pertencem ao S12, nao ao S11.
+
+Decisao arquitetural de fontes por regime:
+
+* Para Simples Nacional, o Sittax continua como fonte estruturada principal de receita, segregacoes, anexos, Fator R, PGDAS/DAS e valores de apuracao quando disponiveis. Documentos e guias sao evidencias e insumos de conciliacao, nao substitutos automaticos desse dado estruturado.
+* Para Lucro Presumido e Lucro Real, o JSON de importacao do MIT gerado pela Dominio sera a fonte estruturada preferencial da apuracao federal, quando existir. O leiaute real observado define os debitos, codigos, valores, periodo, IRPJ, CSLL, PIS/Pasep, COFINS e demais grupos aproveitaveis.
+* O escritorio passou a preservar regularmente o JSON MIT apenas recentemente. A ausencia desse arquivo em competencias historicas e uma ausencia legitima de fonte: nao prova apuracao ausente, transmissao ausente, erro operacional ou divergencia; nao exige backfill manual, reconstrucao artificial ou acesso ao e-CAC.
+* A adocao do MIT nao deve ser hardcoded por competencia. Ela sera observada pelos arquivos efetivamente encontrados para cada empresa, e uma competencia anterior a essa adocao nao pode alertar somente por nao possuir MIT.
+
+Principio de evidencia:
+
+* ausencia de evidencia nao e automaticamente evidencia de ausencia;
+* valores e fatos relevantes preservarao, no modelo futuro, fonte, competencia, origem documental, hash/arquivo quando aplicavel, versao de parser, qualidade da evidencia e coexistencia de multiplas evidencias para o mesmo fato;
+* fontes conceituais incluem `MIT_JSON`, `DCTFWEB`, `DARF`, `REINF`, `SITTAX`, `NFS_OUT`, `NFS_IN` e `ACESSORIAS`; a qualidade conceitual inclui `STRUCTURED`, `DECLARED`, `GUIDE_ONLY`, `DERIVED` e `UNKNOWN`. Estes nomes nao fecham ENUMs neste stage.
 
 ### S11.1 - Guias: impostos e parcelamentos
 
 Reservado para DAS, DARF/SENDA, PIS, COFINS, IRPJ, CSLL, ICMS/DARE, DIFAL, DIFAL Consumo/Ativo, PROTEGE, ISS, parcelamentos estaduais, Simples, PERT/RELP, PGFN/SISPAR e demais guias reais do corpus. DARF e familia documental; tributo e classificacao derivada da composicao. Nao assumir `folder_period == document_period == tax_assessment_period`.
 
+DARF e evidencia do valor gerado para recolhimento. O parser futuro deve extrair, quando observaveis, codigo, periodo, vencimento, valor, identificadores e demais campos presentes. DARF nao e sinonimo de apuracao nem prova, isoladamente, o valor bruto originalmente apurado: compensacoes, ajustes, saldo, acrescimos e outras situacoes podem separar a guia da apuracao. O S11 registra o fato documental; o S12 podera confronta-lo com outras fontes.
+
 ### S11.2 - Declaracoes
 
-Reservado para recibo/comprovante DCTFWeb, recibo/fechamento EFD-Reinf e outras declaracoes somente quando existirem na rotina. MIT nao possui documento proprio salvo pelo escritorio; a evidencia documental preservada do fluxo e o recibo DCTFWeb, quando aplicavel. Nao criar parser ficticio de recibo MIT.
+Reservado para recibo/comprovante DCTFWeb, recibo/fechamento EFD-Reinf, JSON MIT gerado pela Dominio e outras declaracoes somente quando existirem na rotina.
+
+O parser estruturado do JSON MIT deve, conforme o leiaute real, extrair identificacao e periodo, codigos de debito, valores, grupos tributarios, IRPJ, CSLL, PIS/Pasep, COFINS e demais informacoes relevantes. Deve preservar `raw_payload`, versao do parser, arquivo fonte, hash e competencia. O MIT JSON e uma fonte distinta de DCTFWeb e DARF; os tres nao devem ser reduzidos a uma entidade indistinta nem deve ser criado parser ficticio para um recibo MIT inexistente.
+
+DCTFWeb representa principalmente estado declarado/transmitido e consolidacao das informacoes que a alimentam. Quando disponivel, o S11 deve registrar competencia, situacao, recibo/comprovante e demais campos observaveis, para confronto posterior. Ela nao substitui automaticamente o MIT quando a composicao estruturada da apuracao nao estiver explicitamente presente na evidencia lida.
+
+EFD-Reinf e seus recibos devem ser tratados como evidencia declarada/transmitida, separada de sinais extraidos de documentos. A observacao de um fato que possa exigir REINF nao equivale a confirmacao de REINF transmitida.
 
 ### S11.3 - Documentos fiscais
 
-Reservado para XML/ZIP de NFS-e e, quando aplicavel ao fluxo real, NF-e/NFC-e/CT-e. A finalidade central da NFS-e e identificar atividades efetivamente geradoras de receita por empresa/competencia para validar Fator R. O fluxo futuro cruza `CNAEs/eControle + Econet` (potencial), atividades/receitas NFS-e, `FS12/Folha Dominio`, `RBT12/apuracao Sittax`, fator R observado e anexo aplicado no Sittax. Nao ha parser, tabela ou migration de documentos fiscais neste stage.
+Reservado para XML/ZIP de NFS-e e, quando aplicavel ao fluxo real, NF-e/NFC-e/CT-e. O parser deve distinguir explicitamente NFS-e prestada/saida (`NFS_OUT`) de NFS-e tomada/entrada (`NFS_IN`). Nao ha parser, tabela ou migration de documentos fiscais neste stage.
+
+NFS-e prestada serve para identificar receita de servicos, atividade efetivamente exercida, Item LC 116, NBS quando disponivel, Fator R e confronto com receita/apuracao. O fluxo futuro cruza `CNAEs/eControle + Econet` (potencial), atividades/receitas NFS-e, `FS12/Folha Dominio`, `RBT12/apuracao Sittax`, fator R observado e anexo aplicado no Sittax. CNAE cadastrado nao determina sozinho a atividade efetiva: o conteudo documental prevalece.
+
+NFS-e tomada serve para identificar servicos tomados, retencoes e fatos que podem gerar sinal de EFD-Reinf esperada. O modelo futuro devera suportar, quando presentes no layout, direcao, emitente/destinatario, numero, emissao, competencia, data do servico, valores/base, Item LC116, NBS, ISS, INSS, IRRF, PIS, COFINS e CSLL retidos, municipio, `raw_payload`, arquivo fonte, versao do parser e confianca. Campos ausentes no documento permanecem `NULL`; nao ha inferencia de valores inexistentes.
+
+O S11 deve produzir sinais estruturados equivalentes a `reinf_expected` e `reinf_signal_types`, sem fechar a nomenclatura agora. Exemplos incluem `RETENCAO_PREVIDENCIARIA_SERVICO_TOMADO`, `IRRF`, `PIS_RETIDO`, `COFINS_RETIDO` e `CSLL_RETIDA`. NFS-e tomada nao torna REINF obrigatoria automaticamente: o S11 extrai retencoes e fatos; o S12 aplica regras de dominio, competencia e qualidade das fontes.
 
 Escopo comum:
 
@@ -2621,13 +2674,16 @@ Escopo comum:
 * Tratamento de guias estaduais sem CNPJ claro.
 * Parcelamentos PGFN/SISPAR.
 * Testes com fixtures anonimizadas.
-* Micro-stage proprio de normalizacao/parser de XML NFS-e para identificar atividades efetivamente geradoras de receita por empresa e competencia, como insumo de Fator R.
+* Micro-stage proprio de normalizacao/parser de XML NFS-e prestadas e tomadas para receita/Fator R, retencoes e sinais futuros de REINF.
 
 Limite do micro-stage NFS-e futuro:
 
 * Preservar os layouts de NFS-e ja conhecidos pelo projeto, sem implementar parser neste patch.
 * Nao definir tabelas ou migrations antes de inspecao especifica do schema existente.
 * XML NFS-e nao sera tratado simplesmente como evidencia de guia PDF.
+* S11 entende documentos: descobre, parseia, normaliza, preserva proveniencia e produz fatos estruturados. Nao decide erro fiscal, tratamento tributario, obrigacao ausente, divergencia definitiva nem altera cadastro empresarial.
+* Backfill futuro do watcher pode descobrir evidencias historicas existentes de forma controlada, mas nao pode sintetizar arquivos, exigir MIT em competencias antigas ou acessar servicos externos apenas para preencher lacunas do passado.
+* O catalogo global S10.5 pode auxiliar correlacoes de CNAE, LC116, NBS, cTribNac, cClassTrib, CST e IndOp, exclusivamente como referencia. Nenhuma correlacao do catalogo escolhe tributacao correta sem evidencia documental e regra de dominio adicional.
 
 Entregáveis:
 
@@ -2722,6 +2778,46 @@ Escopo:
 * Responsável por departamento.
 * Reprocessamento idempotente por competência.
 * Auditoria das decisões.
+
+Fronteira arquitetural: S12 concilia fatos e evidencias normalizados pelo S11; nao reinterpreta arquivos brutos como substituto do parser. Deve confrontar Sittax, MIT, DCTFWeb, REINF, DARF/guias, NFS-e prestadas, NFS-e tomadas, Acessorias e demais evidencias disponiveis, preservando a proveniencia e a qualidade de cada uma.
+
+Hierarquia de apuracao/evidencia para Lucro Presumido e Lucro Real:
+
+| Nivel | Disponibilidade | Significado para a conciliacao |
+| --- | --- | --- |
+| `APURACAO_ESTRUTURADA` | JSON MIT | composicao estruturada dos debitos; fonte preferencial de `APURADO` |
+| `DECLARADO_E_GUIA` | DCTFWeb/recibo e DARF | declaracao e guia observadas, sem afirmar reconstrucao da apuracao MIT |
+| `GUIA_ONLY` | DARF/guia | tributo, codigo, competencia, vencimento e valor observaveis, com menor riqueza semantica |
+| `INDETERMINADO` | sem MIT, declaracao utilizavel ou guia utilizavel | evidencia insuficiente; nenhum valor estimado deve ser inventado |
+
+`Guia nao e sinonimo de apuracao.` O S12 deve separar `APURADO` (MIT JSON quando disponivel), `DECLARADO` (DCTFWeb/REINF e comprovantes), `GUIA/RECOLHIVEL` (DARF e demais guias) e `ENTREGUE/CONTROLADO` (Acessorias). Em competencias historicas sem MIT, `APURADO` pode permanecer desconhecido sem impedir a conciliacao de declaracao, guia e entrega.
+
+O motor opera por disponibilidade temporal de fontes, sem exigir historico homogeneo. Uma mesma empresa pode estar em `GUIDE_ONLY` em uma competencia, `DECLARADO_E_GUIA` em outra e `APURACAO_ESTRUTURADA` apos a adocao observavel do MIT. Ausencia historica de MIT, ou de artefato que passou a ser preservado apenas recentemente, e `NOT_OBSERVED` e nao `KNOWN_MISSING` por padrao; nao gera obrigacao faltante, erro ou divergencia automatica.
+
+Qualidade/conclusao conceitual da conciliacao: `FULL` para apuracao estruturada acompanhada das evidencias posteriores, `DECLARATION_BACKED` para declaracao e guia sem MIT, `GUIDE_ONLY` para guia isolada e `INSUFFICIENT` para evidencia insuficiente. O frontend futuro deve diferenciar dado nao confirmado por falta legitima de historico de documento atualmente esperado e nao encontrado.
+
+Fluxo futuro de REINF: NFS-e tomada com retencoes identificadas produz sinal de REINF esperada; S12 compara esse sinal com REINF/recibo observado e podera classificar `EXPECTED_AND_OBSERVED`, `EXPECTED_NOT_OBSERVED`, `OBSERVED_WITHOUT_LOCAL_SOURCE`, `NO_SIGNAL` ou `INCONCLUSIVE`. Ausencia de recibo nao declara erro de imediato: competencia, regras fiscais e qualidade das fontes precisam ser consideradas, e o resultado pode ser apenas candidato a revisao.
+
+Matriz de fontes:
+
+| Fato/controle | Fonte preferencial | Fallback ou evidencia auxiliar |
+| --- | --- | --- |
+| Apuracao Simples | Sittax | documentos, PGDAS e DAS |
+| Receita/Fator R | Sittax e NFS-e prestadas | evidencias disponiveis |
+| Apuracao federal LP/LR | JSON MIT | nao reconstruir artificialmente |
+| Declaracao federal | DCTFWeb | comprovantes disponiveis |
+| REINF transmitida | REINF/recibo | DCTFWeb, quando aplicavel, como evidencia posterior |
+| Valor de guia | DARF | PDF ou arquivo equivalente |
+| Fato gerador potencial REINF | NFS-e tomadas e retencoes | outras evidencias fiscais |
+| Entrega operacional | Acessorias | evidencia local |
+
+Fallback nao significa equivalencia semantica: DARF nao substitui MIT.
+
+Exemplos de aplicacao futura:
+
+* Competencia historica LP/LR sem MIT, com DCTFWeb, DARF e Acessorias: apuracao estruturada `NOT_OBSERVED`, declaracao, guia e entrega observadas; conciliacao `DECLARATION_BACKED`, sem divergencia por ausencia do MIT.
+* Competencia atual LP/LR com MIT, DCTFWeb, DARF e Acessorias: conciliacao `FULL`, sujeita aos confrontos de valores e codigos efetivamente observados.
+* NFS-e tomada com INSS retido ou retencao federal relevante: S11 registra fatos e sinais; S12 procura REINF transmitida e, se nao houver evidencia suficiente, produz candidato a revisao, nao erro fiscal definitivo.
 
 Fontes:
 

@@ -4,6 +4,19 @@ Data de referência: 2026-08-20
 
 Este documento descreve a organização inicial recomendada para o monorepo do Lumen. A estrutura foi pensada para facilitar trabalho incremental com Codex, separando backend, frontend, agente local, infra, documentação e scripts operacionais.
 
+## S10.5 materializado e auditado
+
+- `backend/alembic/versions/20260904_0017_create_fiscal_reference_catalog.py`: schema das tabelas `fiscal_reference_datasets` e `fiscal_reference_entries`, unicidade por fonte/SHA/parser e uma versao ativa por fonte.
+- `backend/app/models/fiscal_reference.py`: datasets globais, entries normalizadas, indices de busca e `raw_payload` da linha fisica.
+- `backend/app/services/fiscal_reference.py`: normalizacao, SHA-256 streaming, importacao versionada e leitura XLSX merged-aware para LC116 x NBS, sem forward-fill generico; blank fora de merge e ancora mesclada vazia persistem como `NULL`.
+- `backend/app/services/fiscal_reference_search.py` e `backend/app/schemas/fiscal_reference.py`: consulta read-only tipada que correlaciona CNAE, LC116, NBS e referencias IBS/CBS.
+- `backend/scripts/import_fiscal_reference_tables.py`: importacao por caminho externo e por fonte independente.
+- `frontend/src/features/fiscalReference/`: tela global de Consulta Fiscal em `/lumen/consultas`.
+- `backend/tests/test_fiscal_reference.py` e `frontend/tests_e2e/fiscal_reference.spec.ts`: cobertura do parser, importacao, busca e interface do catalogo.
+- `requirements.txt`: `openpyxl>=3.1.5` como dependencia da leitura dos workbooks XLSX.
+
+O fechamento de 2026-09-08 auditou os tres arquivos ativos diretamente contra o banco, sem escrita: `1265` entradas CNAE x LC116, `1739` entradas LC116 x NBS e `2403` entradas cTribNac x NBS, todas sem linhas ou campos divergentes. Foram validados `2034` ranges mesclados, quatro regras `INDOP_RULE`, as tres relacoes normalizadas, `10277` pares transitivos CNAE/NBS e as `5407` referencias retornaveis pela busca, todos sem divergencia ou falta de proveniencia.
+
 ## Árvore esperada
 
 ## Observação sobre o Stage S1

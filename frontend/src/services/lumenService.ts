@@ -18,6 +18,7 @@ import type {
   FactorRDetailResponse,
   FactorRSummaryResponse,
 } from "../types/lumenS9";
+import type { FiscalReferenceSearchResponse } from "../types/fiscalReference";
 
 type QueryValue = string | number | null | undefined;
 
@@ -92,6 +93,10 @@ export function fetchIntegrationsHealth() {
 
 export function fetchWatcherHealth() {
   return apiRequest<WatcherHealthResponse>("/api/v1/lumen/integrations/watcher-health");
+}
+
+export function fetchFiscalReference(type: "cnae" | "nbs", query: string) {
+  return apiRequest<FiscalReferenceSearchResponse>(`/api/v1/lumen/fiscal-reference/search${buildQuery({ type, q: query })}`);
 }
 
 export function fetchDominioPayrollSummary(sourcePeriod: string) {

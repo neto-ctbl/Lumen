@@ -18,6 +18,7 @@ from backend.app.schemas.delivery import DeliveryListResponse
 from backend.app.schemas.divergence import DivergenceListResponse
 from backend.app.schemas.econet import CompanyCnaeListResponse, FactorRPotentialResponse
 from backend.app.schemas.evidence import EvidenceListResponse
+from backend.app.schemas.fiscal_reference import FiscalReferenceSearchResponse
 from backend.app.schemas.installment import InstallmentListResponse
 from backend.app.schemas.integration import IntegrationHealthResponse
 from backend.app.schemas.lumen_s9 import (
@@ -44,6 +45,7 @@ from backend.app.services.auth import AuthContext, ROLE_ADMIN, ROLE_DEV, ROLE_VI
 from backend.app.services import lumen_read_model
 from backend.app.services.dctfweb_origins import reconcile_dctfweb_period
 from backend.app.services.factor_r_reconciliation import reconcile_factor_r_period
+from backend.app.services.fiscal_reference_search import search_fiscal_reference
 from backend.app.services.watcher_ingest import WatcherIngestError, ingest_watcher_event
 from backend.app.services.watcher_health import get_watcher_health, record_heartbeat
 from backend.app.services.watcher_reprocess import reprocess_unresolved_watcher_events
@@ -294,6 +296,19 @@ def integrations_health(
     db: Session = Depends(get_db),
 ) -> IntegrationHealthResponse:
     return lumen_read_model.get_integrations_health(db, organization_id=context.organization.id)
+
+
+@router.get("/fiscal-reference/search", response_model=FiscalReferenceSearchResponse)
+def fiscal_reference_search(
+    type: str = Query(pattern=r"^(cnae|nbs)$"),
+    q: str = Query(min_length=1, max_length=100),
+    _: AuthContext = Depends(_authorized_context),
+    db: Session = Depends(get_db),
+) -> FiscalReferenceSearchResponse:
+    try:
+        return search_fiscal_reference(db, search_type=type, query=q)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
 
 @router.get("/dominio/payroll/summary", response_model=DominioPayrollSummaryResponse)

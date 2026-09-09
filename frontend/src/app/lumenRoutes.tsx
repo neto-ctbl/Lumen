@@ -7,6 +7,7 @@ import { DivergencesPage } from "../features/divergences/DivergencesPage";
 import { EvidencesPage } from "../features/evidences/EvidencesPage";
 import { InstallmentsPage } from "../features/installments/InstallmentsPage";
 import { IntegrationsPage } from "../features/integrations/IntegrationsPage";
+import { FiscalReferencePage } from "../features/fiscalReference/FiscalReferencePage";
 
 type LumenRouteRendererProps = {
   pathname: string;
@@ -22,6 +23,7 @@ export function getLumenRouteTitle(pathname: string): string {
   if (pathname.startsWith("/lumen/divergencias")) return "Divergências";
   if (pathname.startsWith("/lumen/parcelamentos")) return "Parcelamentos";
   if (pathname.startsWith("/lumen/integracoes")) return "Integrações";
+  if (pathname.startsWith("/lumen/consultas")) return "Consulta Fiscal";
   return "Painel";
 }
 
@@ -57,6 +59,9 @@ export function renderLumenRoute({ pathname, onNavigate }: LumenRouteRendererPro
 
   if (pathname.startsWith("/lumen/integracoes")) {
     return <IntegrationsPage />;
+  }
+  if (pathname.startsWith("/lumen/consultas")) {
+    return <FiscalReferencePage />;
   }
 
   return <DashboardPage onOpenCockpit={onNavigate} />;

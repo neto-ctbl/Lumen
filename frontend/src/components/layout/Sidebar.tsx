@@ -4,6 +4,7 @@ const navItems = [
   { label: "Painel", path: "/lumen/painel" },
   { label: "Cockpit", path: "/lumen/cockpit" },
   { label: "Empresas", path: "/lumen/empresas" },
+  { label: "Consulta Fiscal", path: "/lumen/consultas" },
   { label: "Envios", path: "/lumen/envios" },
   { label: "Evidências", path: "/lumen/evidencias" },
   { label: "Divergências", path: "/lumen/divergencias" },

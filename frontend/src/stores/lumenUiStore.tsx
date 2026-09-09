@@ -20,7 +20,8 @@ export type LumenView =
   | "evidencias"
   | "divergencias"
   | "parcelamentos"
-  | "integracoes";
+  | "integracoes"
+  | "consultas";
 
 export type LumenFilters = {
   status: string;
@@ -74,6 +75,7 @@ function getViewFromPath(pathname: string): LumenView {
   if (pathname.startsWith("/lumen/divergencias")) return "divergencias";
   if (pathname.startsWith("/lumen/parcelamentos")) return "parcelamentos";
   if (pathname.startsWith("/lumen/integracoes")) return "integracoes";
+  if (pathname.startsWith("/lumen/consultas")) return "consultas";
   return "painel";
 }
 

@@ -18,6 +18,7 @@ from backend.app.models.fiscal_obligation import FiscalObligation
 from backend.app.models.fiscal_obligation_rule import FiscalObligationRule
 from backend.app.models.fiscal_obligation_status import FiscalObligationStatus
 from backend.app.models.fiscal_period import FiscalPeriod
+from backend.app.models.fiscal_reference import FiscalReferenceDataset, FiscalReferenceEntry
 from backend.app.models.integration_account import IntegrationAccount
 from backend.app.models.integration_sync_run import IntegrationSyncRun
 from backend.app.models.organization import Organization
@@ -50,6 +51,8 @@ __all__ = [
     "FiscalObligationRule",
     "FiscalObligationStatus",
     "FiscalPeriod",
+    "FiscalReferenceDataset",
+    "FiscalReferenceEntry",
     "IntegrationAccount",
     "IntegrationSyncRun",
     "Organization",

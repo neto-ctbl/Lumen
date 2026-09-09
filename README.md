@@ -2,6 +2,34 @@
 
 Data de referencia: 2026-08-26
 
+## S10.5 - Consulta Fiscal de Referencia
+
+O catalogo fiscal e global e read-only: nao altera empresas, competencias ou obrigacoes. A migration `20260904_0017_create_fiscal_reference_catalog.py` cria `fiscal_reference_datasets` e `fiscal_reference_entries`; o catalogo importa, por caminhos explicitamente informados na CLI, as fontes CNAE x LC 116, LC 116 x NBS x IBS/CBS e cTribNac x NBS x IBS/CBS. Cada carga registra SHA-256, parser `fiscal-reference-v2`, `raw_payload` fisico e historico; somente uma versao por fonte fica ativa.
+
+O workbook LC116 x NBS e interpretado por ranges reais de celulas mescladas: cada celula herdada usa exclusivamente a ancora superior esquerda de seu proprio range. Ancora vazia e blank fora de merge permanecem `NULL`; nao existe forward-fill generico por coluna. A carga v2 foi auditada diretamente contra as tres fontes XLSX, linha fisica por linha fisica.
+
+```powershell
+.\.venv\Scripts\python.exe -m backend.scripts.import_fiscal_reference_tables `
+  --cnae-lc116 "C:\\fonte\\cnae-lc116.xlsx" `
+  --lc116-nbs "C:\\fonte\\lc116-nbs.xlsx" `
+  --tribnac-nbs "C:\\fonte\\tribnac-nbs.xlsx"
+```
+
+Atualize uma fonte passando apenas seu argumento correspondente. A pesquisa autenticada usa `GET /api/v1/lumen/fiscal-reference/search?type=cnae&q=6201501` ou `type=nbs`; a interface esta em `/lumen/consultas`. A consulta apenas correlaciona referencias existentes: nao determina enquadramento, incidencia, obrigacao, aliquota aplicavel ou decisao fiscal para a empresa.
+
+### Fechamento auditado do S10.5
+
+Em 2026-09-08 foi repetida uma auditoria independente, estritamente read-only, dos XLSX contra `fiscal_reference_entries`. As fontes ativas auditadas foram CNAE x LC116 (`SHA-256 34810785be69bbaacc0722215342ddb98d15ebc4b9a4b3a91b834f090d701bee`), Anexo VIII LC116 x NBS (`SHA-256 58ed01e76ce1534c6beeabd2004db6c145a7e383bfa71114e2c1c32b49a460a5`) e cTribNac x NBS (`SHA-256 171205faf93d9f5a9baeed4a9a61b1cd41cdad932b55fd68c80c897aeff53160`).
+
+- Arquivo 1: `1265` linhas fonte e banco; `missing=0`, `extra=0` e `field mismatches=0`.
+- Arquivo 2: `1739` linhas fonte e banco; `missing=0`, `extra=0`, `field mismatches=0`, `2034` ranges mesclados validados, `merged ranges mismatch=0`, `unexplained fills=0` e quatro entradas `INDOP_RULE` sem divergencia.
+- Arquivo 3: `2403` linhas fonte e banco; `missing=0`, `extra=0` e `field mismatches=0`.
+- Relacoes fonte x banco: CNAE -> LC116 (`1264`), LC116 -> NBS -> cClassTrib -> IndOp (`1736`) e cTribNac -> NBS -> cClassTrib -> CST -> IndOp (`2403`), todas sem `missing` ou `extra`.
+- Correlacao transitiva: `10277` pares CNAE/NBS derivados, `invalid pairs=0`, `missing derived pairs=0`; as `5407` referencias retornaveis pela pesquisa possuem proveniencia em uma das fontes (`unexplained reference rows=0`).
+- Casos de merge conferidos explicitamente: linhas `2-6`, `125-129` e `1736-1738` da aba `tabela geral`.
+
+As validacoes automatizadas registradas no fechamento foram `697 passed, 1 warning` no backend, `ruff check backend`, `npm run typecheck`, `npm run build` e `14 passed` no E2E. O warning conhecido e da combinacao Starlette/httpx e nao alterou o resultado funcional do stage.
+
 O repositorio concluiu os Stages S1, S2, S3, S3.1, S3.2, S4, o micro-stage S4.1, o Stage S5, o microajuste S5.1.1, o Stage S5.1, o micro-stage complementar S5.2, o micro-stage S6.0, o Stage S6, os micro-stages complementares S6.2 e S6.3, o micro-stage S7.0, o micro-stage S7.1, o micro-stage S7.2, o micro-stage S7.3, o micro-stage S7.4, o micro-stage S8.0, o micro-stage S8.1, o micro-stage S8.2, o micro-stage S8.3 e os micro-stages complementares S8.3.1 e S8.3.2. Nesta etapa, alem da base tecnica minima do S1, do core backend do S2, da autenticacao backend/frontend do S3/S3.1, do nucleo fiscal persistido no S4/S4.1, do espelho cadastral MVP do eControle no S5, do frontend fiscal read-only do S5.1, da integracao oficial read-only com o Sistema Acessorias no S6, do backfill operacional retroativo do Acessorias sem alteracao de schema no S6.2, do completion cadastral automatizado do eControle com reconciliacao e backfill dedicado no S5.2, do retry automatico de regime por empresa na Acessorias em S6.3 e dos snapshots cadastral e de apuracao do Sittax, o projeto passou a suportar DIFAL, documentos fiscais, tarefas/transmissoes, endpoint manual de sync, persistencia operacional multi-tenant, handoff stateful validado do host `api.sittax.com.br`, contrato observado da Econet documentado com fixtures anonimizadas, a fundacao offline da Econet com model, migration, parser HTML puro e cache idempotente por CNAE, a sessao manual assistida da Econet com cookies em memoria, probe explicito e health local sem rede, o catalogo relacional canonico de CNAEs por empresa, o potencial cadastral de Fator R, o catalogo canonico CONCLA/CNAE 2.3 para `company_activity_types`, a auditoria de anexos do Simples em planilha e a correção semantica do parser da Econet para canonicalizar Fator R como `Anexo V -> Anexo III`.
 
 ## Escopo real atual
