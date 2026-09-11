@@ -22,6 +22,13 @@ class WatcherFileEvent(Base):
     organization_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("organizations.id"), nullable=False, index=True)
     company_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("external_companies.id"), nullable=True, index=True)
     period_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("fiscal_periods.id"), nullable=True, index=True)
+    # Authoritative N:1 link from a physical occurrence to its document identity.
+    evidence_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("fiscal_evidences.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
     file_path: Mapped[str] = mapped_column(String(500), nullable=False)
     normalized_relative_path: Mapped[str | None] = mapped_column(String(500), nullable=True)

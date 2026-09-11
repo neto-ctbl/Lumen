@@ -281,7 +281,18 @@ Data de referencia: 2026-07-20
 - PDF, JSON, XML e ZIP sao candidatos fisicos. O probe tecnico valida apenas formato aparente por prefixo e nao classifica familia fiscal, tributo, obrigacao ou estabelecimento.
 - O contrato v2 preserva `enterprise_folder_candidate`, segmentos internos, candidatos de periodo e hint de filename. O agent nunca envia `organization_id`, `company_id` ou `period_id`.
 - `Matriz`, `Filial`, cidade e aliases de pastas nao resolvem estabelecimento. Eventos v2 e suas evidences nascem com empresa e periodo nulos ate parser/resolver futuro por conteudo.
-- O endpoint M2M continua aceitando v1. A idempotencia de evento por path+hash e mantida temporariamente; ocorrencia fisica e identidade documental por organization+SHA-256 serao separadas antes do backfill.
+- O endpoint M2M continua aceitando v1. A idempotencia de evento por path+hash e preservada; ocorrencia fisica e identidade documental por organization+SHA-256 foram separadas no S11.0.1 antes do backfill.
 - A expansao de cobertura usa baseline incremental versionado sem resetar state e sem enviar o acervo historico recem-visivel.
 - ZIP nao e extraido no S11.0. Limites de entries, bytes descompactados, compression ratio e nesting foram reservados; zip-slip permanece rejeicao obrigatoria do parser futuro.
 - S11.0 nao altera status, alertas, DCTFWeb origins, Fator R ou frontend. S11.1 e S12 permanecem nao iniciados e nenhum backfill real foi executado.
+
+## S11.0.1 - Identidade documental e ocorrencias
+
+- `watcher_file_event` e ocorrencia fisica; `fiscal_evidence WATCHER_FILE` e identidade documental por `organization_id + SHA-256`.
+- A idempotencia do evento permanece path+hash. Path diferente com o mesmo hash cria evento novo e reutiliza evidence; isso nao autoriza classificar a ocorrencia como movimento.
+- A menor alteracao relacional foi `watcher_file_events.evidence_id`, formando N eventos para uma evidence. Nao foi criada terceira tabela ou camada generica de blobs/assets.
+- `fiscal_evidences.watcher_event_id`, `file_path` e `file_name` preservam a primeira observacao. A lista autoritativa de ocorrencias vem dos eventos ligados por `evidence_id`, nao de JSON duplicado.
+- A concorrencia e protegida por indice unico parcial de organizacao+source+hash somente para `WATCHER_FILE`, com savepoint e releitura no servico. Outras sources nao sao afetadas.
+- A migration recusa duplicidades existentes e exige estrategia explicita; nunca consolida ou apaga evidences automaticamente.
+- Resolucao fiscal e identidade documental permanecem separadas. Campos de empresa, periodo, tributo, obrigacao, CNPJ, competencia e confidence podem continuar nulos.
+- O futuro backfill pode reutilizar uma evidence para varias ocorrencias, mas permanece bloqueado operacionalmente e nao foi executado neste stage.

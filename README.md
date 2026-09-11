@@ -1084,7 +1084,7 @@ A fase 2 validou um unico PDF real por operacao manual: o dry-run nao alterou o 
 
 `python -m agent.watcher.main --ingest-file <arquivo.pdf|json|xml|zip>` valida assinatura e gera apenas dry-run por padrao. A transmissao exige `--confirm-send`. O payload v2 nao aceita IDs de tenant, empresa ou periodo; o tenant continua derivado da autenticacao M2M. O backend preserva o v1 e cria para v2 evento/evidence pendentes com empresa e periodo nulos, prontos para parser futuro.
 
-Nenhum backfill historico foi executado e nenhum processo automatico foi instalado. A identidade de ocorrencia permanece path+hash por compatibilidade; a identidade documental por `organization + SHA-256`, sem duplicacao de evidence em movimento/copia, sera fechada antes do backfill. S11.1 e S12 nao foram iniciados. Como nao houve mudanca visual, nao foi necessario criar E2E novo; a regressao existente foi mantida.
+Nenhum backfill historico foi executado e nenhum processo automatico foi instalado. A identidade de ocorrencia permanece path+hash por compatibilidade; a identidade documental por `organization + SHA-256`, sem duplicacao de evidence quando o mesmo conteudo aparece em outro path, foi fechada no S11.0.1 antes do backfill. S11.1 e S12 nao foram iniciados. Como nao houve mudanca visual, nao foi necessario criar E2E novo; a regressao existente foi mantida.
 
 ### Fechamento validado do S11.0
 
@@ -1095,3 +1095,15 @@ No frontend, `npm run typecheck` e `npm run build` passaram, com `62` modulos tr
 A validacao manual criou uma arvore exclusivamente sintetica em `%TEMP%` e encontrou exatamente `6` candidatos: `1 JSON`, `3 PDF`, `1 XML` e `1 ZIP`. Todos produziram payload `contract_version = 2` e probe tecnico valido. Arquivos sinteticos em `Departamento Pessoal` e `Contabilidade` resultaram em `0` candidatos. A validacao nao acessou `G:\EMPRESAS`, nao usou o corpus documental real e nao introduziu PDF/XML/ZIP, CNPJ formatado ou segredo no Git.
 
 O fechamento preserva as decisoes de escopo: path e filename sao somente sinais; empresa/estabelecimento e periodo finais aguardam parser por conteudo; ZIP permanece opaco; a idempotencia de evento continua path+hash ate a separacao futura entre ocorrencia fisica e identidade documental. `S11.1` e `S12` nao foram iniciados, nenhuma obrigacao foi conciliada e nenhum backfill real foi executado.
+
+### S11.0.1 - Identidade documental e ocorrencias
+
+O S11.0.1 separa formalmente ocorrencia e documento: cada `watcher_file_event` e uma observacao fisica de um hash em um path, enquanto uma `fiscal_evidence` `WATCHER_FILE` e a identidade documental do conteudo por `organization_id + SHA-256`. Assim, replay no mesmo path/hash reutiliza evento e evidence; outro path com o mesmo hash cria novo evento e reutiliza a evidence; hash diferente no mesmo path cria novo evento e nova evidence. Hashes iguais em organizacoes distintas nunca se deduplicam.
+
+A migration `20260911_0018` adiciona `watcher_file_events.evidence_id -> fiscal_evidences.id`, permitindo N eventos para uma evidence, e cria unicidade parcial de `(organization_id, source, file_hash)` somente para `source = WATCHER_FILE`. O ponteiro legado `fiscal_evidences.watcher_event_id` e mantido como primeira observacao. Para essas evidences, `file_path` e `file_name` tambem representam a primeira observacao, nao uma localizacao canonica atual. As ocorrencias posteriores permanecem autoritativamente nos eventos, sem lista duplicada de paths no `raw_payload` e sem inferencia automatica de `MOVED`.
+
+O ingest v1 e v2 e o reprocessamento compartilham a mesma rotina de identidade. Um indice unico parcial protege concorrencia no PostgreSQL; em corrida, o insert perdedor reusa a evidence vencedora dentro de fluxo transacional com savepoint. Outras sources de `fiscal_evidences` permanecem fora da regra. Nenhum path resolve empresa ou estabelecimento no contrato v2, e os campos fiscais canonicos continuam nulos ate parser futuro.
+
+Antes da migration, a auditoria segura encontrou `1` evento, `1` evidence `WATCHER_FILE`, `1` hash preenchido e `0` grupos duplicados. Depois do upgrade, o unico evento ficou ligado a unica evidence, sem link entre tenants e sem duplicidade; Alembic ficou em `20260911_0018 (head)`. A migration falha fechada, sem merge ou exclusao, se encontrar grupos duplicados. Upgrade, backfill do vinculo, downgrade e novo upgrade foram exercitados somente na base isolada de testes.
+
+O fechamento passou com `38` testes na suite obrigatoria, `40` na suite focada ampliada com migration, `737` testes backend, Ruff limpo, typecheck/build aprovados e `14` E2E existentes. Nenhum frontend foi alterado. A arquitetura esta pronta para um backfill futuro N ocorrencias -> 1 evidence, mas nenhum arquivo baselinado foi processado, nenhum state foi resetado, nenhum parser fiscal foi criado e S11.1/S12 continuam nao iniciados.

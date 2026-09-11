@@ -144,5 +144,15 @@ Data de referencia: 2026-07-15
 - O payload v2 contem apenas metadata e sinais de path/filename; nao contem bytes, texto JSON/XML, XML Signature, certificados, codigos de barras, protocolos, credenciais ou IDs de tenant.
 - O probe tecnico le no maximo um prefixo pequeno. ZIP permanece opaco; nenhuma entry e extraida ou listada no S11.0.
 - Limites de ZIP ficam configurados localmente para uso obrigatorio do parser futuro: entries, tamanho descompactado, compression ratio e nesting, alem de bloqueio de zip-slip.
+
+## S11.0.1 Identidade documental
+
+- A deduplicacao usa somente organizacao autenticada pelo M2M e SHA-256 normalizado; nenhum tenant vindo do payload participa do lookup.
+- O indice unico parcial inclui `organization_id` e se aplica somente a `WATCHER_FILE`, impedindo deduplicacao entre tenants e evitando alterar sources externas.
+- A migration auditou apenas contagens agregadas. Nenhum path, CNPJ, razao social, hash individual ou payload fiscal foi impresso.
+- `file_path` da evidence guarda apenas o primeiro path relativo observado. Paths adicionais ficam nos eventos e nao sao agregados em listas JSON nem expostos adicionalmente ao frontend.
+- O tratamento de concorrencia usa constraint no banco e savepoint; nao depende de um `SELECT` otimista isolado.
+- A migration nao apaga nem mescla duplicidades. Se a precondicao falhar, exige revisao humana antes de qualquer consolidacao.
+- Nenhum parser, texto documental, XML, ZIP extraido, assinatura, protocolo, codigo de barras ou segredo foi adicionado neste stage.
 - State e health nao armazenam conteudo, token ou dados fiscais extraidos. A versao de cobertura preserva o state anterior e impede envio retroativo acidental.
 - Fixtures novas sao integralmente sinteticas e criadas em diretorios temporarios. O corpus real nao foi copiado, lido pela suite ou versionado.

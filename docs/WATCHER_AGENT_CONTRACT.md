@@ -1,6 +1,6 @@
 # Contrato do Watcher Fiscal
 
-Status: S10.0 a S10.4 e S11.0 concluidos. O agent operacional usa polling, emite candidatos documentais pelo contrato v2 e preserva o ingest v1 para regressao. Nao existe parser fiscal; S11.1 e S12 nao foram iniciados.
+Status: S10.0 a S10.4, S11.0 e S11.0.1 concluidos. O agent operacional usa polling, emite candidatos documentais pelo contrato v2 e preserva o ingest v1 para regressao. Nao existe parser fiscal; S11.1 e S12 nao foram iniciados.
 
 ## Identidade e autenticação futura
 
@@ -93,4 +93,14 @@ O agent novo emite contrato v2 para PDF, JSON, XML e ZIP. Ele preserva extensao,
 
 O backend continua aceitando o payload v1. Para v2, persiste evento e evidence pendente com empresa e periodo nulos, sem migration e sem alterar obrigacoes. O tenant continua derivado exclusivamente do token M2M. A cobertura nova e adotada por baseline incremental do state existente, sem reset e sem backfill.
 
-ZIP permanece opaco. As configuracoes de entries, bytes descompactados, compression ratio e nesting reservam limites para o parser futuro, que tambem devera bloquear zip-slip. A identidade documental por organization+SHA-256 e sua relacao com multiplas ocorrencias fisicas sera implementada antes de qualquer backfill historico. S11.1 e S12 nao foram iniciados.
+ZIP permanece opaco. As configuracoes de entries, bytes descompactados, compression ratio e nesting reservam limites para o parser futuro, que tambem devera bloquear zip-slip. A identidade documental por organization+SHA-256 e sua relacao com multiplas ocorrencias fisicas foram implementadas no S11.0.1 antes de qualquer backfill historico. S11.1 e S12 nao foram iniciados.
+
+## S11.0.1 - Identidade documental e ocorrencias fisicas
+
+`watcher_file_event` e uma ocorrencia fisica: observa um hash em um path relativo, sem concluir se houve copia, movimento ou duplicacao. Sua idempotencia continua `organization + normalized_relative_path + SHA-256`. `fiscal_evidence` com source `WATCHER_FILE` e a identidade documental canonica por `organization + SHA-256`, independentemente do path.
+
+A relacao autoritativa e N:1 por `watcher_file_events.evidence_id -> fiscal_evidences.id`. O campo legado `fiscal_evidences.watcher_event_id` identifica a primeira observacao e foi mantido para compatibilidade/rollback. `fiscal_evidences.file_path` e `file_name` tambem representam somente a primeira observacao; todas as ocorrencias devem ser consultadas relacionalmente nos eventos. O `raw_payload` nao acumula lista de paths.
+
+A unicidade parcial `uq_fiscal_evidences_watcher_org_source_hash` vale somente para `WATCHER_FILE` com hash nao nulo. O lookup e tenant-scoped; v1 e v2 usam a mesma rotina, e uma corrida de insert e resolvida pelo indice no PostgreSQL mais savepoint/releitura da evidence vencedora. Sources externas ao Watcher nao participam dessa constraint.
+
+Empresa, estabelecimento, periodo e classificacao fiscal permanecem independentes da identidade do conteudo. Nenhum parser foi adicionado. A arquitetura permite backfill futuro com varias ocorrencias para uma evidence, mas o backfill real continua nao executado; S11.1 e S12 nao foram iniciados.

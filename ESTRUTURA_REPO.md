@@ -1730,3 +1730,20 @@ O polling e o mecanismo primario para compatibilidade com unidade de rede. O pil
 - Seguranca: nenhum documento do corpus real foi lido ou versionado, nenhuma validacao acessou `G:\EMPRESAS`, nenhum PDF/XML/ZIP novo apareceu no Git e a busca por CNPJ formatado nas alteracoes auditadas nao retornou resultado.
 - `git diff --check` nao encontrou erro; os avisos `LF will be replaced by CRLF` sao apenas informativos sobre normalizacao futura de line endings no Windows.
 - Escopo final: `S11.0_CONCLUIDO = YES`, `S11.1_INICIADO = NO`, `S12_INICIADO = NO`, `BACKFILL_REAL_EXECUTADO = NO`, `MIGRATION_S11_CRIADA = NO`.
+
+## Atualizacao S11.0.1
+
+- `backend/app/models/watcher_file_event.py`: `evidence_id` nullable passa a ligar cada ocorrencia fisica a identidade documental canonica.
+- `backend/app/models/fiscal_evidence.py`: indice unico parcial protege `(organization_id, source, file_hash)` exclusivamente para `WATCHER_FILE`; demais sources preservam sua semantica.
+- `backend/alembic/versions/20260911_0018_add_watcher_document_identity.py`: adiciona coluna, FK e indices nomeados, preenche o novo vinculo a partir da relacao legada e recusa duplicidades preexistentes sem merge destrutivo.
+- `backend/app/services/watcher_ingest.py`: v1 e v2 preservam idempotencia fisica por path+hash e compartilham identidade documental por tenant+hash, com savepoint e recuperacao de conflito de unicidade.
+- `backend/app/services/watcher_reprocess.py`: eventos historicos sem evidence passam a reutilizar identidade existente ou criar uma unica evidence quando possuem hash, sem parser fiscal.
+- `backend/tests/test_watcher_ingest.py`: cobre replay, mesmo hash em outro path, hash novo no mesmo path, isolamento multi-tenant, campos fiscais nulos, v1/v2, concorrencia por constraint e fontes nao-Watcher.
+- `backend/tests/test_watcher_document_identity_migration.py`: valida backfill do vinculo, round-trip upgrade/downgrade/upgrade e recusa segura de duplicidades.
+- Relacao anterior preservada para compatibilidade: `fiscal_evidences.watcher_event_id` continua apontando para a primeira ocorrencia. A relacao autoritativa N:1 e `watcher_file_events.evidence_id -> fiscal_evidences.id`.
+- Para `WATCHER_FILE`, `fiscal_evidences.file_path` e `file_name` sao os valores da primeira observacao. Eventos posteriores registram os demais paths e nao alteram a evidence nem afirmam movimento.
+- Auditoria pre-migration somente por agregados: `1` event, `1` evidence Watcher, `1` hash nao nulo, `0` hash nulo, `0` grupos duplicados, `0` linhas excedentes e `0` eventos associados a duplicidade.
+- Estado pos-migration: `1` event, `1` evidence, `1` event ligado, `0` links cross-tenant, `0` grupos duplicados e Alembic `20260911_0018 (head)`.
+- Validacao: `38 passed` na suite obrigatoria; `40 passed` na suite focada ampliada com migration; `737 passed` no backend completo em `209.51s`; Ruff limpo; typecheck/build aprovados (`62` modulos); `14 passed` no E2E em `1.6m`.
+- Nenhuma tabela adicional, parser, extracao ZIP, classificacao fiscal, conciliacao, alteracao de frontend, reset de state ou backfill real foi introduzido.
+- Escopo final: `S11.0.1_CONCLUIDO = YES`, `S11.1_INICIADO = NO`, `S12_INICIADO = NO`, `BACKFILL_REAL_EXECUTADO = NO`.

@@ -113,29 +113,16 @@ def ingest_watcher_event(
             raise
         return _replay_result(session, existing)
 
-    evidence = None
-    evidence_created = False
-    if company is not None and period is not None:
-        evidence = FiscalEvidence(
-            organization_id=organization.id,
-            company_id=company.id,
-            period_id=period.id,
-            watcher_event_id=event.id,
-            source="WATCHER_FILE",
-            source_type="WATCHER_INGEST",
-            file_path=semantic.normalized_relative_path,
-            file_hash=payload.file_sha256.casefold(),
-            file_name=payload.file_name,
-            raw_payload={
-                "schema_version": payload.schema_version,
-                "pdf_probe": payload.pdf_probe.model_dump(),
-                "watcher_event_id": event.id,
-            },
-            status="PENDENTE",
-        )
-        session.add(evidence)
-        session.flush()
-        evidence_created = True
+    evidence, evidence_created = link_watcher_event_to_document_evidence(
+        session,
+        event=event,
+        company_id=company.id if company is not None else None,
+        period_id=period.id if period is not None else None,
+        provenance={
+            "schema_version": payload.schema_version,
+            "pdf_probe": payload.pdf_probe.model_dump(),
+        },
+    )
 
     record_audit_event(
         session,
@@ -147,6 +134,7 @@ def ingest_watcher_event(
         event_metadata={
             "watcher_event_id": event.id,
             "evidence_id": evidence.id if evidence is not None else None,
+            "evidence_created": evidence_created,
             "company_resolution": company_resolution.value,
             "period_resolution": period_resolution.value,
             "classifier_hint": payload.classifier_hint,
@@ -206,26 +194,17 @@ def _ingest_document_candidate(
             raise
         return _replay_result(session, existing)
 
-    evidence = FiscalEvidence(
-        organization_id=organization.id,
+    evidence, evidence_created = link_watcher_event_to_document_evidence(
+        session,
+        event=event,
         company_id=None,
         period_id=None,
-        watcher_event_id=event.id,
-        source="WATCHER_FILE",
-        source_type="WATCHER_INGEST",
-        file_path=semantic.normalized_relative_path,
-        file_hash=payload.file.sha256.casefold(),
-        file_name=payload.file.file_name,
-        raw_payload={
+        provenance={
             "contract_version": payload.contract_version,
             "technical_probe": payload.technical_probe.model_dump(),
             "path_context": payload.path_context.model_dump(),
-            "watcher_event_id": event.id,
         },
-        status="PENDENTE",
     )
-    session.add(evidence)
-    session.flush()
     record_audit_event(
         session,
         event_type="watcher.event.ingested",
@@ -236,6 +215,7 @@ def _ingest_document_candidate(
         event_metadata={
             "watcher_event_id": event.id,
             "evidence_id": evidence.id,
+            "evidence_created": evidence_created,
             "contract_version": 2,
             "company_resolution": company_resolution.value,
             "period_resolution": period_resolution.value,
@@ -243,7 +223,7 @@ def _ingest_document_candidate(
             "classifier_hint": payload.path_context.classifier_hint,
         },
     )
-    return WatcherIngestResult(event, evidence, True, True, company_resolution, period_resolution)
+    return WatcherIngestResult(event, evidence, True, evidence_created, company_resolution, period_resolution)
 
 
 def validate_document_candidate_semantics(payload: WatcherDocumentCandidateRequest) -> SemanticDocumentCandidate:
@@ -333,8 +313,85 @@ def watcher_idempotency_key(organization_id: int, normalized_relative_path: str,
     return hashlib.sha256(source.encode("utf-8")).hexdigest()
 
 
+def link_watcher_event_to_document_evidence(
+    session: Session,
+    *,
+    event: WatcherFileEvent,
+    company_id: int | None,
+    period_id: int | None,
+    provenance: dict[str, object],
+) -> tuple[FiscalEvidence, bool]:
+    """Link one physical event to the tenant-scoped canonical evidence for its content."""
+    if event.id is None or not event.file_hash:
+        raise WatcherIngestError("watcher event requires a persisted SHA-256")
+    normalized_hash = event.file_hash.casefold()
+    event.file_hash = normalized_hash
+    existing = _watcher_evidence_by_identity(
+        session,
+        organization_id=event.organization_id,
+        file_hash=normalized_hash,
+    )
+    if existing is not None:
+        event.evidence_id = existing.id
+        session.flush()
+        return existing, False
+
+    evidence = FiscalEvidence(
+        organization_id=event.organization_id,
+        company_id=company_id,
+        period_id=period_id,
+        watcher_event_id=event.id,
+        source="WATCHER_FILE",
+        source_type="WATCHER_INGEST",
+        # This is intentionally the first observed path, not a canonical current location.
+        file_path=event.normalized_relative_path,
+        file_hash=normalized_hash,
+        file_name=event.file_name,
+        raw_payload={**provenance, "first_watcher_event_id": event.id},
+        status="PENDENTE",
+    )
+    try:
+        with session.begin_nested():
+            session.add(evidence)
+            session.flush()
+            event.evidence_id = evidence.id
+            session.flush()
+    except IntegrityError as exc:
+        if not _is_document_identity_conflict(exc):
+            raise
+        existing = _watcher_evidence_by_identity(
+            session,
+            organization_id=event.organization_id,
+            file_hash=normalized_hash,
+        )
+        if existing is None:
+            raise
+        event.evidence_id = existing.id
+        session.flush()
+        return existing, False
+    return evidence, True
+
+
+def _watcher_evidence_by_identity(
+    session: Session,
+    *,
+    organization_id: int,
+    file_hash: str,
+) -> FiscalEvidence | None:
+    return session.scalar(
+        select(FiscalEvidence).where(
+            FiscalEvidence.organization_id == organization_id,
+            FiscalEvidence.source == "WATCHER_FILE",
+            FiscalEvidence.file_hash == file_hash,
+        )
+    )
+
+
 def _replay_result(session: Session, event: WatcherFileEvent) -> WatcherIngestResult:
-    evidence = session.scalar(select(FiscalEvidence).where(FiscalEvidence.watcher_event_id == event.id))
+    evidence = session.get(FiscalEvidence, event.evidence_id) if event.evidence_id is not None else None
+    if evidence is None:
+        # Compatibility for pre-S11.0.1 rows before the migration backfill runs.
+        evidence = session.scalar(select(FiscalEvidence).where(FiscalEvidence.watcher_event_id == event.id))
     resolution = event.raw_payload.get("_lumen_resolution", {}) if event.raw_payload else {}
     return WatcherIngestResult(
         event,
@@ -358,3 +415,9 @@ def _is_idempotency_conflict(error: IntegrityError) -> bool:
     original = getattr(error, "orig", None)
     constraint_name = getattr(getattr(original, "diag", None), "constraint_name", None)
     return constraint_name == "uq_watcher_file_events_idempotency_key"
+
+
+def _is_document_identity_conflict(error: IntegrityError) -> bool:
+    original = getattr(error, "orig", None)
+    constraint_name = getattr(getattr(original, "diag", None), "constraint_name", None)
+    return constraint_name == "uq_fiscal_evidences_watcher_org_source_hash"

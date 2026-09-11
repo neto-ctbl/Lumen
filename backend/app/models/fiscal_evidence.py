@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import BigInteger, Date, DateTime, ForeignKey, Index, Numeric, String, UniqueConstraint, func
+from sqlalchemy import BigInteger, Date, DateTime, ForeignKey, Index, Numeric, String, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -16,6 +16,14 @@ class FiscalEvidence(Base):
     __table_args__ = (
         Index("ix_fiscal_evidences_org_period", "organization_id", "period_id"),
         Index("ix_fiscal_evidences_file_hash", "file_hash"),
+        Index(
+            "uq_fiscal_evidences_watcher_org_source_hash",
+            "organization_id",
+            "source",
+            "file_hash",
+            unique=True,
+            postgresql_where=text("source = 'WATCHER_FILE' AND file_hash IS NOT NULL"),
+        ),
         UniqueConstraint("watcher_event_id", name="uq_fiscal_evidences_watcher_event_id"),
     )
 
@@ -23,6 +31,7 @@ class FiscalEvidence(Base):
     organization_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("organizations.id"), nullable=False, index=True)
     company_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("external_companies.id"), nullable=True, index=True)
     period_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("fiscal_periods.id"), nullable=True, index=True)
+    # Legacy-compatible pointer to the first physical observation only.
     watcher_event_id: Mapped[int | None] = mapped_column(
         BigInteger,
         ForeignKey("watcher_file_events.id", ondelete="RESTRICT"),

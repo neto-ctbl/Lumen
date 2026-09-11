@@ -7,6 +7,7 @@ from backend.app.models.fiscal_evidence import FiscalEvidence
 from backend.app.models.fiscal_obligation_status import FiscalObligationStatus
 from backend.app.models.fiscal_period import FiscalPeriod
 from backend.app.models.organization import Organization
+from backend.app.models.watcher_file_event import WatcherFileEvent
 from backend.app.schemas.watcher import WatcherEventIngestRequest
 from backend.app.services.watcher_ingest import ingest_watcher_event
 from backend.app.services.watcher_reprocess import reprocess_unresolved_watcher_events
@@ -51,15 +52,28 @@ def _payload(*, company: str, file_sha256: str) -> WatcherEventIngestRequest:
 
 
 def _evidence_count(db_session, event_id: int) -> int:
-    return db_session.scalar(select(func.count()).select_from(FiscalEvidence).where(FiscalEvidence.watcher_event_id == event_id)) or 0
+    event = db_session.get(WatcherFileEvent, event_id)
+    return int(event is not None and event.evidence_id is not None)
 
 
-def test_reprocess_keeps_unmatched_ambiguous_and_missing_period_without_evidence(db_session) -> None:
+def _remove_document_evidence(db_session, event: WatcherFileEvent) -> None:
+    evidence = db_session.get(FiscalEvidence, event.evidence_id)
+    assert evidence is not None
+    event.evidence_id = None
+    db_session.flush()
+    db_session.delete(evidence)
+    db_session.flush()
+
+
+def test_reprocess_creates_document_identity_even_when_company_or_period_remain_unresolved(db_session) -> None:
     unmatched_org = _organization(db_session, "reprocess-unmatched")
     _period(db_session, unmatched_org)
     unmatched = ingest_watcher_event(db_session, organization=unmatched_org, payload=_payload(company="UNKNOWN", file_sha256="a" * 64)).event
-    assert reprocess_unresolved_watcher_events(db_session, organization=unmatched_org).unresolved == 1
-    assert _evidence_count(db_session, unmatched.id) == 0
+    _remove_document_evidence(db_session, unmatched)
+    unmatched_result = reprocess_unresolved_watcher_events(db_session, organization=unmatched_org)
+    assert unmatched_result.evidence_created == 1 and unmatched_result.unresolved == 0
+    assert _evidence_count(db_session, unmatched.id) == 1
+    assert db_session.get(FiscalEvidence, unmatched.evidence_id).company_id is None
 
     ambiguous_org = _organization(db_session, "reprocess-ambiguous")
     _period(db_session, ambiguous_org)
@@ -67,30 +81,37 @@ def test_reprocess_keeps_unmatched_ambiguous_and_missing_period_without_evidence
     second = _company(db_session, ambiguous_org, "OUTRA")
     second.apelido_pasta = "DUPLICADA"
     ambiguous = ingest_watcher_event(db_session, organization=ambiguous_org, payload=_payload(company="DUPLICADA", file_sha256="b" * 64)).event
-    assert reprocess_unresolved_watcher_events(db_session, organization=ambiguous_org).unresolved == 1
-    assert _evidence_count(db_session, ambiguous.id) == 0
+    _remove_document_evidence(db_session, ambiguous)
+    ambiguous_result = reprocess_unresolved_watcher_events(db_session, organization=ambiguous_org)
+    assert ambiguous_result.evidence_created == 1 and ambiguous_result.unresolved == 0
+    assert _evidence_count(db_session, ambiguous.id) == 1
 
     missing_period_org = _organization(db_session, "reprocess-period")
     _company(db_session, missing_period_org, "SEM PERIODO")
     missing_period = ingest_watcher_event(db_session, organization=missing_period_org, payload=_payload(company="SEM PERIODO", file_sha256="c" * 64)).event
-    assert reprocess_unresolved_watcher_events(db_session, organization=missing_period_org).unresolved == 1
-    assert _evidence_count(db_session, missing_period.id) == 0
+    _remove_document_evidence(db_session, missing_period)
+    missing_result = reprocess_unresolved_watcher_events(db_session, organization=missing_period_org)
+    assert missing_result.evidence_created == 1 and missing_result.unresolved == 0
+    assert _evidence_count(db_session, missing_period.id) == 1
+    assert db_session.get(FiscalEvidence, missing_period.evidence_id).period_id is None
 
 
 def test_reprocess_resolves_later_once_without_changing_obligation_statuses(db_session) -> None:
     organization = _organization(db_session, "reprocess-later")
     _period(db_session, organization)
     event = ingest_watcher_event(db_session, organization=organization, payload=_payload(company="LATER", file_sha256="d" * 64)).event
+    _remove_document_evidence(db_session, event)
     before = db_session.scalar(select(func.count()).select_from(FiscalObligationStatus))
     company = _company(db_session, organization, "LATER")
 
     first = reprocess_unresolved_watcher_events(db_session, organization=organization)
     second = reprocess_unresolved_watcher_events(db_session, organization=organization)
-    evidence = db_session.scalar(select(FiscalEvidence).where(FiscalEvidence.watcher_event_id == event.id))
+    evidence = db_session.get(FiscalEvidence, event.evidence_id)
 
     assert first.evidence_created == 1 and second.evidence_created == 0
     assert evidence is not None and evidence.company_id == company.id
     assert evidence.source == "WATCHER_FILE" and evidence.watcher_event_id == event.id
+    assert event.evidence_id == evidence.id
     assert evidence.detected_tax is None and evidence.detected_obligation is None
     assert _evidence_count(db_session, event.id) == 1
     assert db_session.scalar(select(func.count()).select_from(FiscalObligationStatus)) == before
@@ -100,6 +121,7 @@ def test_reprocess_does_not_cross_organization_boundaries(db_session) -> None:
     source_org = _organization(db_session, "reprocess-source")
     _period(db_session, source_org)
     event = ingest_watcher_event(db_session, organization=source_org, payload=_payload(company="ISOLATED", file_sha256="e" * 64)).event
+    _remove_document_evidence(db_session, event)
     other_org = _organization(db_session, "reprocess-other")
     _period(db_session, other_org)
     _company(db_session, other_org, "ISOLATED")
@@ -107,3 +129,38 @@ def test_reprocess_does_not_cross_organization_boundaries(db_session) -> None:
     result = reprocess_unresolved_watcher_events(db_session, organization=other_org)
     assert result.inspected == 0
     assert _evidence_count(db_session, event.id) == 0
+
+
+def test_reprocess_reuses_existing_document_identity_without_creating_evidence(db_session) -> None:
+    organization = _organization(db_session, "reprocess-reuse")
+    _period(db_session, organization)
+    _company(db_session, organization, "REUSE")
+    first = ingest_watcher_event(
+        db_session,
+        organization=organization,
+        payload=_payload(company="REUSE", file_sha256="f" * 64),
+    )
+    second = ingest_watcher_event(
+        db_session,
+        organization=organization,
+        payload=WatcherEventIngestRequest.model_validate(
+            {
+                **_payload(company="REUSE", file_sha256="f" * 64).model_dump(mode="json"),
+                "relative_path": (
+                    r"REUSE\Escrita Fiscal\07-2026\Guias - Impostos e Parcelamentos"
+                    r"\Importação\guia.pdf"
+                ),
+            }
+        ),
+    )
+    assert first.evidence is not None and second.evidence is not None
+    assert first.evidence.id == second.evidence.id
+    second.event.evidence_id = None
+    db_session.flush()
+
+    result = reprocess_unresolved_watcher_events(db_session, organization=organization)
+
+    assert result.inspected == 1
+    assert result.evidence_created == 0
+    assert result.unresolved == 0
+    assert second.event.evidence_id == first.evidence.id

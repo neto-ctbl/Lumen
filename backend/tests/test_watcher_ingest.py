@@ -186,6 +186,7 @@ def test_ingest_keeps_filename_hint_out_of_canonical_evidence_and_replays_idempo
     assert first.event_created and first.evidence_created
     assert first.event.company_id == company.id and first.event.period_id == period.id
     assert first.evidence is not None and first.evidence.watcher_event_id == first.event.id
+    assert first.event.evidence_id == first.evidence.id
     assert first.evidence.detected_tax is None
     assert first.evidence.detected_obligation is None
     assert first.event.raw_payload["classifier_hint"] == classifier_hint
@@ -202,7 +203,9 @@ def test_ingest_keeps_filename_hint_out_of_canonical_evidence_and_replays_idempo
         folder_period="2026-08",
     ))
     result = ingest_watcher_event(db_session, organization=organization, payload=unresolved)
-    assert result.event_created and result.evidence is None
+    assert result.event_created and result.evidence is not None
+    assert result.event.evidence_id == result.evidence.id
+    assert result.evidence.company_id is None and result.evidence.period_id is None
     assert result.company_resolution is CompanyResolution.UNMATCHED
     assert result.period_resolution is PeriodResolution.PERIOD_NOT_FOUND
 
@@ -269,11 +272,19 @@ def test_endpoint_rejects_extra_payload_fields(client, db_session, monkeypatch) 
 def test_migration_constraints_are_present(db_session) -> None:
     inspector = inspect(db_session.bind)
     watcher_unique = {constraint["name"] for constraint in inspector.get_unique_constraints("watcher_file_events")}
+    watcher_fks = {foreign_key["name"] for foreign_key in inspector.get_foreign_keys("watcher_file_events")}
+    watcher_indexes = {index["name"]: index for index in inspector.get_indexes("watcher_file_events")}
     evidence_unique = {constraint["name"] for constraint in inspector.get_unique_constraints("fiscal_evidences")}
     evidence_fks = {foreign_key["name"] for foreign_key in inspector.get_foreign_keys("fiscal_evidences")}
+    evidence_indexes = {index["name"]: index for index in inspector.get_indexes("fiscal_evidences")}
     assert "uq_watcher_file_events_idempotency_key" in watcher_unique
+    assert "fk_watcher_file_events_evidence_id" in watcher_fks
+    assert "ix_watcher_file_events_evidence_id" in watcher_indexes
     assert "uq_fiscal_evidences_watcher_event_id" in evidence_unique
     assert "fk_fiscal_evidences_watcher_event_id" in evidence_fks
+    identity_index = evidence_indexes["uq_fiscal_evidences_watcher_org_source_hash"]
+    assert identity_index["unique"]
+    assert identity_index["column_names"] == ["organization_id", "source", "file_hash"]
 
 
 def test_v2_accepts_candidate_without_final_company_or_period_and_creates_pending_evidence(db_session) -> None:
@@ -289,6 +300,7 @@ def test_v2_accepts_candidate_without_final_company_or_period_and_creates_pendin
     assert semantic.relative_path.endswith(r"Matriz\08-2026\documento.pdf")
     assert first.event.company_id is None and first.event.period_id is None
     assert first.evidence is not None
+    assert first.event.evidence_id == first.evidence.id
     assert first.evidence.company_id is None and first.evidence.period_id is None
     assert first.evidence.status == "PENDENTE"
     assert first.event.raw_payload["path_context"]["period_candidates"] == ["2026-08"]
@@ -384,3 +396,138 @@ def test_v2_semantics_reject_absolute_traversal_and_inconsistent_provenance(payl
     with pytest.raises((ValidationError, WatcherIngestError)):
         candidate = WatcherDocumentCandidateRequest.model_validate(payload)
         validate_document_candidate_semantics(candidate)
+
+
+def test_same_content_at_another_path_creates_two_events_and_reuses_first_evidence(db_session) -> None:
+    organization = _seed_org(db_session, "watcher-content-identity")
+    first = ingest_watcher_event(
+        db_session,
+        organization=organization,
+        payload=WatcherDocumentCandidateRequest.model_validate(_v2_payload()),
+    )
+    second_payload = _v2_payload(
+        relative_path=r"EMPRESA EXEMPLO\Escrita Fiscal\Matriz\08-2026\Importação\documento.pdf",
+        segments=["Matriz", "08-2026", "Importação"],
+    )
+    second = ingest_watcher_event(
+        db_session,
+        organization=organization,
+        payload=WatcherDocumentCandidateRequest.model_validate(second_payload),
+    )
+
+    assert first.event.id != second.event.id
+    assert first.evidence is not None and second.evidence is not None
+    assert first.evidence.id == second.evidence.id
+    assert first.event.evidence_id == second.event.evidence_id == first.evidence.id
+    assert first.evidence.file_path == first.event.normalized_relative_path
+    assert first.evidence.raw_payload["first_watcher_event_id"] == first.event.id
+    assert second.event.normalized_relative_path not in str(first.evidence.raw_payload)
+    assert first.evidence_created and not second.evidence_created
+    assert db_session.scalar(
+        select(func.count()).select_from(WatcherFileEvent).where(WatcherFileEvent.organization_id == organization.id)
+    ) == 2
+    assert db_session.scalar(
+        select(func.count()).select_from(FiscalEvidence).where(
+            FiscalEvidence.organization_id == organization.id,
+            FiscalEvidence.source == "WATCHER_FILE",
+        )
+    ) == 1
+
+
+def test_changed_content_at_same_path_creates_new_event_and_new_evidence(db_session) -> None:
+    organization = _seed_org(db_session, "watcher-content-change")
+    first = ingest_watcher_event(
+        db_session,
+        organization=organization,
+        payload=WatcherDocumentCandidateRequest.model_validate(_v2_payload(sha256="1" * 64)),
+    )
+    second = ingest_watcher_event(
+        db_session,
+        organization=organization,
+        payload=WatcherDocumentCandidateRequest.model_validate(_v2_payload(sha256="2" * 64)),
+    )
+
+    assert first.event.id != second.event.id
+    assert first.evidence is not None and second.evidence is not None
+    assert first.evidence.id != second.evidence.id
+    assert first.event.evidence_id != second.event.evidence_id
+
+
+def test_same_hash_isolated_by_tenant_and_non_watcher_sources_are_unaffected(db_session) -> None:
+    first_org = _seed_org(db_session, "watcher-identity-org-a")
+    second_org = _seed_org(db_session, "watcher-identity-org-b")
+    payload = WatcherDocumentCandidateRequest.model_validate(_v2_payload(sha256="3" * 64))
+
+    first = ingest_watcher_event(db_session, organization=first_org, payload=payload)
+    second = ingest_watcher_event(db_session, organization=second_org, payload=payload)
+    assert first.evidence is not None and second.evidence is not None
+    assert first.evidence.id != second.evidence.id
+
+    db_session.add_all(
+        [
+            FiscalEvidence(
+                organization_id=first_org.id,
+                source="DOMINIO_FOLHA_PDF",
+                source_type="DOMINIO_PAYROLL_IMPORT",
+                file_hash="3" * 64,
+            ),
+            FiscalEvidence(
+                organization_id=first_org.id,
+                source="DOMINIO_FOLHA_PDF",
+                source_type="DOMINIO_PAYROLL_IMPORT",
+                file_hash="3" * 64,
+            ),
+        ]
+    )
+    db_session.flush()
+
+
+def test_database_prevents_duplicate_watcher_document_identity(db_session) -> None:
+    organization = _seed_org(db_session, "watcher-identity-constraint")
+    with pytest.raises(IntegrityError):
+        with db_session.begin_nested():
+            db_session.add_all(
+                [
+                    FiscalEvidence(
+                        organization_id=organization.id,
+                        source="WATCHER_FILE",
+                        source_type="WATCHER_INGEST",
+                        file_hash="5" * 64,
+                    ),
+                    FiscalEvidence(
+                        organization_id=organization.id,
+                        source="WATCHER_FILE",
+                        source_type="WATCHER_INGEST",
+                        file_hash="5" * 64,
+                    ),
+                ]
+            )
+            db_session.flush()
+
+
+def test_v1_deduplicates_document_identity_across_physical_paths(db_session) -> None:
+    organization = _seed_org(db_session, "watcher-v1-content-identity")
+    _seed_company_period(db_session, organization)
+    first = ingest_watcher_event(
+        db_session,
+        organization=organization,
+        payload=WatcherEventIngestRequest.model_validate(_payload(file_sha256="6" * 64)),
+    )
+    second = ingest_watcher_event(
+        db_session,
+        organization=organization,
+        payload=WatcherEventIngestRequest.model_validate(
+            _payload(
+                relative_path=(
+                    r"EMPRESA EXEMPLO\Escrita Fiscal\07-2026\Guias - Impostos e Parcelamentos"
+                    r"\Importação\DAS 07-2026.pdf"
+                ),
+                file_sha256="6" * 64,
+            )
+        ),
+    )
+
+    assert first.event.id != second.event.id
+    assert first.evidence is not None and second.evidence is not None
+    assert first.evidence.id == second.evidence.id
+    assert first.event.evidence_id == second.event.evidence_id

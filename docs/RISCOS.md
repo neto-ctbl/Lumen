@@ -134,5 +134,15 @@ Data de referencia: 2026-07-20
 - `Matriz`, `Filial` e nomes de cidade sao labels humanos nao padronizados; usa-los para `company_id` pode associar evidencia ao estabelecimento errado.
 - A expansao do scanner poderia causar flood historico sem a adocao de cobertura; paths recem-visiveis sao baselinados uma vez, sem resetar entradas existentes.
 - ZIP pode causar archive bomb, nesting ou zip-slip. S11.0 nao extrai; o parser futuro deve aplicar todos os limites configurados antes de ler entries.
-- A idempotencia atual cria eventos distintos para o mesmo hash em paths diferentes. Sem uma identidade documental separada, um backfill poderia duplicar evidencias; por isso ele permanece bloqueado ate essa decisao ser implementada.
+- A idempotencia de evento cria ocorrencias distintas para o mesmo hash em paths diferentes. O risco de duplicar evidences foi mitigado no S11.0.1 pela identidade documental tenant-scoped; o backfill continua bloqueado ate existir comando e validacao operacional proprios.
+
+## S11.0.1 Identidade documental
+
+- Colisao concorrente de dois eventos com o mesmo hash poderia criar duas evidences. Mitigacao: indice unico parcial no PostgreSQL e tratamento transacional do conflito por savepoint/releitura.
+- Deduplicacao global por hash misturaria tenants. Mitigacao: organizacao integra tanto o lookup quanto o indice unico e possui testes multi-tenant dedicados.
+- Uma unicidade global em `fiscal_evidences.file_hash` quebraria sources com outras semanticas. Mitigacao: predicate estrito `source = WATCHER_FILE`.
+- `file_path` singular pode parecer localizacao atual. Mitigacao: semantica congelada como primeiro path observado; ocorrencias atuais/historicas sao consultadas em `watcher_file_events.evidence_id`.
+- O ponteiro legado em sentido inverso cria redundancia controlada. Ele e somente primeira observacao e compatibilidade de rollback; a relacao N:1 autoritativa segue do evento para a evidence.
+- Duplicidades historicas impediriam a criacao do indice. A migration falha antes de alterar/mesclar esses dados e informa somente a contagem agregada.
+- Downgrade remove os links N:1 de ocorrencias adicionais que so existem no novo schema. Por isso foi validado somente em banco de teste isolado e nao deve ser executado em base operacional apos novos eventos sem avaliacao explicita.
 - O probe le somente prefixo, mas hash continua lendo o arquivo completo; size/mtime antes e depois reduzem, sem eliminar totalmente, riscos de alteracao concorrente e TOCTOU.

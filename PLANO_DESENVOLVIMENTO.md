@@ -2614,7 +2614,7 @@ A tela `Consulta Fiscal` em `/lumen/consultas` e global: empresa e competencia s
 
 ## S11 - Parsers e normalizacao documental fiscal
 
-Status: em andamento; S11.0 concluido, S11.1 e posteriores ainda nao iniciados
+Status: em andamento; S11.0 e S11.0.1 concluidos, S11.1 e posteriores ainda nao iniciados
 
 Objetivo:
 
@@ -2652,7 +2652,7 @@ Status: implementado em 2026-09-09 e fechado apos validacao integral em 2026-09-
 * O backend aceita v1 e v2 no mesmo endpoint M2M. Um evento v2 sempre nasce sem empresa ou periodo final e cria evidence `PENDENTE` com `company_id = NULL` e `period_id = NULL`, usando as nulabilidades ja existentes; nenhuma migration foi necessaria.
 * O state atomico existente nao foi resetado. A versao de cobertura `2` incorpora como `BASELINED` os paths que se tornaram visiveis na primeira execucao apos o upgrade, preservando estados S10 e impedindo backfill acidental.
 * ZIP permanece somente candidato. Os limites configurados para o parser futuro cobrem entries, bytes descompactados, compression ratio e nesting; o parser futuro tambem devera impedir zip-slip/path traversal antes de qualquer extracao.
-* A idempotencia de evento continua `organization + normalized_relative_path + SHA-256`. Antes do backfill historico, sera fechada a separacao entre ocorrencia fisica e identidade documental `organization + SHA-256`, para que mover/copiar gere nova ocorrencia sem duplicar evidence documental final.
+* A idempotencia de evento continua `organization + normalized_relative_path + SHA-256`. A separacao entre ocorrencia fisica e identidade documental `organization + SHA-256` foi fechada no S11.0.1, antes de qualquer backfill historico, para que outro path gere nova ocorrencia sem duplicar a evidence documental.
 * Nenhum backfill real foi executado. Nenhum arquivo de `G:\EMPRESAS` foi aberto na validacao; todas as arvores e formatos usados em testes sao sinteticos e temporarios.
 * Nao houve impacto visual ou mudanca de contrato consumido pelo frontend. Por isso nenhum E2E novo foi criado; a regressao E2E existente continua sendo a validacao adequada.
 * S11.1 e S12 permanecem nao iniciados. Classificacao por conteudo, confirmacao de estabelecimento, parsers fiscais e conciliacao continuam fora deste micro-stage.
@@ -2669,6 +2669,27 @@ Validacao de fechamento executada em 2026-09-11 com `.venv`:
 * `git diff --check` sem erro; os avisos exibidos referem-se somente a futura normalizacao `LF -> CRLF` pelo Git no Windows.
 
 Fechamento de escopo: `S11.0_CONCLUIDO = YES`, `S11.1_INICIADO = NO`, `S12_INICIADO = NO`, `BACKFILL_REAL_EXECUTADO = NO` e `MIGRATION_S11_CRIADA = NO`.
+
+### S11.0.1 - Identidade documental e ocorrencias fisicas do Watcher
+
+Status: concluido em 2026-09-11
+
+* Regra materializada: `watcher_file_event` representa uma observacao fisica de determinado hash em determinado path; `fiscal_evidence` com `source = WATCHER_FILE` representa a identidade documental canonica do conteudo dentro do tenant.
+* A identidade de evento permanece `organization_id + normalized_relative_path + SHA-256`. A identidade documental passa a ser protegida por `organization_id + source + file_hash`, somente quando `source = WATCHER_FILE`; o path nao integra a identidade documental.
+* O schema anterior possuia somente `fiscal_evidences.watcher_event_id -> watcher_file_events.id`, com FK `RESTRICT` e unicidade, e `watcher_file_events` nao possuia `evidence_id`. Isso permitia no maximo uma evidence por evento, mas nao representava relacionalmente varias ocorrencias para a mesma evidence.
+* A migration incremental `20260911_0018_add_watcher_document_identity.py` adiciona `watcher_file_events.evidence_id`, FK `fk_watcher_file_events_evidence_id`, indice `ix_watcher_file_events_evidence_id` e indice unico parcial `uq_fiscal_evidences_watcher_org_source_hash` em `(organization_id, source, file_hash)` para hashes nao nulos de `WATCHER_FILE`.
+* A coluna legada `fiscal_evidences.watcher_event_id` permanece como ponteiro da primeira observacao, preservando compatibilidade e rollback. A lista autoritativa de ocorrencias e obtida por `watcher_file_events.evidence_id`; nenhum array de paths e duplicado em JSON.
+* Para `WATCHER_FILE`, `fiscal_evidences.file_path` e `file_name` significam o path e o nome da primeira observacao. Uma ocorrencia posterior nunca sobrescreve esses campos e nao e rotulada automaticamente como movimento: ela pode representar copia, movimento ou duplicacao fisica.
+* O ingest v1 e v2 procura evidence por organizacao e hash, cria somente quando ausente e liga cada evento pela nova FK. A unicidade parcial no PostgreSQL protege a corrida entre inserts; o servico usa savepoint e, em conflito da identidade, relê e reutiliza a evidence vencedora.
+* O reprocessamento usa a mesma identidade: evento sem `evidence_id` reutiliza evidence existente por tenant/hash ou cria uma nova quando o hash existe. Nenhum parser e executado e resolucao fiscal nao condiciona a identidade documental.
+* Evidences de outras sources nao sao afetadas pela unicidade parcial. Empresa, periodo, tributo, obrigacao, CNPJ detectado, competencia detectada e confidence podem permanecer nulos.
+* Auditoria agregada pre-migration: `watcher_file_events = 1`, `WATCHER_FILE evidences = 1`, `evidences com hash = 1`, `evidences sem hash = 0`, `grupos duplicados = 0`, `linhas excedentes = 0` e `events ligados a identidades duplicadas = 0`. Nenhum path, CNPJ, razao social ou payload fiscal foi impresso.
+* Pos-migration: `events = 1`, `evidences = 1`, `linked_events = 1`, `cross_tenant_links = 0` e `duplicate_groups = 0`; Alembic ficou em `20260911_0018 (head)`.
+* A migration interrompe com contagem agregada se encontrar duplicidades historicas; nao apaga nem mescla evidences. Seu upgrade/backfill/downgrade/re-upgrade foi validado em banco de teste isolado. O downgrade nao foi executado na base operacional local.
+* Validacao: suite obrigatoria de ingest/reprocessamento/contrato `38 passed`; suite focada ampliada com migration `40 passed`; backend completo `737 passed` em `209.51s`; Ruff `All checks passed!`; frontend typecheck e build aprovados, com `62` modulos; regressao E2E existente `14 passed` em `1.6m`.
+* A arquitetura agora permite backfill futuro seguro em que varias ocorrencias do mesmo conteudo resultam em uma unica evidence por organizacao. Nenhum arquivo baselinado foi processado, nenhum state foi resetado e nenhum backfill real foi executado.
+
+Fechamento de escopo: `S11.0.1_CONCLUIDO = YES`, `S11.1_INICIADO = NO`, `S12_INICIADO = NO` e `BACKFILL_REAL_EXECUTADO = NO`.
 
 ### S11.1 - Guias: impostos e parcelamentos
 
