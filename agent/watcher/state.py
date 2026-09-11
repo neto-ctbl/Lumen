@@ -11,6 +11,7 @@ from typing import Any
 
 
 STATE_VERSION = 1
+CURRENT_COVERAGE_VERSION = 2
 
 
 @dataclass(slots=True)
@@ -28,6 +29,7 @@ class FileDeliveryState:
 @dataclass(slots=True)
 class WatcherState:
     initialized: bool = False
+    coverage_version: int = CURRENT_COVERAGE_VERSION
     files: dict[str, FileDeliveryState] = field(default_factory=dict)
 
 
@@ -53,7 +55,13 @@ class WatcherStateStore:
                 for relative_path, value in raw["files"].items()
                 if isinstance(relative_path, str) and isinstance(value, dict)
             }
-            return StateLoadResult(WatcherState(initialized=bool(raw.get("initialized")), files=files))
+            return StateLoadResult(
+                WatcherState(
+                    initialized=bool(raw.get("initialized")),
+                    coverage_version=int(raw.get("coverage_version", 1)),
+                    files=files,
+                )
+            )
         except (OSError, ValueError, TypeError, json.JSONDecodeError):
             self._quarantine_corrupt_state()
             return StateLoadResult(WatcherState(), recovered_corrupt_state=True)
@@ -62,6 +70,7 @@ class WatcherStateStore:
         payload = {
             "version": STATE_VERSION,
             "initialized": state.initialized,
+            "coverage_version": state.coverage_version,
             "files": {key: asdict(value) for key, value in state.files.items()},
         }
         self._write_json_atomically(self.path, payload)

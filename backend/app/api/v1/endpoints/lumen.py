@@ -35,7 +35,7 @@ from backend.app.schemas.lumen_s9 import (
 )
 from backend.app.schemas.period import PeriodListResponse
 from backend.app.schemas.watcher import (
-    WatcherEventIngestRequest,
+    WatcherIngestRequest,
     WatcherEventIngestResponse,
     WatcherHeartbeatRequest,
     WatcherHealthResponse,
@@ -208,7 +208,7 @@ def evidences(
 
 @router.post("/evidences/watcher-event", response_model=WatcherEventIngestResponse)
 def ingest_watcher_event_endpoint(
-    body: WatcherEventIngestRequest,
+    body: WatcherIngestRequest,
     organization: Organization = Depends(_watcher_agent_organization),
     db: Session = Depends(get_db),
 ) -> WatcherEventIngestResponse:

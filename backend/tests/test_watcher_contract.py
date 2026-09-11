@@ -13,11 +13,13 @@ from agent.watcher.path_contract import (
     normalize_relative_path,
     watcher_event_fingerprint,
 )
+from backend.app.schemas.watcher import WatcherDocumentCandidateRequest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES_DIR = REPO_ROOT / "backend" / "tests" / "fixtures" / "watcher"
 SCHEMA_PATH = REPO_ROOT / "schemas" / "watcher_event.schema.json"
+V2_SCHEMA_PATH = REPO_ROOT / "schemas" / "watcher_document_candidate.schema.json"
 
 
 class PdfProbeContract(BaseModel):
@@ -167,3 +169,35 @@ def test_fixtures_are_synthetic_and_do_not_embed_secrets() -> None:
     assert "Bearer " not in fixture_blob
     assert "password" not in fixture_blob.casefold()
     assert "EMPRESA EXEMPLO" in fixture_blob
+
+
+def test_v2_contract_is_closed_generic_and_keeps_tenant_out_of_payload() -> None:
+    payload = {
+        "contract_version": 2,
+        "event": {"event_type": "FILE_STABLE", "detected_at": "2026-09-09T12:00:00+00:00"},
+        "file": {
+            "relative_path": r"EMPRESA EXEMPLO\Escrita Fiscal\Matriz\08-2026\documento.xml",
+            "file_name": "documento.xml",
+            "extension": ".xml",
+            "size": 42,
+            "mtime_ns": 123,
+            "sha256": "a" * 64,
+        },
+        "path_context": {
+            "enterprise_folder_candidate": "EMPRESA EXEMPLO",
+            "fiscal_root": "Escrita Fiscal",
+            "segments_below_fiscal_root": ["Matriz", "08-2026"],
+            "period_candidates": ["2026-08"],
+            "period_ambiguous": False,
+            "classifier_hint": "UNKNOWN",
+        },
+        "technical_probe": {"format": "XML", "valid": True},
+    }
+    WatcherDocumentCandidateRequest.model_validate(payload)
+    schema = json.loads(V2_SCHEMA_PATH.read_text(encoding="utf-8"))
+    _validate_json_schema_instance(payload, schema)
+    assert schema["additionalProperties"] is False
+
+    for forbidden in ("organization_id", "company_id", "period_id"):
+        with pytest.raises(ValidationError):
+            WatcherDocumentCandidateRequest.model_validate({**payload, forbidden: 1})

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import PureWindowsPath
@@ -16,7 +17,7 @@ from backend.app.models.fiscal_evidence import FiscalEvidence
 from backend.app.models.fiscal_period import FiscalPeriod
 from backend.app.models.organization import Organization
 from backend.app.models.watcher_file_event import WatcherFileEvent
-from backend.app.schemas.watcher import WatcherEventIngestRequest
+from backend.app.schemas.watcher import WatcherDocumentCandidateRequest, WatcherEventIngestRequest, WatcherIngestRequest
 from backend.app.services.audit import record_audit_event
 
 
@@ -28,11 +29,15 @@ class CompanyResolution(str, Enum):
     MATCHED = "MATCHED"
     UNMATCHED = "UNMATCHED"
     AMBIGUOUS = "AMBIGUOUS"
+    CANDIDATE_ONLY = "CANDIDATE_ONLY"
 
 
 class PeriodResolution(str, Enum):
     MATCHED = "MATCHED"
     PERIOD_NOT_FOUND = "PERIOD_NOT_FOUND"
+    NO_CANDIDATE = "NO_CANDIDATE"
+    CANDIDATE_ONLY = "CANDIDATE_ONLY"
+    AMBIGUOUS_CANDIDATES = "AMBIGUOUS_CANDIDATES"
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +46,12 @@ class SemanticWatcherEvent:
     normalized_relative_path: str
     folder_company: str
     folder_period: str
+
+
+@dataclass(frozen=True, slots=True)
+class SemanticDocumentCandidate:
+    relative_path: str
+    normalized_relative_path: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,8 +68,10 @@ def ingest_watcher_event(
     session: Session,
     *,
     organization: Organization,
-    payload: WatcherEventIngestRequest,
+    payload: WatcherIngestRequest,
 ) -> WatcherIngestResult:
+    if isinstance(payload, WatcherDocumentCandidateRequest):
+        return _ingest_document_candidate(session, organization=organization, payload=payload)
     semantic = validate_watcher_event_semantics(payload)
     company, company_resolution = resolve_company(session, organization_id=organization.id, folder_company=semantic.folder_company)
     period, period_resolution = resolve_period(session, organization_id=organization.id, folder_period=semantic.folder_period)
@@ -140,6 +153,132 @@ def ingest_watcher_event(
         },
     )
     return WatcherIngestResult(event, evidence, True, evidence_created, company_resolution, period_resolution)
+
+
+def _ingest_document_candidate(
+    session: Session,
+    *,
+    organization: Organization,
+    payload: WatcherDocumentCandidateRequest,
+) -> WatcherIngestResult:
+    semantic = validate_document_candidate_semantics(payload)
+    company_resolution = CompanyResolution.CANDIDATE_ONLY
+    if payload.path_context.period_ambiguous:
+        period_resolution = PeriodResolution.AMBIGUOUS_CANDIDATES
+    elif payload.path_context.period_candidates:
+        period_resolution = PeriodResolution.CANDIDATE_ONLY
+    else:
+        period_resolution = PeriodResolution.NO_CANDIDATE
+    idempotency_key = watcher_idempotency_key(organization.id, semantic.normalized_relative_path, payload.file.sha256)
+    existing = session.scalar(select(WatcherFileEvent).where(WatcherFileEvent.idempotency_key == idempotency_key))
+    if existing is not None:
+        return _replay_result(session, existing)
+
+    safe_payload = payload.model_dump(mode="json")
+    safe_payload["_lumen_resolution"] = {
+        "company": company_resolution.value,
+        "period": period_resolution.value,
+    }
+    event = WatcherFileEvent(
+        organization_id=organization.id,
+        company_id=None,
+        period_id=None,
+        event_type=payload.event.event_type,
+        file_path=semantic.relative_path,
+        normalized_relative_path=semantic.normalized_relative_path,
+        idempotency_key=idempotency_key,
+        file_name=payload.file.file_name,
+        file_hash=payload.file.sha256.casefold(),
+        file_size=payload.file.size,
+        detected_at=payload.event.detected_at,
+        status="PENDING",
+        raw_payload=safe_payload,
+    )
+    try:
+        with session.begin_nested():
+            session.add(event)
+            session.flush()
+    except IntegrityError as exc:
+        if not _is_idempotency_conflict(exc):
+            raise
+        existing = session.scalar(select(WatcherFileEvent).where(WatcherFileEvent.idempotency_key == idempotency_key))
+        if existing is None:
+            raise
+        return _replay_result(session, existing)
+
+    evidence = FiscalEvidence(
+        organization_id=organization.id,
+        company_id=None,
+        period_id=None,
+        watcher_event_id=event.id,
+        source="WATCHER_FILE",
+        source_type="WATCHER_INGEST",
+        file_path=semantic.normalized_relative_path,
+        file_hash=payload.file.sha256.casefold(),
+        file_name=payload.file.file_name,
+        raw_payload={
+            "contract_version": payload.contract_version,
+            "technical_probe": payload.technical_probe.model_dump(),
+            "path_context": payload.path_context.model_dump(),
+            "watcher_event_id": event.id,
+        },
+        status="PENDENTE",
+    )
+    session.add(evidence)
+    session.flush()
+    record_audit_event(
+        session,
+        event_type="watcher.event.ingested",
+        message="Watcher document candidate ingested.",
+        actor_type="WATCHER_AGENT",
+        resource_type="watcher_file_event",
+        resource_id=str(event.id),
+        event_metadata={
+            "watcher_event_id": event.id,
+            "evidence_id": evidence.id,
+            "contract_version": 2,
+            "company_resolution": company_resolution.value,
+            "period_resolution": period_resolution.value,
+            "extension": payload.file.extension,
+            "classifier_hint": payload.path_context.classifier_hint,
+        },
+    )
+    return WatcherIngestResult(event, evidence, True, True, company_resolution, period_resolution)
+
+
+def validate_document_candidate_semantics(payload: WatcherDocumentCandidateRequest) -> SemanticDocumentCandidate:
+    path = PureWindowsPath(payload.file.relative_path)
+    if path.is_absolute() or path.drive or path.root or ".." in path.parts:
+        raise WatcherIngestError("relative_path must be a relative Windows path")
+    parts = [part for part in path.parts if part not in (".", "")]
+    if len(parts) < 3 or parts[1].casefold() != "escrita fiscal":
+        raise WatcherIngestError("relative_path must be below an immediate Escrita Fiscal root")
+    if path.name.casefold() != payload.file.file_name.casefold():
+        raise WatcherIngestError("file_name must match the relative path leaf")
+    if path.suffix.casefold() != payload.file.extension:
+        raise WatcherIngestError("extension must match the relative path leaf")
+    context = payload.path_context
+    if _normalize_name(parts[0]) != _normalize_name(context.enterprise_folder_candidate):
+        raise WatcherIngestError("enterprise folder candidate does not match relative_path")
+    if [part.casefold() for part in parts[2:-1]] != [part.casefold() for part in context.segments_below_fiscal_root]:
+        raise WatcherIngestError("path segments do not match relative_path")
+
+    period_candidates: list[str] = []
+    for segment in parts[2:-1]:
+        match = re.fullmatch(r"(0[1-9]|1[0-2])-(\d{4})", segment.strip())
+        if match is not None:
+            month, year = match.groups()
+            normalized = f"{year}-{month}"
+            if normalized not in period_candidates:
+                period_candidates.append(normalized)
+    if period_candidates != context.period_candidates or context.period_ambiguous != (len(period_candidates) > 1):
+        raise WatcherIngestError("period candidates do not match relative_path")
+
+    expected_format = {".pdf": "PDF", ".json": "JSON", ".xml": "XML", ".zip": "ZIP"}[payload.file.extension]
+    if not payload.technical_probe.valid or payload.technical_probe.format != expected_format:
+        raise WatcherIngestError("technical probe does not match the file extension")
+    relative_path = "\\".join(parts)
+    return SemanticDocumentCandidate(relative_path, _normalize_relative_path(relative_path))
 
 
 def validate_watcher_event_semantics(payload: WatcherEventIngestRequest) -> SemanticWatcherEvent:

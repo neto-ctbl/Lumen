@@ -10,9 +10,10 @@ from typing import Callable
 
 from agent.watcher.client import ClientResponse, WatcherApiClient
 from agent.watcher.config import WatcherConfig
-from agent.watcher.payload_builder import PayloadBuildError, build_watcher_event_payload
-from agent.watcher.scanner import DiscoveredFile, scan_fiscal_pdfs
-from agent.watcher.state import FileDeliveryState, WatcherStateStore
+from agent.watcher.path_contract import WatcherPathError
+from agent.watcher.payload_builder import PayloadBuildError, build_document_candidate_payload
+from agent.watcher.scanner import DiscoveredFile, scan_fiscal_documents
+from agent.watcher.state import CURRENT_COVERAGE_VERSION, FileDeliveryState, WatcherStateStore
 
 
 RETRY_DELAYS_SECONDS = (5, 15, 30, 60, 120, 300)
@@ -38,8 +39,8 @@ class WatcherRuntime:
         config: WatcherConfig,
         *,
         state_store: WatcherStateStore | None = None,
-        scanner: Callable[[str | Path], list[DiscoveredFile]] = scan_fiscal_pdfs,
-        payload_builder: Callable[..., dict[str, object]] = build_watcher_event_payload,
+        scanner: Callable[[str | Path], list[DiscoveredFile]] = scan_fiscal_documents,
+        payload_builder: Callable[..., dict[str, object]] = build_document_candidate_payload,
         client: WatcherApiClient | None = None,
         clock: Callable[[], float] = time.time,
     ) -> None:
@@ -62,7 +63,7 @@ class WatcherRuntime:
         now = self._clock()
         try:
             discovered = self._scanner(self.config.root)
-        except (OSError, FileNotFoundError):
+        except (OSError, FileNotFoundError, WatcherPathError):
             return self._finish("DEGRADED", 0, 0, 0, 0, 0, "ROOT_UNAVAILABLE")
 
         if not self._state.initialized:
@@ -70,6 +71,8 @@ class WatcherRuntime:
             status = "DEGRADED" if self._recovered_corrupt_state else "RUNNING"
             error = "STATE_CORRUPT" if self._recovered_corrupt_state else None
             return self._finish(status, len(discovered), 0, 0, 0, 0, error)
+
+        self._adopt_expanded_coverage(discovered, now)
 
         pending_stability = pending_retry = sent_success = rejected = 0
         status = "RUNNING"
@@ -151,8 +154,11 @@ class WatcherRuntime:
         response = self._client.send(payload)
         if response.category == "SUCCESS":
             stat = candidate.stat()
-            relative_path = str(payload["relative_path"]).casefold()
-            file_sha256 = str(payload["file_sha256"])
+            file_metadata = payload.get("file")
+            if not isinstance(file_metadata, dict):
+                raise PayloadBuildError("INVALID_V2_PAYLOAD")
+            relative_path = str(file_metadata["relative_path"]).casefold()
+            file_sha256 = str(file_metadata["sha256"])
             self._state.files[relative_path] = FileDeliveryState(
                 last_seen_size=stat.st_size,
                 last_seen_mtime_ns=stat.st_mtime_ns,
@@ -176,12 +182,31 @@ class WatcherRuntime:
             for item in discovered
         }
         self._state.initialized = True
+        self._state.coverage_version = CURRENT_COVERAGE_VERSION
+
+    def _adopt_expanded_coverage(self, discovered: list[DiscoveredFile], now: float) -> None:
+        """Baseline only newly visible paths once, preserving all S10 delivery state."""
+        if self._state.coverage_version >= CURRENT_COVERAGE_VERSION:
+            return
+        for item in discovered:
+            if item.normalized_relative_path not in self._state.files:
+                self._state.files[item.normalized_relative_path] = FileDeliveryState(
+                    last_seen_size=item.size,
+                    last_seen_mtime_ns=item.mtime_ns,
+                    stable_since=now,
+                    delivery_status="BASELINED",
+                )
+        self._state.coverage_version = CURRENT_COVERAGE_VERSION
 
     def _process_stable(self, candidate: DiscoveredFile, file_state: FileDeliveryState, now: float) -> str | None:
         try:
             payload = self._payload_builder(self.config.root, candidate.path, detected_at=datetime.now(timezone.utc))
         except PayloadBuildError as exc:
             file_state.stable_since = now
+            if str(exc) == "INVALID_FILE_FORMAT":
+                file_state.delivery_status = "REJECTED"
+                file_state.last_seen_sha256 = "INVALID_FILE_FORMAT"
+                return "REJECTED"
             file_state.delivery_status = "OBSERVING"
             return "FILE_CHANGED" if str(exc) == "FILE_CHANGED_DURING_PROCESSING" else "BUILD_ERROR"
         except OSError:
@@ -189,7 +214,11 @@ class WatcherRuntime:
             file_state.delivery_status = "OBSERVING"
             return "FILE_UNAVAILABLE"
 
-        file_sha256 = str(payload["file_sha256"])
+        file_metadata = payload.get("file")
+        if not isinstance(file_metadata, dict):
+            file_state.delivery_status = "REJECTED"
+            return "REJECTED"
+        file_sha256 = str(file_metadata["sha256"])
         file_state.last_seen_sha256 = file_sha256
         if file_state.last_sent_sha256 == file_sha256:
             file_state.delivery_status = "SENT"

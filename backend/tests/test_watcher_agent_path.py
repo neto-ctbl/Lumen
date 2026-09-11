@@ -4,9 +4,15 @@ from pathlib import Path
 
 import pytest
 
-from agent.watcher.path_contract import WatcherPathError, validate_fiscal_path_lexically, validate_fiscal_path_physically
+from agent.watcher.path_contract import (
+    WatcherPathError,
+    resolve_authorized_fiscal_root,
+    validate_document_path_physically,
+    validate_fiscal_path_lexically,
+    validate_fiscal_path_physically,
+)
 from agent.watcher.company_resolver import folder_company_from_path
-from agent.watcher.period_resolver import folder_period_from_path
+from agent.watcher.period_resolver import folder_period_from_path, period_candidates_from_segments
 from backend.tests.watcher_agent_test_utils import watcher_pdf_path, write_synthetic_pdf
 
 
@@ -62,3 +68,38 @@ def test_physical_guard_rejects_injected_reparse_point(tmp_path: Path) -> None:
     write_synthetic_pdf(file_path)
     with pytest.raises(WatcherPathError, match="reparse"):
         validate_fiscal_path_physically(tmp_path, file_path, reparse_point_detector=lambda path: path == file_path)
+
+
+@pytest.mark.parametrize(
+    ("segments", "expected", "ambiguous"),
+    [
+        (("08-2026",), ["2026-08"], False),
+        (("Matriz", "08-2026"), ["2026-08"], False),
+        (("_REINF_", "08-2026"), ["2026-08"], False),
+        (("Importação",), [], False),
+        (("08-2026", "arquivo", "08-2026"), ["2026-08"], False),
+        (("08-2026", "arquivo", "07-2026"), ["2026-08", "2026-07"], True),
+    ],
+)
+def test_period_candidates_are_position_independent(
+    segments: tuple[str, ...], expected: list[str], ambiguous: bool
+) -> None:
+    assert period_candidates_from_segments(segments) == (expected, ambiguous)
+
+
+def test_flexible_document_path_preserves_segments_and_rejects_escape(tmp_path: Path) -> None:
+    path = tmp_path / "EMPRESA" / "Escrita Fiscal" / "Matriz" / "08-2026" / "documento.xml"
+    path.parent.mkdir(parents=True)
+    path.write_text("<synthetic />", encoding="utf-8")
+    fiscal_root = resolve_authorized_fiscal_root(tmp_path, path)
+    result = validate_document_path_physically(fiscal_root, path)
+    assert result.enterprise_folder_candidate == "EMPRESA"
+    assert result.segments_below_fiscal_root == ("Matriz", "08-2026")
+
+    outside = tmp_path.parent / "outside.xml"
+    outside.write_text("<synthetic />", encoding="utf-8")
+    try:
+        with pytest.raises(WatcherPathError):
+            resolve_authorized_fiscal_root(tmp_path, outside)
+    finally:
+        outside.unlink()

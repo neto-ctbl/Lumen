@@ -1704,3 +1704,29 @@ O polling e o mecanismo primario para compatibilidade com unidade de rede. O pil
 - `frontend/tests_e2e/s10_watcher_health.spec.ts`: estados humanos, redacao de payload e viewport movel do card read-only.
 - A fase 1 do piloto real confirmou o baseline local e o heartbeat M2M na root oficial sem ingestao de arquivo. A fase 2 confirmou dry-run manual, envio M2M explicito de um unico PDF real, criacao de um evento/evidence vinculados e replay idempotente, sem parser ou classificacao canonica. O state local e `agent/.state/` continuam artefatos operacionais ignorados pelo Git.
 - O macro-stage S10 foi concluido com o piloto manual controlado; nenhuma rotina automatica de varredura, transmissao ou agendamento foi adicionada ao repositorio.
+
+## Atualizacao S11.0
+
+- `agent/watcher/path_contract.py` separa a enterprise root das roots fiscais autorizadas `company/Escrita Fiscal`, aceita profundidade interna livre e mantem validacao fisica contra escape e reparse points.
+- `agent/watcher/scanner.py` enumera apenas empresas imediatas, entra somente em `Escrita Fiscal` e reconhece PDF, JSON, XML e ZIP; outras areas empresariais nao sao percorridas.
+- `agent/parsers/file_format_probe.py` faz somente reconhecimento tecnico por prefixo limitado, sem classificar documento ou tributo.
+- `agent/watcher/period_resolver.py` produz zero, um ou varios candidatos de path independentemente da posicao, sem escolher periodo fiscal final.
+- `schemas/watcher_document_candidate.schema.json` e os modelos de `backend/app/schemas/watcher.py` definem o contrato v2 fechado e metadata-only. O endpoint continua aceitando o v1 para regressao.
+- `backend/app/services/watcher_ingest.py` persiste candidato v2 sem `company_id`/`period_id` finais e cria evidence pendente nullable. Matriz/filial e pasta empresarial permanecem apenas em proveniencia.
+- `agent/watcher/state.py` preserva o state S10 e adota a cobertura v2 por baseline incremental, sem flood ou reset.
+- `.env.example` reserva limites de entries, bytes descompactados, compression ratio e nesting para o parser ZIP futuro; S11.0 nao extrai archives.
+- Testes usam somente arquivos sinteticos minimos em `tmp_path`, cobrem layouts livres, boundary, formatos, periodos, M2M, replay e ausencia de mutacao de obrigacoes.
+- Nenhuma migration, tabela, parser fiscal, conciliacao, backfill real, servico automatico ou alteracao de frontend foi introduzida. S11.1 e S12 permanecem nao iniciados; nao houve necessidade de E2E novo.
+
+### Fechamento e validacao do S11.0
+
+- Fechamento validado em `2026-09-11` usando exclusivamente `.venv` e dados sinteticos.
+- Suite focada dos onze modulos de teste do Watcher: `114 passed`, `1` warning conhecido de deprecacao do `TestClient`, em `48.94s`.
+- Suite backend completa: `729 passed`, o mesmo warning conhecido, em `219.96s` (`0:03:39`).
+- Qualidade estatica: `python -m ruff check .\backend .\agent` retornou `All checks passed!`.
+- Banco: Alembic confirmou `20260904_0017 (head)` em PostgreSQL; `git diff --name-only -- backend/alembic/versions` permaneceu vazio, pois as nulabilidades existentes suportam eventos/evidences v2 nao resolvidos.
+- Frontend: typecheck e build aprovados, com `62` modulos transformados; os `14` E2E existentes passaram em `1.5m`. Nenhum E2E foi adicionado porque nao houve alteracao visual.
+- Validacao manual em `%TEMP%`: `6` candidatos esperados (`1 JSON`, `3 PDF`, `1 XML`, `1 ZIP`), todos com probe valido e contrato v2; `0` descoberta fora de `Escrita Fiscal` para os exemplos em `Departamento Pessoal` e `Contabilidade`.
+- Seguranca: nenhum documento do corpus real foi lido ou versionado, nenhuma validacao acessou `G:\EMPRESAS`, nenhum PDF/XML/ZIP novo apareceu no Git e a busca por CNPJ formatado nas alteracoes auditadas nao retornou resultado.
+- `git diff --check` nao encontrou erro; os avisos `LF will be replaced by CRLF` sao apenas informativos sobre normalizacao futura de line endings no Windows.
+- Escopo final: `S11.0_CONCLUIDO = YES`, `S11.1_INICIADO = NO`, `S12_INICIADO = NO`, `BACKFILL_REAL_EXECUTADO = NO`, `MIGRATION_S11_CRIADA = NO`.

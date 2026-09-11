@@ -126,3 +126,13 @@ Data de referencia: 2026-07-20
 - Processo legado não gerenciado é conflito operacional e não é encerrado automaticamente pelo wrapper.
 - A validação final confirmou uma única árvore gerenciada por `organization_slug + diretório canônico`; processos filhos do launcher Python fazem parte da mesma árvore e não representam duplicidade operacional.
 - A Company Page não pode derivar competência fonte por conta própria. Alterações futuras devem preservar o campo explícito do backend e os empty states isolados por card.
+
+## S11.0 Watcher documental flexivel
+
+- Uma extensao suportada nao prova formato; o probe por prefixo reduz incompatibilidades evidentes, mas validacao completa pertence ao parser futuro.
+- Um path pode conter nenhum, um ou varios periodos. Escolher automaticamente um candidato de path contaminaria a competencia documental e permanece proibido.
+- `Matriz`, `Filial` e nomes de cidade sao labels humanos nao padronizados; usa-los para `company_id` pode associar evidencia ao estabelecimento errado.
+- A expansao do scanner poderia causar flood historico sem a adocao de cobertura; paths recem-visiveis sao baselinados uma vez, sem resetar entradas existentes.
+- ZIP pode causar archive bomb, nesting ou zip-slip. S11.0 nao extrai; o parser futuro deve aplicar todos os limites configurados antes de ler entries.
+- A idempotencia atual cria eventos distintos para o mesmo hash em paths diferentes. Sem uma identidade documental separada, um backfill poderia duplicar evidencias; por isso ele permanece bloqueado ate essa decisao ser implementada.
+- O probe le somente prefixo, mas hash continua lendo o arquivo completo; size/mtime antes e depois reduzem, sem eliminar totalmente, riscos de alteracao concorrente e TOCTOU.

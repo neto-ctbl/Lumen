@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
+import zipfile
 
 
 def write_synthetic_pdf(path: Path, *, text: str = "SYNTHETIC DOCUMENT") -> None:
@@ -36,3 +38,19 @@ def watcher_pdf_path(root: Path, *, name: str = "DAS 07-2026.pdf", nested: bool 
         directory /= "Federais"
     directory.mkdir(parents=True)
     return directory / name
+
+
+def write_synthetic_json(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"synthetic": True}), encoding="utf-8")
+
+
+def write_synthetic_xml(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('<?xml version="1.0" encoding="UTF-8"?><synthetic />', encoding="utf-8")
+
+
+def write_synthetic_zip(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("synthetic.txt", "synthetic")

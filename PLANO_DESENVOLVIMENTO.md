@@ -2614,7 +2614,7 @@ A tela `Consulta Fiscal` em `/lumen/consultas` e global: empresa e competencia s
 
 ## S11 - Parsers e normalizacao documental fiscal
 
-Status: pendente
+Status: em andamento; S11.0 concluido, S11.1 e posteriores ainda nao iniciados
 
 Objetivo:
 
@@ -2639,6 +2639,36 @@ Principio de evidencia:
 * ausencia de evidencia nao e automaticamente evidencia de ausencia;
 * valores e fatos relevantes preservarao, no modelo futuro, fonte, competencia, origem documental, hash/arquivo quando aplicavel, versao de parser, qualidade da evidencia e coexistencia de multiplas evidencias para o mesmo fato;
 * fontes conceituais incluem `MIT_JSON`, `DCTFWEB`, `DARF`, `REINF`, `SITTAX`, `NFS_OUT`, `NFS_IN` e `ACESSORIAS`; a qualidade conceitual inclui `STRUCTURED`, `DECLARED`, `GUIDE_ONLY`, `DERIVED` e `UNKNOWN`. Estes nomes nao fecham ENUMs neste stage.
+
+### S11.0 - Watcher documental flexivel e contrato v2 de candidatos
+
+Status: implementado em 2026-09-09 e fechado apos validacao integral em 2026-09-11
+
+* A boundary estrutural do watcher passa a ser cada root autorizada `G:\EMPRESAS\<pasta empresarial>\Escrita Fiscal`. O scanner enumera somente empresas imediatamente abaixo da enterprise root, localiza a child `Escrita Fiscal` e percorre recursivamente apenas seu interior. Uma root direta chamada `Escrita Fiscal` permanece aceita para testes controlados.
+* A estrutura abaixo de `Escrita Fiscal` e livre. Nomes como `Importação`, `_DCTF-Web_`, `_REINF_`, `Matriz`, `Filial` e cidades sao preservados como segmentos de contexto, nunca como classificacao fiscal ou `company_id`.
+* O agent reconhece candidatos `.pdf`, `.json`, `.xml` e `.zip`, case-insensitivamente, e aplica probe tecnico minimo por prefixo: `%PDF`, texto plausivel JSON/XML e magic ZIP. Nenhum parser fiscal, XML ou ZIP foi criado.
+* O contrato v2 transmite metadata, SHA-256, mtime, extensao, probe tecnico e candidatos de path. `enterprise_folder_candidate`, filename e periodos sao apenas sinais; `organization_id`, `company_id` e `period_id` continuam proibidos no payload.
+* Candidatos `MM-AAAA` sao coletados em qualquer segmento de diretorio abaixo da root fiscal, normalizados para `YYYY-MM`, deduplicados quando iguais e preservados como ambiguos quando diferentes. Nenhum `period_id` e escolhido pelo agent.
+* O backend aceita v1 e v2 no mesmo endpoint M2M. Um evento v2 sempre nasce sem empresa ou periodo final e cria evidence `PENDENTE` com `company_id = NULL` e `period_id = NULL`, usando as nulabilidades ja existentes; nenhuma migration foi necessaria.
+* O state atomico existente nao foi resetado. A versao de cobertura `2` incorpora como `BASELINED` os paths que se tornaram visiveis na primeira execucao apos o upgrade, preservando estados S10 e impedindo backfill acidental.
+* ZIP permanece somente candidato. Os limites configurados para o parser futuro cobrem entries, bytes descompactados, compression ratio e nesting; o parser futuro tambem devera impedir zip-slip/path traversal antes de qualquer extracao.
+* A idempotencia de evento continua `organization + normalized_relative_path + SHA-256`. Antes do backfill historico, sera fechada a separacao entre ocorrencia fisica e identidade documental `organization + SHA-256`, para que mover/copiar gere nova ocorrencia sem duplicar evidence documental final.
+* Nenhum backfill real foi executado. Nenhum arquivo de `G:\EMPRESAS` foi aberto na validacao; todas as arvores e formatos usados em testes sao sinteticos e temporarios.
+* Nao houve impacto visual ou mudanca de contrato consumido pelo frontend. Por isso nenhum E2E novo foi criado; a regressao E2E existente continua sendo a validacao adequada.
+* S11.1 e S12 permanecem nao iniciados. Classificacao por conteudo, confirmacao de estabelecimento, parsers fiscais e conciliacao continuam fora deste micro-stage.
+
+Validacao de fechamento executada em 2026-09-11 com `.venv`:
+
+* suite focada do Watcher, incluindo path, detector, probe de formato, payload, scanner, state, client, runtime, ingest, reprocessamento e contratos: `114 passed`, com apenas `1` warning conhecido de deprecacao do `TestClient`, em `48.94s`;
+* regressao backend completa: `729 passed`, com o mesmo warning conhecido, em `219.96s` (`0:03:39`);
+* `python -m ruff check .\backend .\agent`: `All checks passed!`;
+* Alembic conectado ao PostgreSQL: `20260904_0017 (head)`, sem arquivo alterado em `backend/alembic/versions` e sem migration do S11.0;
+* frontend: `npm run typecheck` aprovado; `npm run build` aprovado com `62` modulos transformados; regressao Playwright existente com `14 passed` em `1.5m`;
+* validacao manual totalmente sintetica em `%TEMP%`: `6` candidatos descobertos (`1 JSON`, `3 PDF`, `1 XML`, `1 ZIP`), todos com probe tecnico valido e contrato `2`; `0` arquivo de `Departamento Pessoal` ou `Contabilidade` descoberto;
+* verificacao de seguranca: nenhum PDF/XML/ZIP novo no Git, nenhum CNPJ formatado nas alteracoes auditadas, nenhum arquivo real do corpus utilizado e nenhuma leitura realizada em `G:\EMPRESAS`;
+* `git diff --check` sem erro; os avisos exibidos referem-se somente a futura normalizacao `LF -> CRLF` pelo Git no Windows.
+
+Fechamento de escopo: `S11.0_CONCLUIDO = YES`, `S11.1_INICIADO = NO`, `S12_INICIADO = NO`, `BACKFILL_REAL_EXECUTADO = NO` e `MIGRATION_S11_CRIADA = NO`.
 
 ### S11.1 - Guias: impostos e parcelamentos
 

@@ -15,7 +15,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Lumen fiscal watcher agent")
     parser.add_argument("--once", action="store_true", help="run one polling cycle without bypassing stability")
     parser.add_argument("--status", action="store_true", help="print sanitized local health only")
-    parser.add_argument("--ingest-file", help="explicit single PDF path; never scans a directory")
+    parser.add_argument("--ingest-file", help="explicit PDF/JSON/XML/ZIP path; never scans a directory")
     parser.add_argument("--confirm-send", action="store_true", help="allow network send for --ingest-file")
     args = parser.parse_args(argv)
     config = WatcherConfig.from_env()
@@ -69,7 +69,9 @@ def _manual_ingest(runtime: WatcherRuntime, value: str, confirm_send: bool) -> i
         print(json.dumps({"status": "REJECTED", "error_code": str(exc)}, ensure_ascii=True, sort_keys=True))
         return 2
     if response is None:
-        print(json.dumps({"status": "DRY_RUN_VALID", "file_sha256": payload["file_sha256"]}, ensure_ascii=True, sort_keys=True))
+        file_metadata = payload.get("file")
+        digest = file_metadata.get("sha256") if isinstance(file_metadata, dict) else payload.get("file_sha256")
+        print(json.dumps({"status": "DRY_RUN_VALID", "file_sha256": digest}, ensure_ascii=True, sort_keys=True))
         return 0
     print(json.dumps({"status": response.category, "status_code": response.status_code}, ensure_ascii=True, sort_keys=True))
     return 0 if response.category == "SUCCESS" else 1

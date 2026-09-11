@@ -119,7 +119,7 @@ Data de referencia: 2026-07-20
 - `0000-0/00` e placeholder invalido e nao pode permanecer ativo no catalogo relacional.
 - A Econet nao cria o CNAE da empresa; ela apenas enriquece CNAEs cadastrados.
 - Potencial cadastral de Fator R nao equivale a uso efetivo por competencia.
-- O CNAE efetivamente usado sera determinado no S10 pela NFS-e normalizada.
+- S10 nao materializou parser NFS-e. A determinacao futura de atividades efetivamente geradoras de receita por NFS-e permanece no S11.3; S10.5 e apenas catalogo de referencia e nao determina CNAE efetivo da empresa.
 - ABRASF usa `CodigoCnae`; o layout nacional usa `cTribMun` com validacao adicional.
 - Ausencia de texto de Fator R no HTML nao equivale a `false`.
 - HTML bruto da Econet nao e persistido.
@@ -274,3 +274,14 @@ Data de referencia: 2026-07-20
 - A fase 1 do piloto real do S10.4 validou baseline sem flood na root oficial e lifecycle remoto: `1385` candidatos foram somente baselinados; sem eventos/evidencias/status fiscais novos; segundo `--once` sem novidades terminou com heartbeat remoto `STOPPED`.
 - A fase 2 do piloto real validou um unico PDF real por comando manual: dry-run sem mutacao, envio M2M explicito com resposta HTTP `200`, criacao de um `watcher_file_event` e uma `fiscal_evidence` vinculada e replay sem duplicacao. A evidence inicial permaneceu pendente, com `detected_tax`, `detected_obligation` e `confidence` nulos; parser, OCR e classificacao canonica continuam fora de S10.
 - O macro-stage S10 esta concluido. O piloto nao habilita agendamento automatico, transmissao em lote ou classificacao fiscal; S11 continua sendo a autoridade futura de parser por conteudo e S12 a de conciliacao.
+
+## S11.0 - Watcher documental flexivel
+
+- A unica boundary estrutural abaixo da enterprise root e a child imediata `Escrita Fiscal` de cada pasta empresarial; toda organizacao interna e livre e fornece somente contexto.
+- PDF, JSON, XML e ZIP sao candidatos fisicos. O probe tecnico valida apenas formato aparente por prefixo e nao classifica familia fiscal, tributo, obrigacao ou estabelecimento.
+- O contrato v2 preserva `enterprise_folder_candidate`, segmentos internos, candidatos de periodo e hint de filename. O agent nunca envia `organization_id`, `company_id` ou `period_id`.
+- `Matriz`, `Filial`, cidade e aliases de pastas nao resolvem estabelecimento. Eventos v2 e suas evidences nascem com empresa e periodo nulos ate parser/resolver futuro por conteudo.
+- O endpoint M2M continua aceitando v1. A idempotencia de evento por path+hash e mantida temporariamente; ocorrencia fisica e identidade documental por organization+SHA-256 serao separadas antes do backfill.
+- A expansao de cobertura usa baseline incremental versionado sem resetar state e sem enviar o acervo historico recem-visivel.
+- ZIP nao e extraido no S11.0. Limites de entries, bytes descompactados, compression ratio e nesting foram reservados; zip-slip permanece rejeicao obrigatoria do parser futuro.
+- S11.0 nao altera status, alertas, DCTFWeb origins, Fator R ou frontend. S11.1 e S12 permanecem nao iniciados e nenhum backfill real foi executado.

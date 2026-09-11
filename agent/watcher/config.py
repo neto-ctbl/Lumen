@@ -15,6 +15,10 @@ DEFAULT_SCAN_INTERVAL_SECONDS = 15
 DEFAULT_STABLE_SECONDS = 5
 DEFAULT_HTTP_TIMEOUT_SECONDS = 15
 DEFAULT_HEARTBEAT_SECONDS = 60
+DEFAULT_ZIP_MAX_ENTRIES = 1000
+DEFAULT_ZIP_MAX_UNCOMPRESSED_BYTES = 512 * 1024 * 1024
+DEFAULT_ZIP_MAX_COMPRESSION_RATIO = 100
+DEFAULT_ZIP_MAX_NESTING = 1
 DEFAULT_STATE_PATH = Path("agent/.state/watcher_state.json")
 DEFAULT_HEALTH_PATH = Path("agent/.state/watcher_health.json")
 
@@ -28,6 +32,10 @@ class WatcherConfig:
     stable_seconds: int = DEFAULT_STABLE_SECONDS
     http_timeout_seconds: int = DEFAULT_HTTP_TIMEOUT_SECONDS
     heartbeat_seconds: int = DEFAULT_HEARTBEAT_SECONDS
+    zip_max_entries: int = DEFAULT_ZIP_MAX_ENTRIES
+    zip_max_uncompressed_bytes: int = DEFAULT_ZIP_MAX_UNCOMPRESSED_BYTES
+    zip_max_compression_ratio: int = DEFAULT_ZIP_MAX_COMPRESSION_RATIO
+    zip_max_nesting: int = DEFAULT_ZIP_MAX_NESTING
     state_path: Path = DEFAULT_STATE_PATH
     health_path: Path = DEFAULT_HEALTH_PATH
 
@@ -44,6 +52,16 @@ class WatcherConfig:
             stable_seconds=_positive_int(source, "LUMEN_WATCHER_STABLE_SECONDS", DEFAULT_STABLE_SECONDS, allow_zero=True),
             http_timeout_seconds=_positive_int(source, "LUMEN_WATCHER_HTTP_TIMEOUT_SECONDS", DEFAULT_HTTP_TIMEOUT_SECONDS),
             heartbeat_seconds=_positive_int(source, "LUMEN_WATCHER_HEARTBEAT_SECONDS", DEFAULT_HEARTBEAT_SECONDS),
+            zip_max_entries=_positive_int(source, "LUMEN_WATCHER_ZIP_MAX_ENTRIES", DEFAULT_ZIP_MAX_ENTRIES),
+            zip_max_uncompressed_bytes=_positive_int(
+                source, "LUMEN_WATCHER_ZIP_MAX_UNCOMPRESSED_BYTES", DEFAULT_ZIP_MAX_UNCOMPRESSED_BYTES
+            ),
+            zip_max_compression_ratio=_positive_int(
+                source, "LUMEN_WATCHER_ZIP_MAX_COMPRESSION_RATIO", DEFAULT_ZIP_MAX_COMPRESSION_RATIO
+            ),
+            zip_max_nesting=_positive_int(
+                source, "LUMEN_WATCHER_ZIP_MAX_NESTING", DEFAULT_ZIP_MAX_NESTING, allow_zero=True
+            ),
             state_path=Path(source.get("LUMEN_WATCHER_STATE_PATH", str(DEFAULT_STATE_PATH))),
             health_path=Path(source.get("LUMEN_WATCHER_HEALTH_PATH", str(DEFAULT_HEALTH_PATH))),
         )

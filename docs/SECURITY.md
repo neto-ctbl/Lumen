@@ -136,3 +136,13 @@ Data de referencia: 2026-07-15
 - Heartbeat aceita somente lifecycle, timestamps e contadores agregados. Token, header, path, empresa, hash, PDF, raw text e IDs de tenant sao rejeitados e nao sao persistidos.
 - Health humano e somente leitura; reprocessamento exige `ADMIN` ou `DEV`, permanece local e nao envia dados externos. O supervisor Windows nao grava token.
 - A fase 2 do piloto aceitou somente um arquivo explicitamente informado e exigiu `--confirm-send` para transmitir metadata. O dry-run nao alterou o banco; o repositorio nao registra nome, path, hash, texto ou bytes do PDF real. O replay idempotente nao duplicou evento ou evidence e nenhuma obrigacao fiscal foi modificada.
+
+## S11.0 Watcher documental flexivel
+
+- O scanner nao usa `rglob` sobre toda a enterprise root: enumera apenas diretorios empresariais imediatos e percorre somente suas children `Escrita Fiscal` autorizadas.
+- Root fiscal, diretorios intermediarios e arquivo sao validados contra symlink, junction/reparse point, traversal e escape fisico. Uma root direta e aceita somente quando seu nome e `Escrita Fiscal`.
+- O payload v2 contem apenas metadata e sinais de path/filename; nao contem bytes, texto JSON/XML, XML Signature, certificados, codigos de barras, protocolos, credenciais ou IDs de tenant.
+- O probe tecnico le no maximo um prefixo pequeno. ZIP permanece opaco; nenhuma entry e extraida ou listada no S11.0.
+- Limites de ZIP ficam configurados localmente para uso obrigatorio do parser futuro: entries, tamanho descompactado, compression ratio e nesting, alem de bloqueio de zip-slip.
+- State e health nao armazenam conteudo, token ou dados fiscais extraidos. A versao de cobertura preserva o state anterior e impede envio retroativo acidental.
+- Fixtures novas sao integralmente sinteticas e criadas em diretorios temporarios. O corpus real nao foi copiado, lido pela suite ou versionado.

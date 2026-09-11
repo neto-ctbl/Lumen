@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from agent.watcher.state import FileDeliveryState, WatcherState, WatcherStateStore
+from agent.watcher.state import CURRENT_COVERAGE_VERSION, FileDeliveryState, WatcherState, WatcherStateStore
 
 
 def test_state_is_atomic_and_never_persists_a_token(tmp_path: Path) -> None:
@@ -34,3 +34,35 @@ def test_health_is_atomic_and_sanitized_by_callers(tmp_path: Path) -> None:
     path = tmp_path / "watcher_health.json"
     WatcherStateStore(tmp_path / "state.json").write_health(path, {"status": "RUNNING", "sent_success": 1})
     assert json.loads(path.read_text(encoding="utf-8")) == {"sent_success": 1, "status": "RUNNING"}
+
+
+def test_legacy_state_loads_without_reset_and_is_marked_for_safe_coverage_adoption(tmp_path: Path) -> None:
+    path = tmp_path / "watcher_state.json"
+    path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "initialized": True,
+                "files": {
+                    "empresa\\escrita fiscal\\08-2026\\guia.pdf": {
+                        "last_seen_size": 10,
+                        "last_seen_mtime_ns": 20,
+                        "stable_since": 30.0,
+                        "last_seen_sha256": None,
+                        "last_sent_sha256": None,
+                        "delivery_status": "BASELINED",
+                        "retry_count": 0,
+                        "next_retry_at": None,
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    loaded = WatcherStateStore(path).load()
+
+    assert loaded.state.initialized
+    assert loaded.state.coverage_version == 1
+    assert len(loaded.state.files) == 1
+    assert CURRENT_COVERAGE_VERSION == 2

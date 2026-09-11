@@ -7,18 +7,20 @@ import pytest
 from agent.watcher.file_detector import CandidateStatus, inspect_candidate
 
 
-@pytest.mark.parametrize("name", ["DAS.pdf", "DAS.PDF", "guia.PdF"])
-def test_pdf_candidates_are_accepted(tmp_path: Path, name: str) -> None:
+@pytest.mark.parametrize("name", ["DAS.pdf", "MIT.JSON", "nota.Xml", "documentos.ZIP"])
+def test_supported_document_candidates_are_accepted(tmp_path: Path, name: str) -> None:
     assert inspect_candidate(tmp_path / name).status is CandidateStatus.ACCEPTED
 
 
-@pytest.mark.parametrize("name", ["DAS.pdf.partial", "DAS.pdf.tmp", "DAS.pdf.crdownload", "~$DAS.pdf"])
+@pytest.mark.parametrize(
+    "name", ["DAS.pdf.partial", "DAS.partial.pdf", "MIT.json.tmp", "arquivo.zip.crdownload", "~$DAS.pdf"]
+)
 def test_temporary_files_are_rejected(tmp_path: Path, name: str) -> None:
     assert inspect_candidate(tmp_path / name).status is CandidateStatus.TEMPORARY
 
 
-@pytest.mark.parametrize("name", ["DAS.xml", "DAS.txt", "DAS.docx", "DAS.xlsx", "DAS.zip", "DAS.jpg", "DAS.png"])
-def test_non_pdf_candidates_are_rejected(tmp_path: Path, name: str) -> None:
+@pytest.mark.parametrize("name", ["DAS.txt", "DAS.docx", "DAS.xlsx", "DAS.jpg", "DAS.png"])
+def test_unsupported_candidates_are_rejected(tmp_path: Path, name: str) -> None:
     assert inspect_candidate(tmp_path / name).status is CandidateStatus.UNSUPPORTED_EXTENSION
 
 

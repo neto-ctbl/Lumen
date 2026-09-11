@@ -4,12 +4,19 @@ import json
 from pathlib import Path
 
 import agent.watcher.main as watcher_main
+import pytest
 from agent.watcher.client import ClientResponse, WatcherApiClient
 from agent.watcher.config import WatcherConfig
 from agent.watcher.main import main
 from agent.watcher.runtime import RuntimeSummary, WatcherRuntime
-from agent.watcher.state import WatcherStateStore
-from backend.tests.watcher_agent_test_utils import watcher_pdf_path, write_synthetic_pdf
+from agent.watcher.state import FileDeliveryState, WatcherState, WatcherStateStore
+from backend.tests.watcher_agent_test_utils import (
+    watcher_pdf_path,
+    write_synthetic_json,
+    write_synthetic_pdf,
+    write_synthetic_xml,
+    write_synthetic_zip,
+)
 
 
 class Clock:
@@ -42,6 +49,35 @@ def test_first_boot_baselines_existing_pdfs_without_sending(tmp_path: Path) -> N
     assert summary.candidates_seen == 1
     assert not calls
     assert WatcherStateStore(tmp_path / "state.json").load().state.files
+
+
+def test_expanded_coverage_baselines_newly_visible_documents_without_reset_or_backfill(tmp_path: Path) -> None:
+    pdf = watcher_pdf_path(tmp_path, name="existing.pdf")
+    write_synthetic_pdf(pdf)
+    new_format = tmp_path / "EMPRESA EXEMPLO" / "Escrita Fiscal" / "08-2026" / "Importação" / "existing.json"
+    write_synthetic_json(new_format)
+    state_path = tmp_path / "state.json"
+    pdf_key = r"empresa exemplo\escrita fiscal\07-2026\guias - impostos e parcelamentos\existing.pdf"
+    WatcherStateStore(state_path).save(
+        WatcherState(
+            initialized=True,
+            coverage_version=1,
+            files={pdf_key: FileDeliveryState(pdf.stat().st_size, pdf.stat().st_mtime_ns, 1.0, delivery_status="BASELINED")},
+        )
+    )
+    calls: list[dict[str, object]] = []
+    config = _config(tmp_path, state_path, tmp_path / "health.json")
+
+    summary = WatcherRuntime(
+        config,
+        client=WatcherApiClient(config, transport=lambda *_: calls.append({}) or ClientResponse(200, "SUCCESS")),
+    ).run_once()
+    state = WatcherStateStore(state_path).load().state
+
+    assert summary.candidates_seen == 2 and not calls
+    assert len(state.files) == 2 and state.coverage_version == 2
+    assert state.files[pdf_key].delivery_status == "BASELINED"
+    assert state.files[next(key for key in state.files if key.endswith("existing.json"))].delivery_status == "BASELINED"
 
 
 def test_runtime_uses_running_while_alive_and_stopped_after_clean_shutdown(tmp_path: Path) -> None:
@@ -98,7 +134,7 @@ def test_restart_discovers_new_unknown_filename_and_sends_after_stability(tmp_pa
     assert restarted.run_once().pending_stability == 1
     clock.advance(5)
     assert restarted.run_once().sent_success == 1
-    assert sent[0]["classifier_hint"] == "UNKNOWN"
+    assert sent[0]["path_context"]["classifier_hint"] == "UNKNOWN"
 
     clock.advance(30)
     assert restarted.run_once().sent_success == 0
@@ -169,7 +205,7 @@ def test_explicit_ingest_dry_run_does_not_send_and_confirmed_success_updates_sta
     )
 
     payload, response = runtime.ingest_file(path, confirm_send=False)
-    assert response is None and payload["file_name"] == "manual.pdf" and not calls
+    assert response is None and payload["file"]["file_name"] == "manual.pdf" and not calls
     _, response = runtime.ingest_file(path, confirm_send=True)
     assert response is not None and response.category == "SUCCESS" and len(calls) == 1
     item = next(iter(WatcherStateStore(config.state_path).load().state.files.values()))
@@ -186,6 +222,30 @@ def test_manual_ingest_command_records_clean_shutdown(tmp_path: Path, monkeypatc
 
     assert main(["--ingest-file", str(path)]) == 0
     assert json.loads(health_path.read_text(encoding="utf-8"))["status"] == "STOPPED"
+
+
+@pytest.mark.parametrize(
+    ("name", "writer"),
+    [
+        ("manual.pdf", write_synthetic_pdf),
+        ("manual.json", write_synthetic_json),
+        ("manual.xml", write_synthetic_xml),
+        ("manual.zip", write_synthetic_zip),
+    ],
+)
+def test_manual_ingest_cli_dry_runs_all_supported_formats_without_send(
+    tmp_path: Path, monkeypatch, capsys, name: str, writer
+) -> None:
+    path = tmp_path / "EMPRESA" / "Escrita Fiscal" / "08-2026" / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    writer(path)
+    monkeypatch.setenv("LUMEN_WATCHER_ROOT", str(tmp_path))
+    monkeypatch.setenv("LUMEN_WATCHER_STATE_PATH", str(tmp_path / "state.json"))
+    monkeypatch.setenv("LUMEN_WATCHER_HEALTH_PATH", str(tmp_path / "health.json"))
+    monkeypatch.delenv("LUMEN_WATCHER_AGENT_TOKEN", raising=False)
+
+    assert main(["--ingest-file", str(path)]) == 0
+    assert "DRY_RUN_VALID" in capsys.readouterr().out
 
 
 class _LifecycleRuntime:

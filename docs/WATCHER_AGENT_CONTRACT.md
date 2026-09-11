@@ -1,6 +1,6 @@
 # Contrato do Watcher Fiscal
 
-Status: S10.0 a S10.4 concluidos, incluindo as fases 1 e 2 do piloto real controlado. O agent operacional usa polling e o endpoint de ingest/persistencia e o contrato S10.2; nao existe parser fiscal ou worker generico neste stage.
+Status: S10.0 a S10.4 e S11.0 concluidos. O agent operacional usa polling, emite candidatos documentais pelo contrato v2 e preserva o ingest v1 para regressao. Nao existe parser fiscal; S11.1 e S12 nao foram iniciados.
 
 ## Identidade e autenticação futura
 
@@ -9,6 +9,8 @@ O watcher é um processo de máquina, não um usuário humano. O futuro ingest u
 O token nunca é versionado ou logado, será comparado em constant-time, falhará fechado se não estiver configurado e será associado no servidor a uma única organização. O payload não escolhe `organization_id`; a rotação troca apenas a configuração local. Não usar JWT, email ou senha de `ADMIN`, `DEV` ou `VIEW`.
 
 ## Path grammar e segurança
+
+As regras desta secao registram o contrato historico v1 do S10. O contrato operacional v2 vigente esta descrito em `S11.0 - Contrato documental v2` ao fim deste documento.
 
 A única root inicial é `G:\EMPRESAS`. O caminho aceito deve ser descendente dela e seguir o padrão predominante `G:\EMPRESAS\[empresa]\Escrita Fiscal\[MM-AAAA]\Guias - Impostos e Parcelamentos`.
 
@@ -82,3 +84,13 @@ Em 2026-09-04, um baseline controlado na root oficial encontrou `1385` candidato
 Em 2026-09-04, um unico PDF real foi selecionado manualmente para validar o caminho de ingest. O `--ingest-file` sem `--confirm-send` retornou dry-run valido e nao alterou o banco. O envio posterior, com confirmacao explicita, retornou HTTP `200`, criou exatamente um evento `FILE_STABLE` pendente e uma evidence `WATCHER_FILE` pendente vinculada. A evidence continuou com `detected_tax`, `detected_obligation` e `confidence` nulos: filename e pasta nao se tornam classificacao canonica sem parser de conteudo.
 
 O replay confirmado do mesmo arquivo preservou um unico evento e uma unica evidence, validando a fingerprint idempotente. Nenhuma obrigacao fiscal foi alterada. Nomes, paths, hash, texto e conteudo do PDF real nao sao persistidos nesta documentacao nem versionados. Com as fases 1 e 2 aprovadas, o macro-stage S10 esta concluido; S11 permanece responsavel por parser/classificacao por conteudo e S12 por conciliacao.
+
+## S11.0 - Contrato documental v2
+
+O S11.0 substitui a gramatica operacional rigida para novos eventos por roots fiscais `G:\EMPRESAS\<pasta empresarial>\Escrita Fiscal`. A enterprise root serve apenas para enumerar empresas imediatas; a recursao ocorre exclusivamente dentro de cada `Escrita Fiscal`, com estrutura interna livre. Root direta chamada `Escrita Fiscal` e aceita para testes sinteticos controlados.
+
+O agent novo emite contrato v2 para PDF, JSON, XML e ZIP. Ele preserva extensao, tamanho, mtime, SHA-256, path relativo, filename, pasta empresarial candidata, segmentos internos, candidatos `MM-AAAA` normalizados e hint por filename. O probe tecnico verifica somente assinatura aparente; nenhum parser fiscal foi adicionado. `Matriz`, `Filial`, path e periodo de pasta nunca produzem IDs finais.
+
+O backend continua aceitando o payload v1. Para v2, persiste evento e evidence pendente com empresa e periodo nulos, sem migration e sem alterar obrigacoes. O tenant continua derivado exclusivamente do token M2M. A cobertura nova e adotada por baseline incremental do state existente, sem reset e sem backfill.
+
+ZIP permanece opaco. As configuracoes de entries, bytes descompactados, compression ratio e nesting reservam limites para o parser futuro, que tambem devera bloquear zip-slip. A identidade documental por organization+SHA-256 e sua relacao com multiplas ocorrencias fisicas sera implementada antes de qualquer backfill historico. S11.1 e S12 nao foram iniciados.

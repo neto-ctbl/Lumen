@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import inspect, select
+from pydantic import ValidationError
+from sqlalchemy import func, inspect, select
 from sqlalchemy.exc import IntegrityError
 
 from backend.app.api.v1.endpoints import lumen as lumen_endpoint
@@ -13,10 +14,11 @@ from backend.app.main import app
 from backend.app.models.audit_log import AuditLog
 from backend.app.models.external_company import ExternalCompany
 from backend.app.models.fiscal_evidence import FiscalEvidence
+from backend.app.models.fiscal_obligation_status import FiscalObligationStatus
 from backend.app.models.fiscal_period import FiscalPeriod
 from backend.app.models.organization import Organization
 from backend.app.models.watcher_file_event import WatcherFileEvent
-from backend.app.schemas.watcher import WatcherEventIngestRequest
+from backend.app.schemas.watcher import WatcherDocumentCandidateRequest, WatcherEventIngestRequest
 from backend.app.services import lumen_read_model
 from backend.app.services.watcher_ingest import (
     CompanyResolution,
@@ -24,6 +26,7 @@ from backend.app.services.watcher_ingest import (
     WatcherIngestError,
     ingest_watcher_event,
     resolve_company,
+    validate_document_candidate_semantics,
     validate_watcher_event_semantics,
 )
 
@@ -41,6 +44,42 @@ def _payload(**overrides: object) -> dict[str, object]:
         "folder_company": "EMPRESA EXEMPLO",
         "classifier_hint": "DAS",
         "pdf_probe": {"is_pdf": True, "page_count": 1, "has_extractable_text": True, "text_length": 300},
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _v2_payload(
+    *,
+    relative_path: str = r"EMPRESA EXEMPLO\Escrita Fiscal\Matriz\08-2026\documento.pdf",
+    file_name: str = "documento.pdf",
+    extension: str = ".pdf",
+    sha256: str = "e" * 64,
+    segments: list[str] | None = None,
+    periods: list[str] | None = None,
+    ambiguous: bool = False,
+    **overrides: object,
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "contract_version": 2,
+        "event": {"event_type": "FILE_STABLE", "detected_at": "2026-09-09T15:00:00+00:00"},
+        "file": {
+            "relative_path": relative_path,
+            "file_name": file_name,
+            "extension": extension,
+            "size": 42,
+            "mtime_ns": 123456789,
+            "sha256": sha256,
+        },
+        "path_context": {
+            "enterprise_folder_candidate": "EMPRESA EXEMPLO",
+            "fiscal_root": "Escrita Fiscal",
+            "segments_below_fiscal_root": segments if segments is not None else ["Matriz", "08-2026"],
+            "period_candidates": periods if periods is not None else ["2026-08"],
+            "period_ambiguous": ambiguous,
+            "classifier_hint": "UNKNOWN",
+        },
+        "technical_probe": {"format": extension[1:].upper(), "valid": True},
     }
     payload.update(overrides)
     return payload
@@ -235,3 +274,113 @@ def test_migration_constraints_are_present(db_session) -> None:
     assert "uq_watcher_file_events_idempotency_key" in watcher_unique
     assert "uq_fiscal_evidences_watcher_event_id" in evidence_unique
     assert "fk_fiscal_evidences_watcher_event_id" in evidence_fks
+
+
+def test_v2_accepts_candidate_without_final_company_or_period_and_creates_pending_evidence(db_session) -> None:
+    organization = _seed_org(db_session, "watcher-v2")
+    _seed_company_period(db_session, organization)
+    before_statuses = db_session.scalar(select(func.count()).select_from(FiscalObligationStatus))
+    payload = WatcherDocumentCandidateRequest.model_validate(_v2_payload())
+
+    semantic = validate_document_candidate_semantics(payload)
+    first = ingest_watcher_event(db_session, organization=organization, payload=payload)
+    replay = ingest_watcher_event(db_session, organization=organization, payload=payload)
+
+    assert semantic.relative_path.endswith(r"Matriz\08-2026\documento.pdf")
+    assert first.event.company_id is None and first.event.period_id is None
+    assert first.evidence is not None
+    assert first.evidence.company_id is None and first.evidence.period_id is None
+    assert first.evidence.status == "PENDENTE"
+    assert first.event.raw_payload["path_context"]["period_candidates"] == ["2026-08"]
+    assert first.company_resolution is CompanyResolution.CANDIDATE_ONLY
+    assert first.period_resolution is PeriodResolution.CANDIDATE_ONLY
+    assert not replay.event_created and not replay.evidence_created
+    assert replay.event.id == first.event.id and replay.evidence.id == first.evidence.id
+    assert db_session.scalar(select(func.count()).select_from(FiscalObligationStatus)) == before_statuses
+
+
+@pytest.mark.parametrize("establishment_segment", ["Matriz", "Filial"])
+def test_v2_matrix_and_branch_segments_never_resolve_company_from_path(
+    db_session, establishment_segment: str
+) -> None:
+    organization = _seed_org(db_session, f"watcher-{establishment_segment.casefold()}")
+    company, _ = _seed_company_period(db_session, organization)
+    company.nome_fantasia = establishment_segment
+    payload = WatcherDocumentCandidateRequest.model_validate(
+        _v2_payload(
+            relative_path=rf"EMPRESA EXEMPLO\Escrita Fiscal\{establishment_segment}\08-2026\documento.pdf",
+            segments=[establishment_segment, "08-2026"],
+            sha256=("a" if establishment_segment == "Matriz" else "b") * 64,
+        )
+    )
+
+    result = ingest_watcher_event(db_session, organization=organization, payload=payload)
+
+    assert result.event.company_id is None
+    assert result.evidence is not None and result.evidence.company_id is None
+    assert result.event.raw_payload["path_context"]["segments_below_fiscal_root"][0] == establishment_segment
+
+
+def test_v2_allows_zero_periods_and_preserves_ambiguous_period_candidates(db_session) -> None:
+    organization = _seed_org(db_session, "watcher-v2-periods")
+    no_period = WatcherDocumentCandidateRequest.model_validate(
+        _v2_payload(
+            relative_path=r"EMPRESA EXEMPLO\Escrita Fiscal\Importação\documento.json",
+            file_name="documento.json",
+            extension=".json",
+            segments=["Importação"],
+            periods=[],
+        )
+    )
+    ambiguous = WatcherDocumentCandidateRequest.model_validate(
+        _v2_payload(
+            relative_path=r"EMPRESA EXEMPLO\Escrita Fiscal\08-2026\arquivo\07-2026\documento.xml",
+            file_name="documento.xml",
+            extension=".xml",
+            sha256="f" * 64,
+            segments=["08-2026", "arquivo", "07-2026"],
+            periods=["2026-08", "2026-07"],
+            ambiguous=True,
+        )
+    )
+
+    assert ingest_watcher_event(db_session, organization=organization, payload=no_period).period_resolution is PeriodResolution.NO_CANDIDATE
+    result = ingest_watcher_event(db_session, organization=organization, payload=ambiguous)
+    assert result.period_resolution is PeriodResolution.AMBIGUOUS_CANDIDATES
+    assert result.event.period_id is None
+
+
+def test_v2_endpoint_requires_m2m_and_rejects_tenant_or_final_ids(client, db_session, monkeypatch) -> None:
+    organization = _seed_org(db_session, "watcher-v2-endpoint")
+    headers = _configure_agent(monkeypatch, organization)
+    assert client.post("/api/v1/lumen/evidences/watcher-event", json=_v2_payload()).status_code == 401
+
+    created = client.post("/api/v1/lumen/evidences/watcher-event", json=_v2_payload(), headers=headers)
+    replay = client.post("/api/v1/lumen/evidences/watcher-event", json=_v2_payload(), headers=headers)
+    assert created.status_code == 200 and replay.status_code == 200
+    assert created.json()["event_created"] and not replay.json()["event_created"]
+
+    for forbidden in ("organization_id", "company_id", "period_id"):
+        invalid = _v2_payload(**{forbidden: 999})
+        response = client.post("/api/v1/lumen/evidences/watcher-event", json=invalid, headers=headers)
+        assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        _v2_payload(relative_path=r"G:\EMPRESAS\EMPRESA EXEMPLO\Escrita Fiscal\documento.pdf", segments=[]),
+        _v2_payload(
+            relative_path=r"EMPRESA EXEMPLO\Escrita Fiscal\Matriz\..\documento.pdf",
+            segments=["Matriz", ".."],
+            periods=[],
+        ),
+        _v2_payload(periods=[], ambiguous=False),
+        _v2_payload(ambiguous=True),
+        _v2_payload(extension=".xml"),
+    ],
+)
+def test_v2_semantics_reject_absolute_traversal_and_inconsistent_provenance(payload: dict[str, object]) -> None:
+    with pytest.raises((ValidationError, WatcherIngestError)):
+        candidate = WatcherDocumentCandidateRequest.model_validate(payload)
+        validate_document_candidate_semantics(candidate)
