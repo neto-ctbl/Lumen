@@ -32,6 +32,11 @@ class WatcherApiClient:
     def send_heartbeat(self, payload: dict[str, object]) -> ClientResponse:
         return self._send_to("/api/v1/lumen/evidences/watcher-heartbeat", payload)
 
+    def send_parser_run(self, evidence_id: int, payload: dict[str, object]) -> ClientResponse:
+        if evidence_id <= 0:
+            raise ValueError("evidence_id must be positive")
+        return self._send_to(f"/api/v1/lumen/evidences/{evidence_id}/parser-runs", payload)
+
     def _send_to(self, endpoint: str, payload: dict[str, object]) -> ClientResponse:
         if not self._config.agent_token:
             return ClientResponse(None, "AUTH_CONFIGURATION")

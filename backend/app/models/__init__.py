@@ -12,6 +12,7 @@ from backend.app.models.factor_r_assessment import FactorRAssessment
 from backend.app.models.econet_cnae_cache import EconetCnaeCache
 from backend.app.models.external_company import ExternalCompany
 from backend.app.models.fiscal_alert import FiscalAlert
+from backend.app.models.fiscal_document_parser_run import FiscalDocumentParserRun
 from backend.app.models.fiscal_evidence import FiscalEvidence
 from backend.app.models.fiscal_installment import FiscalInstallment
 from backend.app.models.fiscal_obligation import FiscalObligation
@@ -45,6 +46,7 @@ __all__ = [
     "EconetCnaeCache",
     "ExternalCompany",
     "FiscalAlert",
+    "FiscalDocumentParserRun",
     "FiscalEvidence",
     "FiscalInstallment",
     "FiscalObligation",

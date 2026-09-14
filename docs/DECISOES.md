@@ -296,3 +296,15 @@ Data de referencia: 2026-07-20
 - A migration recusa duplicidades existentes e exige estrategia explicita; nunca consolida ou apaga evidences automaticamente.
 - Resolucao fiscal e identidade documental permanecem separadas. Campos de empresa, periodo, tributo, obrigacao, CNPJ, competencia e confidence podem continuar nulos.
 - O futuro backfill pode reutilizar uma evidence para varias ocorrencias, mas permanece bloqueado operacionalmente e nao foi executado neste stage.
+
+## S11.0.2 - Runtime e proveniencia documental
+
+- Parser fisico pertence ao Agent; o backend nao recebe path absoluto nem acessa a root empresarial.
+- O contrato separa `supports()` de `parse()` e identifica parser+versao. O registry simples filtra formato tecnico antes de suporte por conteudo; nao foi criado plugin system.
+- A autoridade permanece `CONTENT > FILE_STRUCTURE > FILENAME > PATH`. Todos os valores podem carregar proveniencia, e sinais conflitantes coexistem sem promocao automatica.
+- `MATCHED`, `UNSUPPORTED`, `INCONCLUSIVE`, `INVALID` e `ERROR` sao estados de extracao. Nenhum equivale a `CONFIRMADO`, `PENDENTE` ou `DIVERGENTE` fiscal.
+- Runs ficam em entidade historica propria ligada a `FiscalEvidence`; a chave tenant+evidence+parser+versao impede replay duplicado e preserva uma nova versao sem sobrescrita.
+- Nao existe `active`, run canonica ou configuracao-hash. Neste stage a versao do parser e o contrato de comportamento/configuracao; qualquer mudanca material deve incrementar essa versao.
+- O endpoint e exclusivamente M2M, deriva tenant no servidor, aceita apenas evidence `WATCHER_FILE` daquele tenant e nao oferece leitura humana nova.
+- O runtime e a ponte de registro sao programaticamente invocaveis, mas nao foram conectados ao polling. Isso deixa o executor historico futuro preparado sem realizar backfill.
+- Nenhum campo fiscal canonico, obligation status, reconciliation, DCTFWeb origin, Fator R ou frontend foi alterado. S11.1 e S12 continuam nao iniciados.

@@ -1,6 +1,6 @@
 # Contrato do Watcher Fiscal
 
-Status: S10.0 a S10.4, S11.0 e S11.0.1 concluidos. O agent operacional usa polling, emite candidatos documentais pelo contrato v2 e preserva o ingest v1 para regressao. Nao existe parser fiscal; S11.1 e S12 nao foram iniciados.
+Status: S10.0 a S10.4 e S11.0 a S11.0.2 concluidos. O agent operacional usa polling, emite candidatos documentais pelo contrato v2 e preserva o ingest v1 para regressao. Existe runtime comum, mas nenhum parser fiscal; S11.1 e S12 nao foram iniciados.
 
 ## Identidade e autenticação futura
 
@@ -104,3 +104,13 @@ A relacao autoritativa e N:1 por `watcher_file_events.evidence_id -> fiscal_evid
 A unicidade parcial `uq_fiscal_evidences_watcher_org_source_hash` vale somente para `WATCHER_FILE` com hash nao nulo. O lookup e tenant-scoped; v1 e v2 usam a mesma rotina, e uma corrida de insert e resolvida pelo indice no PostgreSQL mais savepoint/releitura da evidence vencedora. Sources externas ao Watcher nao participam dessa constraint.
 
 Empresa, estabelecimento, periodo e classificacao fiscal permanecem independentes da identidade do conteudo. Nenhum parser foi adicionado. A arquitetura permite backfill futuro com varias ocorrencias para uma evidence, mas o backfill real continua nao executado; S11.1 e S12 nao foram iniciados.
+
+## S11.0.2 - Runtime e contrato de parser runs
+
+O arquivo e aberto somente pelo Agent. `DocumentParser` declara nome, versao, formatos aceitos, `supports()` sem efeito colateral e `parse()`. O registry primeiro restringe pelo formato tecnico validado e depois consulta suporte baseado em conteudo. Filename e path podem ser entregues como sinais auxiliares, mas nao selecionam familia fiscal por si mesmos.
+
+Cada execucao produz parser/versao, familia extensivel, estado tecnico (`MATCHED`, `UNSUPPORTED`, `INCONCLUSIVE`, `INVALID` ou `ERROR`), confidence, warnings, sinais e dados estruturados. Sinais registram `CONTENT`, `FILE_STRUCTURE`, `FILENAME` ou `PATH`; portanto periodos de origens distintas podem coexistir sem sobrescrita. Falhas inesperadas sao convertidas em codigos sanitizados e nao propagam conteudo nem interrompem o Watcher.
+
+Depois que o ingest v1/v2 retorna `evidence_id`, o Agent pode usar `POST /api/v1/lumen/evidences/{evidence_id}/parser-runs` com o mesmo header M2M. O body nunca contem `organization_id`; o backend deriva tenant, exige evidence `WATCHER_FILE` daquele tenant e responde `404` indistinguivel para ID ausente ou cross-tenant.
+
+A run e idempotente por organizacao+evidence+parser+versao. Nova versao conserva a anterior e cria nova linha; nao existe run ativa ou interpretacao canonica neste stage. O payload e metadata-only, limitado a `64 KiB`, sem path local, bytes, texto integral, documento bruto ou secrets. O polling nao executa parsers ainda. `BACKFILL_RUNTIME_READY = YES`, mas `BACKFILL_REAL_EXECUTADO = NO`.

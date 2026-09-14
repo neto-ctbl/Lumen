@@ -2614,7 +2614,7 @@ A tela `Consulta Fiscal` em `/lumen/consultas` e global: empresa e competencia s
 
 ## S11 - Parsers e normalizacao documental fiscal
 
-Status: em andamento; S11.0 e S11.0.1 concluidos, S11.1 e posteriores ainda nao iniciados
+Status: em andamento; S11.0, S11.0.1 e S11.0.2 concluidos, S11.1 e posteriores ainda nao iniciados
 
 Objetivo:
 
@@ -2690,6 +2690,30 @@ Status: concluido em 2026-09-11
 * A arquitetura agora permite backfill futuro seguro em que varias ocorrencias do mesmo conteudo resultam em uma unica evidence por organizacao. Nenhum arquivo baselinado foi processado, nenhum state foi resetado e nenhum backfill real foi executado.
 
 Fechamento de escopo: `S11.0.1_CONCLUIDO = YES`, `S11.1_INICIADO = NO`, `S12_INICIADO = NO` e `BACKFILL_REAL_EXECUTADO = NO`.
+
+### S11.0.2 - Runtime, contrato e proveniencia de parsers documentais
+
+Status: concluido em 2026-09-11
+
+* Fluxo materializado: `arquivo local -> fiscal_evidence WATCHER_FILE -> fiscal_document_parser_runs versionadas`. A leitura fisica permanece no Agent; o FastAPI recebe somente resultado estruturado e nunca acessa `G:\EMPRESAS`.
+* `agent/parsers/contracts.py` define `DocumentParser` com `name`, `version`, `supported_formats`, `supports()` sem efeitos colaterais e `parse()`, alem do resultado comum `parser_name`, `parser_version`, `document_family`, `extraction_status`, `confidence`, `signals`, `warnings` e `structured_data`.
+* Os estados de extracao sao exclusivamente tecnicos: `MATCHED`, `UNSUPPORTED`, `INCONCLUSIVE`, `INVALID` e `ERROR`. Eles nao reutilizam nem alteram estados fiscais de conciliacao.
+* A familia permanece extensivel por identificador validado; somente `UNKNOWN` e familias sinteticas de teste foram usadas. Nenhuma lista de obrigacoes futuras foi congelada e nenhum parser fiscal real foi criado.
+* Cada sinal carrega `CONTENT`, `FILE_STRUCTURE`, `FILENAME` ou `PATH`, permitindo preservar separadamente, por exemplo, `period_from_content`, `period_from_filename` e `period_from_path`. `structured_data` aceita dados especificos de parser sem promover qualquer valor a campo canonico da evidence.
+* O registry e intencionalmente simples e ordenado. Primeiro filtra pelo formato tecnico validado, depois chama `supports()` orientado a conteudo. Filename/path chegam somente como sinais auxiliares; uma excecao do parser e convertida em resultado sanitizado sem derrubar o Watcher.
+* `DocumentParserRuntime.run_file()` e `run_and_register()` deixam o mecanismo invocavel programaticamente para executor historico futuro. O polling existente nao foi conectado ao runtime, nenhum arquivo baselinado foi reprocessado e nenhum backfill foi executado.
+* A migration incremental `20260911_0019_create_fiscal_document_parser_runs.py` cria a tabela historica `fiscal_document_parser_runs`, ligada a `FiscalEvidence`, com tenant, parser/versao, familia, status, confidence, payload estruturado, warnings e timestamp. Nao existe flag ativa/canonica.
+* A unicidade `(organization_id, fiscal_evidence_id, parser_name, parser_version)` torna replay idempotente; uma versao nova cria run historica separada. Constraints limitam status e confidence, e indices cobrem tenant+evidence e tenant+status.
+* `POST /api/v1/lumen/evidences/{evidence_id}/parser-runs` reutiliza a autenticacao M2M. O tenant vem exclusivamente do token/configuracao; evidence inexistente, de outro tenant ou com source diferente de `WATCHER_FILE` recebe a mesma resposta `404`.
+* O endpoint limita o payload metadata-only a `64 KiB`, proibe campos extras e nomes evidentes de raw content/secrets. Nao persiste arquivo, texto integral, XML/JSON bruto, certificado, assinatura, token ou cookie. Auditoria registra apenas IDs, parser, versao, familia e status.
+* `FiscalEvidence` permanece inalterada pelo parser run: `detected_tax`, `detected_obligation`, CNPJ/IE, empresa, periodo, competencia, valores, vencimento e confidence nao sao preenchidos. `fiscal_obligation_statuses`, reconciliation e origins permanecem intocados.
+* A validacao usa somente JSON sintetico criado em `tmp_path` e test doubles. O corpus fiscal real nao foi lido, copiado ou versionado; nenhuma validacao acessou `G:\EMPRESAS`.
+* Migration: upgrade operacional aplicado e head confirmado em `20260911_0019`; downgrade/upgrade e inspecao de colunas, FKs, unicidade, checks e indices executados somente no banco isolado de teste.
+* Testes: suite focada ampliada `72 passed`; backend completo `757 passed` em `184.93s`, com apenas o warning conhecido do `TestClient`; Ruff `All checks passed!`; frontend typecheck/build aprovados com `62` modulos; E2E existente `14 passed` em `1.4m`.
+* Revalidacao independente pela usuaria em `2026-09-14`: suite focada `72 passed` em `49.13s`; backend completo `757 passed` em `172.82s`; Ruff aprovado; frontend typecheck e build aprovados, com `62` modulos e build em `3.81s`; Playwright `14 passed` em `1.1m`; Alembic `20260911_0019 (head)` e `fiscal_document_parser_runs = 0` na base operacional.
+* A revalidacao revelou um problema preexistente e externo ao S11.0.2: o bootstrap E2E usa por padrao `admin@example.local`, chama `create_initial_admin` contra a base operacional e pode sobrescrever senha/perfil quando o email coincide com `INITIAL_ADMIN_EMAIL`; o teste de logout tambem invalida sessoes desse usuario. A migration `0019` e o pytest isolado em `lumen_test` nao apagam administradores. As credenciais foram restauradas pelo seed; a isolacao do E2E em base dedicada permanece follow-up separado e nao foi implementada neste stage.
+
+Fechamento de escopo: `S11.0.2_CONCLUIDO = YES`, `S11.1_INICIADO = NO`, `S12_INICIADO = NO`, `BACKFILL_REAL_EXECUTADO = NO` e `BACKFILL_RUNTIME_READY = YES`.
 
 ### S11.1 - Guias: impostos e parcelamentos
 

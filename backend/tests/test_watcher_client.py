@@ -103,6 +103,30 @@ def test_client_sends_sanitized_heartbeat_to_its_own_endpoint(tmp_path: Path) ->
     assert "token" not in captured["body"]
 
 
+def test_client_sends_parser_result_to_evidence_endpoint(tmp_path: Path) -> None:
+    captured: dict[str, object] = {}
+
+    def transport(url: str, body: bytes, headers: dict[str, str], _timeout: float) -> ClientResponse:
+        captured.update(url=url, body=json.loads(body), headers=headers)
+        return ClientResponse(200, "SUCCESS", {"parser_run_id": 7})
+
+    payload = {
+        "parser_name": "synthetic.document",
+        "parser_version": "1",
+        "document_family": "UNKNOWN",
+        "extraction_status": "UNSUPPORTED",
+        "confidence": None,
+        "signals": [],
+        "warnings": ["NO_SUPPORTED_PARSER"],
+        "structured_data": {},
+    }
+    result = WatcherApiClient(_config(tmp_path), transport=transport).send_parser_run(42, payload)
+
+    assert result.category == "SUCCESS"
+    assert captured["url"] == "http://localhost:8000/api/v1/lumen/evidences/42/parser-runs"
+    assert "organization_id" not in captured["body"]
+
+
 def test_remote_insecure_http_is_rejected_by_config() -> None:
     with pytest.raises(ValueError, match="HTTPS"):
         WatcherConfig.from_env({"LUMEN_WATCHER_API_BASE_URL": "http://example.test"})

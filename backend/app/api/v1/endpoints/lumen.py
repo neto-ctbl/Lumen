@@ -39,6 +39,8 @@ from backend.app.schemas.watcher import (
     WatcherEventIngestResponse,
     WatcherHeartbeatRequest,
     WatcherHealthResponse,
+    WatcherParserRunRequest,
+    WatcherParserRunResponse,
     WatcherReprocessResponse,
 )
 from backend.app.services.auth import AuthContext, ROLE_ADMIN, ROLE_DEV, ROLE_VIEW
@@ -49,6 +51,7 @@ from backend.app.services.fiscal_reference_search import search_fiscal_reference
 from backend.app.services.watcher_ingest import WatcherIngestError, ingest_watcher_event
 from backend.app.services.watcher_health import get_watcher_health, record_heartbeat
 from backend.app.services.watcher_reprocess import reprocess_unresolved_watcher_events
+from backend.app.services.document_parser_runs import ParserRunEvidenceNotFound, register_document_parser_run
 
 
 router = APIRouter(prefix="/lumen", tags=["lumen"])
@@ -225,6 +228,34 @@ def ingest_watcher_event_endpoint(
         company_resolution=result.company_resolution.value,
         period_resolution=result.period_resolution.value,
         status=result.event.status,
+    )
+
+
+@router.post("/evidences/{evidence_id}/parser-runs", response_model=WatcherParserRunResponse)
+def register_document_parser_run_endpoint(
+    evidence_id: int,
+    body: WatcherParserRunRequest,
+    organization: Organization = Depends(_watcher_agent_organization),
+    db: Session = Depends(get_db),
+) -> WatcherParserRunResponse:
+    try:
+        result = register_document_parser_run(
+            db,
+            organization=organization,
+            evidence_id=evidence_id,
+            payload=body,
+        )
+        db.commit()
+    except ParserRunEvidenceNotFound as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Watcher evidence not found.") from exc
+    parser_run = result.parser_run
+    return WatcherParserRunResponse(
+        parser_run_id=parser_run.id,
+        parser_run_created=result.created,
+        evidence_id=parser_run.fiscal_evidence_id,
+        parser_name=parser_run.parser_name,
+        parser_version=parser_run.parser_version,
+        extraction_status=parser_run.extraction_status,
     )
 
 

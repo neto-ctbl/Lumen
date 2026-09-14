@@ -156,3 +156,14 @@ Data de referencia: 2026-07-15
 - Nenhum parser, texto documental, XML, ZIP extraido, assinatura, protocolo, codigo de barras ou segredo foi adicionado neste stage.
 - State e health nao armazenam conteudo, token ou dados fiscais extraidos. A versao de cobertura preserva o state anterior e impede envio retroativo acidental.
 - Fixtures novas sao integralmente sinteticas e criadas em diretorios temporarios. O corpus real nao foi copiado, lido pela suite ou versionado.
+
+## S11.0.2 Runtime e parser runs
+
+- O Agent e a unica camada que recebe `Path` e abre o arquivo. `ParserRunResult.to_backend_payload()` omite path e bytes; o FastAPI persiste somente sinais e dados explicitamente materializados.
+- O endpoint reutiliza `X-Lumen-Agent-Token`, comparacao constant-time e organizacao configurada. `organization_id` e campos extras sao rejeitados no body.
+- Evidence e consultada por ID+tenant+source `WATCHER_FILE`; a resposta generica `404` evita confirmar a existencia de ID de outro tenant.
+- O payload tem limite de `64 KiB`, listas limitadas e bloqueia nomes evidentes para texto/payload bruto, binario/base64, token, cookie e segredo. Nenhum detalhe de excecao de parser e enviado.
+- `structured_payload` guarda somente `signals` com proveniencia e `structured_data`; `warnings` fica separado. Nao guarda PDF/XML/JSON integral, ZIP, certificado, assinatura ou credencial.
+- A auditoria contem somente IDs internos, parser, versao, familia e estado tecnico; nao registra signals, valores fiscais, warnings ou conteudo.
+- Unicidade inclui organizacao e todos os lookups do servico sao tenant-scoped. Uma versao nova cria historico separado; replay nao sobrescreve a primeira run.
+- Testes usam somente documento JSON sintetico temporario e test doubles. O corpus real e `G:\EMPRESAS` nao foram acessados, e nenhum dado fiscal foi introduzido em fixture ou documentacao.

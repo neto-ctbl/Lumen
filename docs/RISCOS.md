@@ -145,4 +145,15 @@ Data de referencia: 2026-07-20
 - O ponteiro legado em sentido inverso cria redundancia controlada. Ele e somente primeira observacao e compatibilidade de rollback; a relacao N:1 autoritativa segue do evento para a evidence.
 - Duplicidades historicas impediriam a criacao do indice. A migration falha antes de alterar/mesclar esses dados e informa somente a contagem agregada.
 - Downgrade remove os links N:1 de ocorrencias adicionais que so existem no novo schema. Por isso foi validado somente em banco de teste isolado e nao deve ser executado em base operacional apos novos eventos sem avaliacao explicita.
+
+## S11.0.2 Runtime de parsers
+
+- Filename/path podem enviesar um parser. Mitigacao: routing primario por formato e `supports()` de conteudo; hints permanecem sinais com proveniencia e nao classificacao final.
+- Excecao de parser poderia encerrar o polling ou vazar texto na mensagem. Mitigacao: runtime captura falhas e retorna somente `PARSER_SUPPORTS_ERROR`/`PARSER_EXECUTION_ERROR` sanitizados.
+- Replay concorrente poderia duplicar runs. Mitigacao: lookup tenant-scoped, unicidade no PostgreSQL e recuperacao do conflito por savepoint.
+- ID de evidence fornecido pelo Agent poderia produzir escrita cross-tenant. Mitigacao: tenant deriva do M2M e o lookup combina ID+organizacao+source `WATCHER_FILE`; ausente e cross-tenant retornam o mesmo `404`.
+- `structured_data` generico poderia carregar documento bruto ou secrets. Mitigacao: contrato fechado, limite total de `64 KiB`, bloqueio de chaves evidentes de raw content/secret e auditoria sem payload. Parsers futuros ainda devem materializar somente campos necessarios.
+- Uma versao de parser alterada sem bump pode esconder mudanca de comportamento pelo replay idempotente. Mitigacao operacional: qualquer alteracao material de parser/configuracao exige nova `parser_version`.
+- Escolher automaticamente a run mais nova poderia promover interpretacao incorreta. Mitigacao: todas as runs sao historicas e nenhuma e marcada ativa/canonica no S11.0.2.
+- O runtime pronto poderia sugerir que houve backfill. Mitigacao: ele nao integra o polling nem possui comando historico; nenhum arquivo real ou baselinado foi processado.
 - O probe le somente prefixo, mas hash continua lendo o arquivo completo; size/mtime antes e depois reduzem, sem eliminar totalmente, riscos de alteracao concorrente e TOCTOU.

@@ -1107,3 +1107,19 @@ O ingest v1 e v2 e o reprocessamento compartilham a mesma rotina de identidade. 
 Antes da migration, a auditoria segura encontrou `1` evento, `1` evidence `WATCHER_FILE`, `1` hash preenchido e `0` grupos duplicados. Depois do upgrade, o unico evento ficou ligado a unica evidence, sem link entre tenants e sem duplicidade; Alembic ficou em `20260911_0018 (head)`. A migration falha fechada, sem merge ou exclusao, se encontrar grupos duplicados. Upgrade, backfill do vinculo, downgrade e novo upgrade foram exercitados somente na base isolada de testes.
 
 O fechamento passou com `38` testes na suite obrigatoria, `40` na suite focada ampliada com migration, `737` testes backend, Ruff limpo, typecheck/build aprovados e `14` E2E existentes. Nenhum frontend foi alterado. A arquitetura esta pronta para um backfill futuro N ocorrencias -> 1 evidence, mas nenhum arquivo baselinado foi processado, nenhum state foi resetado, nenhum parser fiscal foi criado e S11.1/S12 continuam nao iniciados.
+
+### S11.0.2 - Runtime e runs documentais versionadas
+
+O S11.0.2 fecha a infraestrutura comum, ainda sem parser fiscal real. O Agent possui contrato `DocumentParser`, registry simples e runtime invocavel por arquivo local. O routing exige primeiro formato tecnico compativel e depois `supports()` orientado ao conteudo; filename e path entram apenas como sinais com proveniencia. Resultados distinguem `MATCHED`, `UNSUPPORTED`, `INCONCLUSIVE`, `INVALID` e `ERROR`, sempre como estado de extracao, nunca como conclusao fiscal.
+
+O resultado padrao preserva parser/versao, familia extensivel, confidence, warnings, sinais e dados estruturados. Cada sinal identifica `CONTENT`, `FILE_STRUCTURE`, `FILENAME` ou `PATH`, permitindo coexistirem periodos conflitantes sem o path sobrescrever o conteudo. Excecoes do parser sao isoladas e sanitizadas. Somente `UNKNOWN` e uma familia sintetica foram exercitados; DAS, DARF, MIT, DCTFWeb, REINF, documentos fiscais e demais familias continuam sem implementacao.
+
+A migration `20260911_0019` cria `fiscal_document_parser_runs` como historico N:1 de `FiscalEvidence`. Replay da mesma evidence/parser/versao reutiliza a run; versao nova cria outra linha. Nao existe run ativa, selecao canonica ou sobrescrita historica. O endpoint M2M `POST /api/v1/lumen/evidences/{evidence_id}/parser-runs` deriva tenant da credencial, aceita somente evidence `WATCHER_FILE` do mesmo tenant e recebe payload metadata-only limitado e fechado.
+
+O fluxo preparado e `arquivo -> evidence -> parser runs versionadas`. O arquivo continua sendo lido somente no Agent, e `run_and_register()` permite composicao programatica futura. O runtime nao foi ligado ao polling e nenhum backfill real foi executado. Nenhum campo fiscal da evidence ou obligation status e alterado.
+
+O fechamento passou com `72` testes focados, `757` testes backend em `184.93s`, Ruff limpo, typecheck/build aprovados (`62` modulos) e os `14` E2E existentes em `1.4m`. O round-trip da migration ocorreu apenas no banco isolado de testes; o banco operacional foi somente atualizado e confirmado em `20260911_0019 (head)`. Nenhum corpus real ou arquivo sob `G:\EMPRESAS` foi lido, e nenhum frontend foi alterado.
+
+Em `2026-09-14`, a usuaria repetiu o fechamento no ambiente operacional: `72 passed` focados em `49.13s`, `757 passed` no backend em `172.82s`, Ruff aprovado, typecheck/build aprovados (`62` modulos; build em `3.81s`), `14 passed` no E2E em `1.1m`, Alembic `20260911_0019 (head)` e `0` parser runs. O incidente de login observado depois do E2E nao veio da migration: o bootstrap preexistente reutilizava o mesmo email do admin operacional e redefinia senha/perfil antes de efetuar logout. O seed restaurou as credenciais; mover E2E para banco dedicado fica como correcao separada, fora do S11.0.2.
+
+Estado: `S11.0.2_CONCLUIDO = YES`, `S11.1_INICIADO = NO`, `S12_INICIADO = NO`, `BACKFILL_REAL_EXECUTADO = NO`, `BACKFILL_RUNTIME_READY = YES`.

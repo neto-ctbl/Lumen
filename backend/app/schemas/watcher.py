@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+import json
 import re
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator, model_validator
 
 
 class WatcherPdfProbeRequest(BaseModel):
@@ -107,6 +108,69 @@ class WatcherEventIngestResponse(BaseModel):
     status: str
 
 
+class WatcherParserSignalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1, max_length=100, pattern=r"^[a-z][a-z0-9_]*$")
+    value: JsonValue
+    provenance: Literal["CONTENT", "FILE_STRUCTURE", "FILENAME", "PATH"]
+    confidence: float | None = Field(default=None, ge=0, le=1)
+
+
+class WatcherParserRunRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    parser_name: str = Field(min_length=1, max_length=100, pattern=r"^[a-z0-9][a-z0-9._-]*$")
+    parser_version: str = Field(min_length=1, max_length=50, pattern=r"^[A-Za-z0-9][A-Za-z0-9._+-]*$")
+    document_family: str = Field(min_length=1, max_length=100, pattern=r"^[A-Z][A-Z0-9_]*$")
+    extraction_status: Literal["MATCHED", "UNSUPPORTED", "INCONCLUSIVE", "INVALID", "ERROR"]
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    signals: list[WatcherParserSignalRequest] = Field(default_factory=list, max_length=200)
+    warnings: list[str] = Field(default_factory=list, max_length=50)
+    structured_data: dict[str, JsonValue] = Field(default_factory=dict)
+
+    @field_validator("warnings")
+    @classmethod
+    def validate_warnings(cls, values: list[str]) -> list[str]:
+        if any(not value or len(value) > 500 for value in values):
+            raise ValueError("warnings must contain short non-empty codes or messages")
+        return values
+
+    @model_validator(mode="after")
+    def validate_safe_bounded_payload(self) -> WatcherParserRunRequest:
+        forbidden = {
+            "base64",
+            "binary",
+            "cookie",
+            "digital_signature",
+            "document_content",
+            "file_bytes",
+            "file_content",
+            "raw_document",
+            "raw_payload",
+            "raw_text",
+            "secret",
+            "token",
+        }
+        keys = _nested_json_keys(self.structured_data)
+        signal_names = {signal.name.casefold() for signal in self.signals}
+        if (keys | signal_names) & forbidden:
+            raise ValueError("parser run contains a forbidden raw-content or secret field")
+        encoded = json.dumps(self.model_dump(mode="json"), ensure_ascii=True, separators=(",", ":"))
+        if len(encoded.encode("utf-8")) > 65_536:
+            raise ValueError("parser run payload exceeds the metadata-only limit")
+        return self
+
+
+class WatcherParserRunResponse(BaseModel):
+    parser_run_id: int
+    parser_run_created: bool
+    evidence_id: int
+    parser_name: str
+    parser_version: str
+    extraction_status: str
+
+
 class WatcherHeartbeatCounters(BaseModel):
     model_config = ConfigDict(extra="forbid")
     candidates_seen: int = Field(ge=0)
@@ -141,3 +205,13 @@ class WatcherReprocessResponse(BaseModel):
     inspected: int
     evidence_created: int
     unresolved: int
+
+
+def _nested_json_keys(value: JsonValue) -> set[str]:
+    if isinstance(value, dict):
+        return {str(key).casefold() for key in value} | {
+            nested_key for nested in value.values() for nested_key in _nested_json_keys(nested)
+        }
+    if isinstance(value, list):
+        return {nested_key for nested in value for nested_key in _nested_json_keys(nested)}
+    return set()

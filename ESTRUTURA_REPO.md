@@ -1747,3 +1747,19 @@ O polling e o mecanismo primario para compatibilidade com unidade de rede. O pil
 - Validacao: `38 passed` na suite obrigatoria; `40 passed` na suite focada ampliada com migration; `737 passed` no backend completo em `209.51s`; Ruff limpo; typecheck/build aprovados (`62` modulos); `14 passed` no E2E em `1.6m`.
 - Nenhuma tabela adicional, parser, extracao ZIP, classificacao fiscal, conciliacao, alteracao de frontend, reset de state ou backfill real foi introduzido.
 - Escopo final: `S11.0.1_CONCLUIDO = YES`, `S11.1_INICIADO = NO`, `S12_INICIADO = NO`, `BACKFILL_REAL_EXECUTADO = NO`.
+
+## Atualizacao S11.0.2
+
+- `agent/parsers/contracts.py`: contrato comum `DocumentParser`, formatos tecnicos, estados de extracao, sinais com proveniencia e resultado metadata-only versionado.
+- `agent/parsers/runtime.py`: registry ordenado simples, validacao tecnica, routing por formato+conteudo, isolamento de excecoes e ponte programatica `run_and_register`; nenhum parser fiscal real esta registrado.
+- `agent/watcher/client.py`: envio M2M de resultado estruturado por `evidence_id`, reutilizando token e transporte existentes sem campo de tenant no body.
+- `backend/app/models/fiscal_document_parser_run.py`: historico N:1 de runs por evidence, com tenant, parser/versao, familia, estado, confidence, payload estruturado, warnings e timestamp.
+- `backend/alembic/versions/20260911_0019_create_fiscal_document_parser_runs.py`: tabela, FKs `RESTRICT`, unicidade tenant+evidence+parser+versao, checks e indices; downgrade remove somente a tabela nova.
+- `backend/app/services/document_parser_runs.py`: validacao tenant-scoped de evidence `WATCHER_FILE`, replay idempotente, nova versao historica e auditoria sem conteudo documental.
+- `backend/app/schemas/watcher.py` e `backend/app/api/v1/endpoints/lumen.py`: contrato fechado e endpoint `POST /api/v1/lumen/evidences/{evidence_id}/parser-runs`, payload maximo `64 KiB` e rejeicao uniforme de evidence ausente/cross-tenant.
+- `backend/tests/test_document_parser_runtime.py`: registry vazio, match, unsupported, inconclusivo, excecoes, formato invalido, autoridade do conteudo, proveniencias e invocacao programatica.
+- `backend/tests/test_document_parser_runs.py` e `test_document_parser_runs_migration.py`: persistencia, replay, versionamento, tenant/source, ausencia de mutacao fiscal, seguranca do payload e round-trip/constraints/indices.
+- Validacao final: suite focada `72 passed`; backend `757 passed, 1 warning` em `184.93s`; Ruff limpo; frontend typecheck/build (`62` modulos) e E2E `14 passed` em `1.4m`; Alembic `20260911_0019 (head)`.
+- Revalidacao da usuaria em `2026-09-14`: `72 passed` focados em `49.13s`; `757 passed` backend em `172.82s`; Ruff, typecheck e build aprovados (`62` modulos; `3.81s`); E2E `14 passed` em `1.1m`; head `20260911_0019`; tabela operacional de runs vazia.
+- Nota de ambiente: o seed E2E preexistente pode sobrescrever o admin operacional quando `E2E_ADMIN_EMAIL` coincide com `INITIAL_ADMIN_EMAIL`; isso nao pertence a migration `0019` nem ao pytest, que usa `lumen_test`. O isolamento futuro do E2E em banco dedicado permanece fora deste stage.
+- Nenhum arquivo real, parser fiscal, extracao ZIP, frontend, conciliacao, run ativa ou backfill foi criado/executado. Escopo final: `S11.0.2_CONCLUIDO = YES`, `S11.1_INICIADO = NO`, `S12_INICIADO = NO`, `BACKFILL_REAL_EXECUTADO = NO`, `BACKFILL_RUNTIME_READY = YES`.
