@@ -1067,7 +1067,7 @@ S9.5 e o macro-stage S9 estão concluídos e validados. A suíte E2E cobre as le
 
 ## S10.0 Watcher fiscal: contrato offline
 
-S10.0 a S10.4 estao concluidos, incluindo piloto real manual e controlado. O S11.0 tambem esta concluido: o watcher fiscal agora trata cada `G:\EMPRESAS\<pasta empresarial>\Escrita Fiscal` como boundary e aceita estrutura interna livre. PDF, JSON, XML e ZIP podem ser candidatos documentais, mas ainda nao existe parser fiscal, OCR, extracao ZIP ou conciliacao. A autoridade futura permanece `CONTEUDO DOCUMENTAL > ESTRUTURA TECNICA > FILENAME > PATH`.
+S10.0 a S10.4 estao concluidos, incluindo piloto real manual e controlado. O S11.0 tambem esta concluido: o watcher fiscal agora trata cada `G:\EMPRESAS\<pasta empresarial>\Escrita Fiscal` como boundary e aceita estrutura interna livre. PDF, JSON, XML e ZIP podem ser candidatos documentais. O S11.1-A adicionou somente o parser PDF de DAS; OCR, extracao ZIP, outros parsers fiscais e conciliacao ainda nao existem. A autoridade permanece `CONTEUDO DOCUMENTAL > ESTRUTURA TECNICA > FILENAME > PATH`.
 
 Operacionalmente, parser de conteudo definira a identificacao principal/canonica; nome do arquivo sera somente hint auxiliar/evidencia complementar; e pasta fornecera somente contexto de empresa e competencia. O fechamento S10.2 foi validado com `10 passed` no ingest, `653 passed` no backend, Ruff limpo, typecheck aprovado, `7 passed` no E2E e contagens read-only inalteradas: `0` watcher events, `1717` evidences e `196` statuses.
 
@@ -1084,7 +1084,7 @@ A fase 2 validou um unico PDF real por operacao manual: o dry-run nao alterou o 
 
 `python -m agent.watcher.main --ingest-file <arquivo.pdf|json|xml|zip>` valida assinatura e gera apenas dry-run por padrao. A transmissao exige `--confirm-send`. O payload v2 nao aceita IDs de tenant, empresa ou periodo; o tenant continua derivado da autenticacao M2M. O backend preserva o v1 e cria para v2 evento/evidence pendentes com empresa e periodo nulos, prontos para parser futuro.
 
-Nenhum backfill historico foi executado e nenhum processo automatico foi instalado. A identidade de ocorrencia permanece path+hash por compatibilidade; a identidade documental por `organization + SHA-256`, sem duplicacao de evidence quando o mesmo conteudo aparece em outro path, foi fechada no S11.0.1 antes do backfill. S11.1 e S12 nao foram iniciados. Como nao houve mudanca visual, nao foi necessario criar E2E novo; a regressao existente foi mantida.
+Nenhum backfill historico foi executado e nenhum processo automatico foi instalado. A identidade de ocorrencia permanece path+hash por compatibilidade; a identidade documental por `organization + SHA-256`, sem duplicacao de evidence quando o mesmo conteudo aparece em outro path, foi fechada no S11.0.1 antes do backfill. S11.1 foi iniciado somente pelo parser DAS do S11.1-A; S11.2, S11.3 e S12 nao foram iniciados. Como nao houve mudanca visual, nao foi necessario criar E2E novo; a regressao existente foi mantida.
 
 ### Fechamento validado do S11.0
 
@@ -1122,4 +1122,16 @@ O fechamento passou com `72` testes focados, `757` testes backend em `184.93s`, 
 
 Em `2026-09-14`, a usuaria repetiu o fechamento no ambiente operacional: `72 passed` focados em `49.13s`, `757 passed` no backend em `172.82s`, Ruff aprovado, typecheck/build aprovados (`62` modulos; build em `3.81s`), `14 passed` no E2E em `1.1m`, Alembic `20260911_0019 (head)` e `0` parser runs. O incidente de login observado depois do E2E nao veio da migration: o bootstrap preexistente reutilizava o mesmo email do admin operacional e redefinia senha/perfil antes de efetuar logout. O seed restaurou as credenciais; mover E2E para banco dedicado fica como correcao separada, fora do S11.0.2.
 
-Estado: `S11.0.2_CONCLUIDO = YES`, `S11.1_INICIADO = NO`, `S12_INICIADO = NO`, `BACKFILL_REAL_EXECUTADO = NO`, `BACKFILL_RUNTIME_READY = YES`.
+Estado registrado no fechamento do S11.0.2: `S11.0.2_CONCLUIDO = YES`, `S11.1_INICIADO = NO`, `S12_INICIADO = NO`, `BACKFILL_REAL_EXECUTADO = NO`, `BACKFILL_RUNTIME_READY = YES`.
+
+### S11.1-A - Parser PDF de DAS
+
+O primeiro parser fiscal real e `DasPdfParser` (`lumen.das-pdf`, versao `1`). Ele aceita somente PDF com texto e reconhece o DAS pelo titulo documental mais marcadores estruturais; um filename `DAS` nunca transforma outro conteudo em match. Como parcelamentos podem reutilizar a casca visual e o titulo do DAS, `supports()` tambem rejeita marcadores de PGFN, SISPAR, PARC, PERT, RELP ou parcelamento na secao de observacoes e denominacoes de divida ativa na composicao. O registry padrao o torna executavel programaticamente, mas o polling nao chama parsers e nenhum backfill foi executado.
+
+O resultado tipado `DasDocument` contem cabecalho, componentes e validacoes. Sao extraidos, quando presentes, CNPJ e sua validade estrutural, razao social, periodo, vencimento, numero, data `Pagar este documento ate`, total e todas as linhas da composicao com codigo, denominacao, familia observavel, periodo, UF/municipio e valores de principal, multa, juros e total. CNPJ vira somente digitos; competencia vira `YYYY-MM`; datas viram ISO; valores usam `Decimal`. Codigos desconhecidos sao preservados, e barcode/PIX nao e extraido.
+
+Soma divergente e datas diferentes geram warnings tecnicos, sem rejeicao, reconciliacao ou alerta fiscal. PDF sem camada de texto e `INCONCLUSIVE`; corrompido e `INVALID`; falha inesperada e isolada como `ERROR`. A parser run usa o historico/idempotencia do S11.0.2 e nao altera campos canonicos de evidence, empresa ou obrigacao. Nenhuma migration foi necessaria; o head continua `20260911_0019`.
+
+As fixtures sao PDFs sinteticos gerados em teste e cobrem inclusive DARF/SENDA negativo, filename enganoso, componentes desconhecidos, regioes, observacao vazia/`IC` e parcelamentos com a mesma casca do DAS. O corpus externo confirmou tres DAS reais como `MATCHED` e dois PGFN como `UNSUPPORTED`; um deles havia revelado falso positivo antes da exclusao por observacao/divida ativa. Nenhum dado real, identificador de parcelamento, texto integral ou path foi copiado para o repositorio ou documentacao.
+
+Revalidacao independente da usuaria em `2026-09-15`: matriz real aprovada, `772 passed` no backend, Ruff limpo, typecheck/build aprovados, `14 passed` no E2E isolado em banco de teste, Alembic no head e nenhum PDF no Git. A ampliacao posterior tornou PERT e RELP casos sinteticos explicitos e fechou com `17 passed` na suite DAS, `89 passed, 1 warning` na suite focada e `774 passed, 1 warning` no backend completo. Estado: `S11.1_A_DAS_CONCLUIDO = YES`, `S11.1_INICIADO = YES`, `OUTROS_PARSERS_GUIAS_IMPLEMENTADOS = NO`, `S11.2_INICIADO = NO`, `S11.3_INICIADO = NO`, `S12_INICIADO = NO`, `BACKFILL_REAL_EXECUTADO = NO`, `REAL_CORPUS_VALIDATED = YES`.

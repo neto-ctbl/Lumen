@@ -308,3 +308,15 @@ Data de referencia: 2026-07-20
 - O endpoint e exclusivamente M2M, deriva tenant no servidor, aceita apenas evidence `WATCHER_FILE` daquele tenant e nao oferece leitura humana nova.
 - O runtime e a ponte de registro sao programaticamente invocaveis, mas nao foram conectados ao polling. Isso deixa o executor historico futuro preparado sem realizar backfill.
 - Nenhum campo fiscal canonico, obligation status, reconciliation, DCTFWeb origin, Fator R ou frontend foi alterado. S11.1 e S12 continuam nao iniciados.
+
+## S11.1-A - Parser documental de DAS
+
+- DAS e identificado por combinacao conclusiva de titulo e marcadores do conteudo PDF, condicionada a ausencia de sinais de parcelamento. Filename e path permanecem contexto e nao elevam documento incompatível a DAS.
+- Parcelamento pode reutilizar o titulo/layout do DAS. Marcadores PGFN/SISPAR/PARC/PERT/RELP/parcelamento na secao de observacoes sao a exclusao primaria; denominacao de divida ativa na composicao e exclusao secundaria. Observacao vazia ou somente `IC` nao exclui o DAS. O identificador da observacao nao e persistido pelo parser DAS.
+- O parser especifico usa models tipados e serializa o resultado no `structured_data` historico do S11.0.2. Nao foi criada tabela por familia nem migration.
+- CNPJ e validado somente estruturalmente, sem resolver empresa. Periodo documental nao sobrescreve periodo de path e nenhum deles altera `FiscalEvidence` neste stage.
+- Componentes sao aceitos por estrutura, sem allowlist de codigos. Familias conhecidas derivam apenas da denominacao; codigo desconhecido e preservado com familia nula.
+- Valores usam `Decimal`; celulas vazias de multa e juros no layout observado representam zero quando principal e total estao explicitamente presentes. Divergencia da soma e warning tecnico, nao rejeicao ou alerta fiscal.
+- Vencimento e `Pagar este documento ate` sao campos independentes. Diferenca e preservada e sinalizada sem decisao de validade fiscal.
+- O registry padrao inclui DAS, mas o polling continua desacoplado. O corpus real incluiu DAS e dois layouts PGFN e foi validado somente por probe sanitizado read-only, sem copia, log de conteudo, persistencia ou backfill.
+- Nenhum parser de DARF/SENDA ou de outra guia foi implementado; S11.2, S11.3 e S12 permanecem nao iniciados.

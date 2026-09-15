@@ -10,17 +10,24 @@ from agent.parsers.contracts import (
     SignalProvenance,
     TechnicalFormat,
 )
-from agent.parsers.runtime import DocumentParserRuntime, ParserRegistry
+from agent.parsers.das_pdf import DasComponent, DasDocument, DasHeader, DasPdfParser, DasValidation
+from agent.parsers.runtime import DocumentParserRuntime, ParserRegistry, default_parser_registry
 
 __all__ = [
     "DocumentContext",
     "DocumentParser",
     "DocumentParserRuntime",
     "DocumentSignal",
+    "DasComponent",
+    "DasDocument",
+    "DasHeader",
+    "DasPdfParser",
+    "DasValidation",
     "ExtractionStatus",
     "ParserExtraction",
     "ParserRegistry",
     "ParserRunResult",
     "SignalProvenance",
     "TechnicalFormat",
+    "default_parser_registry",
 ]

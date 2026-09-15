@@ -2614,7 +2614,7 @@ A tela `Consulta Fiscal` em `/lumen/consultas` e global: empresa e competencia s
 
 ## S11 - Parsers e normalizacao documental fiscal
 
-Status: em andamento; S11.0, S11.0.1 e S11.0.2 concluidos, S11.1 e posteriores ainda nao iniciados
+Status: em andamento; S11.0, S11.0.1, S11.0.2 e S11.1-A concluidos; S11.1 foi iniciado somente pelo parser DAS e os demais parsers permanecem futuros
 
 Objetivo:
 
@@ -2717,7 +2717,26 @@ Fechamento de escopo: `S11.0.2_CONCLUIDO = YES`, `S11.1_INICIADO = NO`, `S12_INI
 
 ### S11.1 - Guias: impostos e parcelamentos
 
-Reservado para DAS, DARF/SENDA, PIS, COFINS, IRPJ, CSLL, ICMS/DARE, DIFAL, DIFAL Consumo/Ativo, PROTEGE, ISS, parcelamentos estaduais, Simples, PERT/RELP, PGFN/SISPAR e demais guias reais do corpus. DARF e familia documental; tributo e classificacao derivada da composicao. Nao assumir `folder_period == document_period == tax_assessment_period`.
+S11.1 foi iniciado exclusivamente pelo S11.1-A para DAS. Permanecem reservados para micro-stages proprios DARF/SENDA, PIS, COFINS, IRPJ, CSLL, ICMS/DARE, DIFAL, DIFAL Consumo/Ativo, PROTEGE, ISS, parcelamentos estaduais, Simples, PERT/RELP, PGFN/SISPAR e demais guias reais do corpus. DARF e familia documental; tributo e classificacao derivada da composicao. Nao assumir `folder_period == document_period == tax_assessment_period`.
+
+#### S11.1-A - Parser documental de DAS
+
+Status: concluido em 2026-09-14
+
+* `agent/parsers/das_pdf.py` implementa `DasPdfParser`, identificado por `lumen.das-pdf` e versao `1`, exclusivamente para PDF com camada textual. O `default_parser_registry()` o registra no runtime normal, mas o polling continua deliberadamente desacoplado.
+* `supports()` e conservador e orientado a conteudo: exige simultaneamente `Documento de Arrecadacao`, `Simples Nacional` e pelo menos dois marcadores estruturais entre periodo de apuracao, composicao, valor total e data limite de pagamento. Alem da assinatura positiva, rejeita sinais de parcelamento observados no conteudo: identificadores `PGFN`, `SISPAR`, `PARC`, `PARCELAMENTO`, `PARCELA`, `PERT` ou `RELP` na secao de observacoes e denominacoes `DIVIDA ATIVA`/`DIV.ATIVA` na composicao. Filename e path nao conseguem produzir `MATCHED`.
+* O contrato tipado `DasDocument` separa `DasHeader`, lista de `DasComponent` e `DasValidation`. O cabecalho preserva CNPJ, validade estrutural do CNPJ, razao social, periodo, vencimento, numero documental, `pay_until` e total. Cada componente preserva codigo, denominacao, familia diretamente observavel, periodo, UF, municipio, principal, multa, juros e total.
+* CNPJ e normalizado para digitos e validado somente por estrutura/digitos verificadores; periodos em portugues ou numericos viram `YYYY-MM`; datas viram `YYYY-MM-DD`; moeda brasileira e interpretada com `Decimal` e serializada de modo JSON-safe, nunca com `float`. O cabecalho usa `assessment_period` e o sinal comum usa `period_from_content`, coexistindo com `period_from_path` sem sobrescrita. Numero documental nao e derivado do codigo de barras, e nenhum barcode/PIX e extraido.
+* A composicao aceita qualquer codigo numerico estrutural, sem allowlist. IRPJ, CSLL, COFINS, PIS, INSS, ICMS e ISS sao familias reconhecidas somente quando constam da denominacao; codigo desconhecido e preservado com familia nula. Celulas visivelmente vazias de multa/juros no layout oficial sao zero quando a linha fornece principal e total.
+* A soma dos totais dos componentes e comparada ao total do documento com tolerancia de um centavo. Divergencia produz `DAS_COMPONENT_TOTAL_MISMATCH`, sem rejeitar o DAS ou criar alerta fiscal. Datas distintas produzem `DAS_PAY_UNTIL_DIFFERS_FROM_DUE_DATE` e ambas permanecem no resultado. Ausencias usam `DAS_CNPJ_MISSING`, `DAS_CORPORATE_NAME_MISSING`, `DAS_ASSESSMENT_PERIOD_MISSING`, `DAS_DUE_DATE_MISSING`, `DAS_DOCUMENT_NUMBER_MISSING`, `DAS_PAY_UNTIL_MISSING`, `DAS_TOTAL_AMOUNT_MISSING` e `DAS_COMPONENTS_MISSING`; estrutura invalida/incompleta usa `DAS_CNPJ_INVALID_STRUCTURE` e `DAS_COMPONENT_AMOUNTS_INCOMPLETE`. Todos sao warnings tecnicos sanitizados e reduzem confidence quando afetam a extracao.
+* PDF valido sem texto retorna `INCONCLUSIVE`; PDF corrompido retorna `INVALID`; excecao inesperada continua isolada pelo runtime como `ERROR`. DARF/SENDA sintetico e documento nao-DAS com filename `DAS` retornam sem suporte.
+* A persistencia reutiliza `fiscal_document_parser_runs`: replay de `evidence + parser + version` e idempotente. Nenhum campo canonico de `FiscalEvidence`, empresa, estabelecimento, obrigacao ou reconciliacao e alterado. Nenhuma migration foi criada e Alembic permaneceu em `20260911_0019`.
+* O corpus read-only foi ampliado sem copiar arquivos para o Git. Tres DAS reais, incluindo observacao vazia, observacao `IC` e filename alternativo, permaneceram `MATCHED` com respectivamente `6`, `7` e `8` componentes, campos essenciais presentes, soma consistente e nenhum warning. Um parcelamento com a mesma casca visual/titulo do DAS revelou o falso positivo inicial; apos a correcao, ele e outro PGFN com cabecalho federal ficaram `UNSUPPORTED`. O valor identificador da observacao nao e persistido nem impresso.
+* Testes exclusivamente sinteticos cobrem DAS completo, observacao vazia/`IC`, filename neutro, negativo DARF/SENDA, parcelamento com casca DAS identificado por `PGFN-SISPAR`, `PARC-SN`, `PERT` ou `RELP`, exclusao secundaria por denominacao de divida ativa, filename enganoso, quatro componentes, ICMS/UF, ISS/municipio, codigo desconhecido, principal/multa/juros, zeros, moeda brasileira, `Junho/2026`, CNPJ formatado, numero documental, conteudo incompleto, soma divergente, datas distintas, competencia de path conflitante, PDF sem texto, PDF corrompido, probe sanitizado e replay persistente sem mutacao fiscal.
+* Revalidacao da usuaria em `2026-09-15`: matriz real com dois DAS e dois PGFN retornou `REAL_DAS_VALIDATION=PASS`; backend `772 passed, 1 warning` em `153.90s`; Ruff aprovado; frontend typecheck/build aprovado com `62` modulos e `3.97s`; Playwright `14 passed` em `1.1m`; Alembic `20260911_0019 (head)`; `git diff --check` aprovado e nenhum PDF no status. O E2E foi direcionado ao banco de teste, sem reutilizar o admin operacional.
+* Validacao final apos explicitar PERT/RELP: suite exclusiva DAS `17 passed` em `18.28s`; suite focada DAS+runtime+parser runs+Watcher `89 passed, 1 warning` em `39.42s`; backend completo `774 passed, 1 warning` em `197.68s`; Ruff aprovado; frontend permaneceu sem alteracoes. O warning backend conhecido e a deprecacao Starlette/httpx.
+
+Fechamento de escopo: `S11.1_A_DAS_CONCLUIDO = YES`, `S11.1_INICIADO = YES`, `OUTROS_PARSERS_GUIAS_IMPLEMENTADOS = NO`, `S11.2_INICIADO = NO`, `S11.3_INICIADO = NO`, `S12_INICIADO = NO`, `BACKFILL_REAL_EXECUTADO = NO` e `REAL_CORPUS_VALIDATED = YES`.
 
 DARF e evidencia do valor gerado para recolhimento. O parser futuro deve extrair, quando observaveis, codigo, periodo, vencimento, valor, identificadores e demais campos presentes. DARF nao e sinonimo de apuracao nem prova, isoladamente, o valor bruto originalmente apurado: compensacoes, ajustes, saldo, acrescimos e outras situacoes podem separar a guia da apuracao. O S11 registra o fato documental; o S12 podera confronta-lo com outras fontes.
 

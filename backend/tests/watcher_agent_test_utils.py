@@ -4,6 +4,8 @@ from pathlib import Path
 import json
 import zipfile
 
+import fitz
+
 
 def write_synthetic_pdf(path: Path, *, text: str = "SYNTHETIC DOCUMENT") -> None:
     stream = f"BT /F1 12 Tf 72 720 Td ({text}) Tj ET".encode("ascii") if text else b""
@@ -30,6 +32,22 @@ def write_synthetic_pdf(path: Path, *, text: str = "SYNTHETIC DOCUMENT") -> None
         f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_offset}\n%%EOF\n".encode("ascii")
     )
     path.write_bytes(content)
+
+
+def write_synthetic_text_pdf(path: Path, lines: list[str]) -> None:
+    """Create a text-layer PDF from explicitly synthetic test lines."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    document = fitz.open()
+    page = document.new_page(width=595, height=842)
+    y = 50
+    for line in lines:
+        if y > 805:
+            page = document.new_page(width=595, height=842)
+            y = 50
+        page.insert_text((45, y), line, fontsize=9, fontname="helv")
+        y += 18
+    document.save(path)
+    document.close()
 
 
 def watcher_pdf_path(root: Path, *, name: str = "DAS 07-2026.pdf", nested: bool = False) -> Path:

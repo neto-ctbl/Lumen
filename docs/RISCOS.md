@@ -157,3 +157,15 @@ Data de referencia: 2026-07-20
 - Escolher automaticamente a run mais nova poderia promover interpretacao incorreta. Mitigacao: todas as runs sao historicas e nenhuma e marcada ativa/canonica no S11.0.2.
 - O runtime pronto poderia sugerir que houve backfill. Mitigacao: ele nao integra o polling nem possui comando historico; nenhum arquivo real ou baselinado foi processado.
 - O probe le somente prefixo, mas hash continua lendo o arquivo completo; size/mtime antes e depois reduzem, sem eliminar totalmente, riscos de alteracao concorrente e TOCTOU.
+
+## S11.1-A Parser de DAS
+
+- Variacoes futuras do gerador oficial podem mudar ordem textual, rotulos ou colunas. Mitigacao: assinatura combinada, leitura em modo layout, fixtures sinteticas e parser versionado; alteracao material exige bump alem da versao `1`.
+- Documento visual sem camada textual nao pode ser interpretado sem OCR. Mitigacao: retornar `INCONCLUSIVE`; OCR permanece deliberadamente fora deste stage.
+- Filename `DAS` pode nomear DARF ou outro PDF. Mitigacao: filename/path nao participam da decisao positiva de `supports()` e ha teste negativo DARF/SENDA.
+- Parcelamento pode ter o mesmo titulo, logo e tabela do DAS e passar pela assinatura estrutural positiva. Mitigacao: exclusao content-first por marcadores de parcelamento na secao de observacoes e, secundariamente, por denominacao de divida ativa; dois layouts PGFN reais e fixtures PGFN-SISPAR/PARC-SN/PERT/RELP cobrem a regressao.
+- Uma observacao futura legitima do DAS pode conter texto alem de vazio/`IC`. Para reduzir falso negativo, o parser nao rejeita todo texto arbitrario: somente marcadores explicitos de parcelamento. Novos layouts devem gerar fixture sintetica e bump de versao se alterarem materialmente a regra publicada.
+- Codigos novos podem aparecer na composicao. Mitigacao: preservar qualquer codigo estrutural e denominacao, deixando familia nula quando nao observavel, sem falhar a run.
+- Colunas vazias de multa/juros podem ser confundidas com ausencia de extracao. Mitigacao: zero somente quando a linha apresenta de forma inequívoca principal e total; demais quantidades incompletas produzem warning.
+- Soma divergente ou datas diferentes podem refletir acrescimos/layout e nao erro fiscal. Mitigacao: preservar valores e emitir warning tecnico, sem rejeitar, reconciliar ou alterar obrigacoes.
+- Uma parser run contem identificadores e valores fiscais estruturados. Mitigacao: harness/logs mostram apenas presenca, contagem e consistencia; nenhum texto integral, barcode, path ou documento real e versionado.

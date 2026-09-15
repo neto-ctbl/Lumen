@@ -15,6 +15,7 @@ from agent.parsers.contracts import (
     TechnicalFormat,
 )
 from agent.parsers.file_format_probe import probe_file_format
+from agent.parsers.pdf_text_probe import probe_pdf_text
 
 
 RUNTIME_PARSER_NAME = "lumen.document-runtime"
@@ -68,10 +69,36 @@ class DocumentParserRuntime:
             provenance=SignalProvenance.FILE_STRUCTURE,
             confidence=1,
         )
+        structure_signals = (*supplied_signals, technical_signal)
+        if technical_format is TechnicalFormat.PDF:
+            pdf_probe = probe_pdf_text(candidate)
+            structure_signals = (
+                *structure_signals,
+                DocumentSignal(
+                    name="pdf_page_count",
+                    value=int(pdf_probe["page_count"]),
+                    provenance=SignalProvenance.FILE_STRUCTURE,
+                    confidence=1,
+                ),
+                DocumentSignal(
+                    name="pdf_has_extractable_text",
+                    value=bool(pdf_probe["has_extractable_text"]),
+                    provenance=SignalProvenance.FILE_STRUCTURE,
+                    confidence=1,
+                ),
+            )
+            if not pdf_probe["is_pdf"]:
+                return _runtime_result(ExtractionStatus.INVALID, structure_signals, "INVALID_PDF")
+            if not pdf_probe["has_extractable_text"]:
+                return _runtime_result(
+                    ExtractionStatus.INCONCLUSIVE,
+                    structure_signals,
+                    "PDF_TEXT_LAYER_MISSING",
+                )
         document = DocumentContext(
             file_path=candidate,
             technical_format=technical_format,
-            context_signals=(*supplied_signals, technical_signal),
+            context_signals=structure_signals,
         )
         first_support_error: DocumentParser | None = None
         for parser in self.registry.parsers_for(technical_format):
@@ -147,3 +174,10 @@ def _parser_error(
         warnings=(warning,),
         structured_data={},
     )
+
+
+def default_parser_registry() -> ParserRegistry:
+    """Return the explicitly supported production parser set without starting polling."""
+    from agent.parsers.das_pdf import DasPdfParser
+
+    return ParserRegistry((DasPdfParser(),))

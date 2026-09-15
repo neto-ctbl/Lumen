@@ -1,6 +1,6 @@
 # Contrato do Watcher Fiscal
 
-Status: S10.0 a S10.4 e S11.0 a S11.0.2 concluidos. O agent operacional usa polling, emite candidatos documentais pelo contrato v2 e preserva o ingest v1 para regressao. Existe runtime comum, mas nenhum parser fiscal; S11.1 e S12 nao foram iniciados.
+Status: S10.0 a S10.4, S11.0 a S11.0.2 e S11.1-A concluidos. O agent operacional usa polling, emite candidatos documentais pelo contrato v2 e preserva o ingest v1 para regressao. O runtime comum possui somente o parser PDF de DAS, ainda desacoplado do polling; os demais parsers e S12 nao foram iniciados.
 
 ## Identidade e autenticação futura
 
@@ -114,3 +114,11 @@ Cada execucao produz parser/versao, familia extensivel, estado tecnico (`MATCHED
 Depois que o ingest v1/v2 retorna `evidence_id`, o Agent pode usar `POST /api/v1/lumen/evidences/{evidence_id}/parser-runs` com o mesmo header M2M. O body nunca contem `organization_id`; o backend deriva tenant, exige evidence `WATCHER_FILE` daquele tenant e responde `404` indistinguivel para ID ausente ou cross-tenant.
 
 A run e idempotente por organizacao+evidence+parser+versao. Nova versao conserva a anterior e cria nova linha; nao existe run ativa ou interpretacao canonica neste stage. O payload e metadata-only, limitado a `64 KiB`, sem path local, bytes, texto integral, documento bruto ou secrets. O polling nao executa parsers ainda. `BACKFILL_RUNTIME_READY = YES`, mas `BACKFILL_REAL_EXECUTADO = NO`.
+
+## S11.1-A - Parser PDF de DAS
+
+`DasPdfParser` (`lumen.das-pdf`, versao `1`) e o unico parser fiscal registrado. Ele exige PDF textual, titulo de Documento de Arrecadacao do Simples Nacional e pelo menos dois marcadores estruturais; filename/path nunca bastam. Como parcelamentos podem reutilizar o mesmo titulo/layout, marcadores de PGFN/SISPAR/PARC/PERT/RELP/parcelamento na secao de observacoes ou denominacoes de divida ativa na composicao excluem o match de DAS. Observacao vazia e `IC` permanecem compativeis. PDF sem texto e inconclusivo, PDF corrompido e invalido e excecoes permanecem isoladas pelo runtime.
+
+O resultado `DasDocument` preserva cabecalho, todos os componentes observaveis e validacoes tecnicas. CNPJ, periodo, datas e moeda sao normalizados; dinheiro usa `Decimal`. Codigo desconhecido nao e descartado. Soma divergente e diferenca entre vencimento e data limite geram warnings, nao conclusao fiscal. Barcode/PIX, resolucao de estabelecimento, campos canonicos de evidence e obrigacoes ficam fora do contrato.
+
+O harness manual e read-only imprime apenas resumo sanitizado. O corpus externo confirmou tres DAS como `MATCHED` e dois PGFN como `UNSUPPORTED`; o identificador real da observacao e os documentos nao foram copiados ou persistidos. O polling e o backfill continuam desligados.
