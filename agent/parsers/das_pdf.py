@@ -4,13 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from pathlib import Path
 import re
 
 from pydantic import BaseModel, ConfigDict
-from pypdf import PdfReader
-from unidecode import unidecode
 
 from agent.parsers.contracts import (
     DocumentContext,
@@ -20,14 +18,20 @@ from agent.parsers.contracts import (
     SignalProvenance,
     TechnicalFormat,
 )
+from agent.parsers.guide_common import (
+    CNPJ_RE as _CNPJ_RE,
+    DATE_RE as _DATE_RE,
+    MONEY_RE as _MONEY_RE,
+    digits as _digits,
+    parse_money as _parse_money,
+    read_pdf_pages,
+    search_text as _search_text,
+    valid_cnpj as _is_structurally_valid_cnpj,
+)
 
 
 DAS_PARSER_NAME = "lumen.das-pdf"
-DAS_PARSER_VERSION = "1"
-_PDF_SIGNATURE = b"%PDF-"
-_MONEY_RE = re.compile(r"(?<!\d)(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}(?!\d)")
-_DATE_RE = re.compile(r"(?<!\d)(?P<day>0[1-9]|[12]\d|3[01])/(?P<month>0[1-9]|1[0-2])/(?P<year>\d{4})(?!\d)")
-_CNPJ_RE = re.compile(r"(?<!\d)(?:\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}|\d{14})(?!\d)")
+DAS_PARSER_VERSION = "2"
 _DOCUMENT_NUMBER_RE = re.compile(r"(?<!\d)\d[\d.\-/]{9,39}(?!\d)")
 _COMPONENT_START_RE = re.compile(
     r"^(?P<code>\d{4,8})(?!\d)(?:\s*-?\s*(?P<denomination>.*))?$"
@@ -64,10 +68,12 @@ _INSTALLMENT_OBSERVATION_MARKERS = (
     "PGFN",
     "SISPAR",
     "PARC",
+    "PARCSN",
     "PARCELAMENTO",
     "PARCELA",
     "PERT",
     "RELP",
+    "SIMEI",
 )
 _INSTALLMENT_COMPONENT_MARKERS = (
     "DIVIDA ATIVA",
@@ -243,26 +249,20 @@ def parse_das_text(text: str) -> ParserExtraction:
 
 
 def _extract_pdf_content(path: Path) -> _PdfContent:
-    try:
-        with path.open("rb") as handle:
-            if handle.read(len(_PDF_SIGNATURE)) != _PDF_SIGNATURE:
-                return _PdfContent(ExtractionStatus.INVALID, "")
-        reader = PdfReader(str(path))
-        if reader.is_encrypted or len(reader.pages) == 0:
-            return _PdfContent(ExtractionStatus.INVALID, "")
-        # Layout mode preserves column boundaries used by the official DAS
-        # composition table while still reading only the embedded text layer.
-        pages = [page.extract_text(extraction_mode="layout") or "" for page in reader.pages]
-    except Exception:
-        return _PdfContent(ExtractionStatus.INVALID, "")
-    text = "\n".join(pages)
-    if not text.strip():
-        return _PdfContent(ExtractionStatus.INCONCLUSIVE, "")
-    return _PdfContent(ExtractionStatus.MATCHED, text)
+    content = read_pdf_pages(path)
+    return _PdfContent(content.status, "\n".join(content.pages))
 
 
 def _has_das_signature(text: str) -> bool:
+    return has_das_form_layout(text) and not _has_installment_signature(_search_text(text))
+
+
+def has_das_form_layout(text: str) -> bool:
+    """Recognize the shared DAS-like physical form without fiscal classification."""
     normalized = _search_text(text)
+    # A mixed bundle must not be consumed as a single DAS by registry order.
+    if "DE RECEITAS FEDERAIS" in normalized:
+        return False
     title = "DOCUMENTO DE ARRECADACAO" in normalized and "SIMPLES NACIONAL" in normalized
     structural_markers = sum(
         marker in normalized
@@ -273,7 +273,7 @@ def _has_das_signature(text: str) -> bool:
             "PAGAR ESTE DOCUMENTO ATE",
         )
     )
-    return title and structural_markers >= 2 and not _has_installment_signature(normalized)
+    return title and structural_markers >= 2
 
 
 def _has_installment_signature(normalized: str) -> bool:
@@ -293,10 +293,6 @@ def _has_installment_signature(normalized: str) -> bool:
 
 def _clean_lines(text: str) -> list[str]:
     return [cleaned for line in text.splitlines() if (cleaned := " ".join(line.replace("\xa0", " ").split()))]
-
-
-def _search_text(value: str) -> str:
-    return " ".join(unidecode(value).upper().split())
 
 
 def _find_after_label(searchable: str, label: str, pattern: re.Pattern[str], *, span: int = 400) -> str | None:
@@ -507,30 +503,6 @@ def _extract_municipality(value: str, family: str | None) -> str | None:
         _search_text(value),
     )
     return " ".join(unlabeled.group("municipality").split()) if unlabeled is not None else None
-
-
-def _parse_money(value: str) -> Decimal:
-    try:
-        return Decimal(value.replace(".", "").replace(",", "."))
-    except InvalidOperation as exc:
-        raise ValueError("invalid Brazilian monetary value") from exc
-
-
-def _digits(value: str) -> str:
-    return "".join(character for character in value if character.isdigit())
-
-
-def _is_structurally_valid_cnpj(value: str) -> bool:
-    if len(value) != 14 or not value.isdigit() or value == value[0] * 14:
-        return False
-    first = _cnpj_digit(value[:12], (5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2))
-    second = _cnpj_digit(value[:12] + str(first), (6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2))
-    return value.endswith(f"{first}{second}")
-
-
-def _cnpj_digit(value: str, weights: tuple[int, ...]) -> int:
-    remainder = sum(int(digit) * weight for digit, weight in zip(value, weights, strict=True)) % 11
-    return 0 if remainder < 2 else 11 - remainder
 
 
 def _confidence(header: DasHeader, components: tuple[DasComponent, ...], sum_matches: bool | None) -> float:

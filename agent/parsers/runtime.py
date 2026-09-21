@@ -179,5 +179,7 @@ def _parser_error(
 def default_parser_registry() -> ParserRegistry:
     """Return the explicitly supported production parser set without starting polling."""
     from agent.parsers.das_pdf import DasPdfParser
+    from agent.parsers.darf_pdf import DarfPdfParser
+    from agent.parsers.state_guide_pdf import StateGuidePdfParser
 
-    return ParserRegistry((DasPdfParser(),))
+    return ParserRegistry((DasPdfParser(), DarfPdfParser(), StateGuidePdfParser()))
