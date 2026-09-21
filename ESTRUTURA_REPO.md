@@ -1,5 +1,50 @@
 # Estrutura inicial esperada do repositório Lumen
 
+## Atualizacao S11.1-C.1 — Framework de layouts
+
+- `agent/parsers/layout_framework.py`: Protocols de detector/extractor/classifier, resultados intermediarios, pipeline composto, registry explicito e diagnostico allowlisted de layout desconhecido.
+- `agent/parsers/known_layouts.py`: adaptadores dos layouts `DAS_FORM`, `FEDERAL_REVENUE_FORM` e `DARE_GO_5_1`; classificadores reutilizaveis por receita federal/estadual. O detector reconhece o shell fisico sem transformar parcelamento em guia normal.
+- `agent/parsers/das_pdf.py`, `federal_revenue_guide.py`, `darf_pdf.py`, `state_revenue_guide.py` e `state_guide_pdf.py`: assinaturas fisicas publicas/fatoradas; exclusoes semanticas continuam nos parsers existentes. Payloads e versoes DAS 2, DARF 1 e estadual 1 permanecem iguais.
+- `backend/tests/test_document_layout_framework.py`: layout conhecido/desconhecido, estados do extractor, falhas sanitizadas, classificacao conhecida/desconhecida, registry, diagnostico, adaptadores reais sinteticos e novo parser composto sem mudanca no runtime.
+- `docs/S11_PARSER_EXTENSION.md`: contrato e roteiro para estender classificacao existente ou cadastrar layout novo, somente com exemplo sintetico.
+
+Nenhuma migration, tabela, endpoint ou UI. `DocumentParserRuntime`, watcher ingest, parser-run endpoint e polling permanecem inalterados; o registry de layouts e codigo explicito, sem plugin/reflection/YAML/banco. Layout desconhecido e `UNKNOWN`/`UNSUPPORTED`; classificacao desconhecida em layout conhecido preserva extracao e warning. DAS permanece especifico para evitar refatoracao agressiva; federal e DARE possuem extractors formais. `REAL_CORPUS_REVALIDATION_REQUIRED = NO`, pois resultados/versoes existentes nao mudaram e suas regressoes foram executadas.
+
+Fechamento operacional final executado pela usuaria: foco `190 passed, 1 warning` em 59.30s; backend `929 passed, 1 warning` em 200.50s; Ruff/diff/typecheck/build aprovados (62 modulos, 2.86s); E2E em banco distinto/admin sintetico `14 passed` em 1.4m; Alembic operacional `20260911_0019 (head)` antes/depois. Detector real e hashes: DAS/DAS_FORM, DARF/FEDERAL_REVENUE_FORM e ICMS/DARE_GO_5_1 MATCHED; parcelamento SEFAZ reconhecido estruturalmente como DARE_GO_5_1 e mantido UNKNOWN/UNSUPPORTED; PDF sintetico desconhecido permaneceu UNKNOWN/UNSUPPORTED apesar do filename. `S11_1_C_1_REAL_LAYOUT_DETECTOR_VALIDATION=PASS`, `S11_1_C_1_VALIDATION=PASS`, nenhum PDF/XML/ZIP no status. Somente warning conhecido Starlette/httpx e avisos nao bloqueantes LF/CRLF. ISS, parcelamentos, backfill e S12 nao iniciados.
+
+## Atualizacao S11.1-C — Guias estaduais
+
+- `agent/parsers/state_revenue_guide.py`: extrator estrutural reutilizavel DARE_GO_5_1; models tipados, referencia original/semantica, UF emissora/endereco, identificadores observados, componentes Decimal e validacao de soma. Campo ausente permanece NULL.
+- `agent/parsers/state_revenue_codes.py`: mapping empirico separado, incluindo contexto ICMS para NORMAL e par 4014/41 PROTEGE; codigo novo preservado, fallback documental/UNKNOWN e warnings sanitizados.
+- `agent/parsers/state_guide_pdf.py`: lumen.state-guide-pdf 1, family STATE_GUIDE e categorias; documents independentes, copias bancarias/qualificadores nao sao novas guias, locators e exclusao de parcelamentos antes do match.
+- `agent/parsers/state_guide_probe.py`: probe estadual-only offline, saida allowlisted sem dados fiscais/paths.
+- `agent/parsers/state_guide_validation.py`: validador real unico fail-fast, SHA-256 streaming, snapshots READ ONLY de banco com contagens/fingerprints internos e Alembic; amostra ausente falha sem PASS ficticio.
+- `backend/tests/test_state_guide_pdf_parser.py`: PDFs sinteticos, multi-guia/componentes/categorias, exclusoes, registry, limites/falhas/privacidade e persistencia idempotente sem promocao canonica.
+- `docs/S11_STATE_GUIDE_PARSER.md`: contrato, comandos e resultados, incluindo o negativo SEFAZ real aprovado. Runtime/__init__ registram/exportam estadual junto de DAS/DARF, ainda desacoplados do polling.
+
+Cinco positivos reais, controles DAS/DARF e negativo real SEFAZ aprovados; hashes e snapshot operacional inalterados. `SEFAZ_INSTALLMENT_NEGATIVE=PASS` e `REAL_STATE_GUIDE_VALIDATION=PASS`. Head 20260911_0019, sem migration/endpoint/UI/backfill/S12. Ordem A DAS, B DARF/SENDA, C estaduais, D ISS, E parcelamentos; extrator podera servir SEFAZ futuro. Alteracoes locais preexistentes preservadas.
+
+Validacao estadual: 71 testes sinteticos; foco final integrado com Watcher 229 passed em 50.53s; backend completo sequencial 915 passed em 189.72s, ambos com 1 warning conhecido; Ruff/typecheck/build aprovados (62 modulos, 2.76s). Execucao parcial com interferencia entre suites na base descartavel foi descartada, nunca registrada como PASS. Probes/QA read-only: cinco renders temporarios removidos, originais preservados.
+
+E2E final revalidado com 14 passed em 1.8m, banco separado/admin sintetico. Snapshot operacional incluindo users identico antes/depois, env restaurado sem overrides vazios e Alembic no head. Sem PDF/XML/ZIP no status; nenhum commit/staging, alteracoes anteriores preservadas. S11.1-C encerrado integralmente.
+
+## Atualizacao S11.1-B — DARF/SENDA
+
+- `agent/parsers/guide_common.py`: primitivas compartilhadas de leitura PDF textual, moeda e CNPJ/CPF.
+- `agent/parsers/federal_revenue_guide.py`: extrator federal/SENDA reutilizavel, models de cabecalho/receitas/validacao e periodo mensal/trimestral/data/intervalo/desconhecido; cabecalho e consenso de receitas separados.
+- `agent/parsers/darf_tax_codes.py`: mapping empirico centralizado 8109/PIS, 2172/COFINS, 2089/5993/IRPJ e 2372/2484/CSLL; codigo novo preservado com warning e UNKNOWN/fallback documental.
+- `agent/parsers/darf_pdf.py`: `lumen.darf-pdf` versao `1`, classificacao conservadora, exclusoes de parcelamento, `DarfFile.documents[]`, N receitas por `DarfDocument`, cabecalhos/totais/paginas/blocos independentes e limites sem truncamento silencioso.
+- `agent/parsers/darf_probe.py`: harness DARF-only read-only; contagens, presenca, tributos, tipos de periodo e warnings, sem paths/identificadores/valores em stdout.
+- `agent/parsers/das_pdf.py`: primitivas comuns e hardening PARCSN/SIMEI/bundle misto na versao `2`; historico DAS `1` preservado.
+- `agent/parsers/runtime.py` e `__init__.py`: registry explicito DAS+DARF, sem conexao ao polling; construtor vazio permanece vazio.
+- `backend/tests/test_darf_pdf_parser.py`: PDFs dinamicos sinteticos; familias/ordem do registry, periodos, moeda, multi-guia, multi-receita, negativos, falhas, probe e persistencia idempotente sem mutacao canonica.
+- `docs/S11_DARF_PARSER.md`: contrato, decisoes, privacidade, limites e resultados das validacoes.
+- Observacao documental posterior: exemplo E2E corrigido para remover overrides ausentes/vazios no finally, evitando DATABASE_URL vazio com precedencia sobre `.env`; hash do validador real deve usar SHA-256 streaming compativel com Python 3.10. Revalidacao adicional: quatro PASS, duas divergencias pendentes, hashes/banco inalterados e Alembic recuperado no head. Nenhum script, parser ou migration alterado nesta observacao.
+
+Nenhuma tabela, migration, endpoint ou UI nova. Head `20260911_0019`. Ordem A DAS, B DARF/SENDA, C estaduais, D ISS, E parcelamentos, para reutilizar layouts-base. Demais parsers, backfill e S12 permanecem futuros.
+
+Fechamento de 2026-09-16: 70 casos sinteticos DARF, foco integrado `159 passed` em `49.14s` e backend `844 passed` em `183.75s`, ambos com warning conhecido Starlette/httpx. Ruff/diff/typecheck/build aprovados (62 modulos, `2.96s`); Playwright `14 passed` em `1.5m`, banco distinto/admin sintetico. Seis DARFs reais MATCHED, tres DAS preservados e dois PGFN sem suporte nos dois parsers; SHA-256 dos 11 arquivos e contagens operacionais inalterados (0 runs, 1718 evidences, 1 evento, 196 status de obrigacao). Nenhum PDF/XML/ZIP no status; nove temporarios QA removidos, originais intactos. Alteracoes locais preexistentes preservadas e nenhum commit executado. `S11.1_B_DARF_CONCLUIDO = YES`.
+
 Data de referência: 2026-08-20
 
 Este documento descreve a organização inicial recomendada para o monorepo do Lumen. A estrutura foi pensada para facilitar trabalho incremental com Codex, separando backend, frontend, agente local, infra, documentação e scripts operacionais.

@@ -1,5 +1,41 @@
 # Lumen - Fiscal Cockpit
 
+## S11.1-C.1 — Framework de layouts documentais
+
+O pipeline permanente do S11 agora separa `Detect Layout -> Extract -> Classify -> Parser Result`. Os contratos `DocumentLayoutDetector`, `DocumentLayoutExtractor` e `DocumentClassifier`, o resultado intermediario `ClassificationResult`, o `ComposableDocumentParser` e o `LayoutRegistry` ficam em `agent/parsers/layout_framework.py`. O registro e explicito e deterministico: `DAS_FORM`, `FEDERAL_REVENUE_FORM` e `DARE_GO_5_1`; nao ha plugins dinamicos, scanning, YAML ou banco de layouts.
+
+Layout conhecido com classificacao desconhecida preserva a estrutura extraida, permanece `MATCHED` e emite warning; layout desconhecido retorna `UNKNOWN`/`UNSUPPORTED` com `UNKNOWN_GUIDE_LAYOUT`. Filename/path nao concluem layout nem tributo. O diagnostico de layout e allowlisted e nunca inclui path, texto ou dados fiscais. DAS 2, DARF 1 e estadual 1 preservam payload, classificacao e versao; o DAS permanece parser especifico por decisao deliberada, enquanto federal e DARE usam adaptadores formais sobre os extratores neutros existentes. Runtime, polling, persistencia e schema nao mudaram. Guia de extensao: [S11_PARSER_EXTENSION](docs/S11_PARSER_EXTENSION.md).
+
+Testes sinteticos demonstram novo layout/extractor/classifier registrado e executado pelo runtime sem editar `DocumentParserRuntime`, alem de layout desconhecido e `KNOWN_LAYOUT + UNKNOWN_CLASSIFICATION`. A revalidacao operacional final executada pela usuaria aprovou: foco `190 passed, 1 warning` em 59.30s; backend `929 passed, 1 warning` em 200.50s; Ruff e diff; typecheck/build (62 modulos, 2.86s); E2E isolado `14 passed` em 1.4m; Alembic operacional `20260911_0019 (head)` antes e depois. O warning e a deprecacao conhecida Starlette/httpx; avisos LF/CRLF do Git nao falharam `diff --check`.
+
+O detector real confirmou, com SHA-256 preservado, DAS -> `DAS_FORM`/DAS/MATCHED, DARF -> `FEDERAL_REVENUE_FORM`/DARF/MATCHED, ICMS -> `DARE_GO_5_1`/STATE_GUIDE/MATCHED e parcelamento SEFAZ -> layout `DARE_GO_5_1`, mas familia UNKNOWN/status UNSUPPORTED. Um PDF sintetico com filename enganoso resultou `UNKNOWN_LAYOUT`/UNSUPPORTED sem path ou texto no diagnostico. Resultado: `S11_1_C_1_REAL_LAYOUT_DETECTOR_VALIDATION=PASS` e `S11_1_C_1_VALIDATION=PASS`. Como nao houve mudanca semantica, `REAL_CORPUS_REVALIDATION_REQUIRED = NO`. Nenhuma migration, parser fiscal novo, ISS, parcelamento, backfill, polling ou S12 foi iniciado; nenhum PDF/XML/ZIP entrou no status.
+
+## S11.1-C — Guias estaduais
+
+`lumen.state-guide-pdf` versao `1` interpreta DARE 5.1 de Goias em family STATE_GUIDE, com categorias ICMS, DIFAL, DIFAL_CONSUMPTION_ASSET, PROTEGE e UNKNOWN. Extrator estrutural reutilizavel e classifier separados; documents/receitas/componentes tipados, referencia/vencimento/validade independentes, Decimal e sinais apenas documentais. Parcelamento SEFAZ/acordo/parcela preenchida excluidos; campo Parcela vazio normal nao exclui. Registry explicito DAS 2 + DARF 1 + estadual 1, sem polling/promocao canonica/migration/backfill/S12.
+
+Cinco positivos reais, controles DAS/DARF e o negativo real de parcelamento SEFAZ foram aprovados com hashes/banco preservados. A matriz final registrou `ICMS`, `DIFAL`, `DIFAL_CONSUMO_ATIVO`, `PROTEGE`, `DAS_REGRESSION`, `DARF_REGRESSION` e `SEFAZ_INSTALLMENT_NEGATIVE` como PASS, seguida de `REAL_STATE_GUIDE_VALIDATION=PASS`. Contrato, mapping empirico, probe, comandos e resultados: [S11_STATE_GUIDE_PARSER](docs/S11_STATE_GUIDE_PARSER.md). Ordem A DAS, B DARF/SENDA, C estaduais, D ISS, E parcelamentos; D/E nao iniciados. Head 20260911_0019.
+
+Regressao completa sequencial da versao estadual: 915 passed, 1 warning conhecido; foco final com Watcher 229 passed; 71 testes estaduais sinteticos. Ruff/diff/typecheck/build aprovados; E2E 14 passed em 1.3m, banco separado/admin sintetico, snapshot operacional incluindo users identico antes/depois. Nenhum admin operacional alterado. Nao executar suites pytest/E2E simultaneamente na mesma base descartavel. Sem PDF/XML/ZIP no status; cinco renders QA removidos, originais intactos. Nenhum commit/staging realizado; alteracoes anteriores preservadas.
+
+## S11.1-B — DARF/SENDA
+
+Nota operacional de E2E: ao restaurar overrides no finally, remover variaveis anteriormente ausentes/vazias com `Remove-Item Env:\...`; restaurar valores nao vazios. Um DATABASE_URL vazio no processo pode bloquear o valor do `.env` e impedir Settings/Alembic. A usuaria confirmou recuperacao de `20260911_0019 (head)` ao remover esse override, sem seed de admin ou migration operacional. Exemplo seguro e registro da revalidacao em [S11_DARF_PARSER](docs/S11_DARF_PARSER.md). O corpus adicional teve quatro PASS e duas divergencias de expectativa (quantidade de guias e mes CSLL); ainda nao foi integralmente aprovado.
+
+`lumen.darf-pdf` versao `1` interpreta DARF textual com PIS/COFINS/IRPJ/CSLL identificados pelo conteudo. `documents[]` distingue PDFs com guias independentes de uma guia com N `revenues[]`, sem fundir cabecalhos/totais. Periodos trimestrais sao preservados; PA de cabecalho e composicao permanecem separadas com origem e warning quando diferentes. Extrator federal reutilizavel nao classifica automaticamente parcelamentos.
+
+Marcadores PGFN/SISPAR/PARC/PARCSN/PERT/RELP/SIMEI/parcelamento ou divida ativa excluem DARF comum. DAS recebe somente hardening complementar na versao `2`, preservando runs historicas da versao `1`. Nenhuma migration: head `20260911_0019`; dados ficam em parser runs, sem promocao canonica. Polling, OCR, backfill e S12 permanecem fora do escopo.
+
+Probe read-only com stdout sanitizado:
+
+```powershell
+.\.venv\Scripts\python.exe -m agent.parsers.darf_probe -- '<PDF_LOCAL>'
+```
+
+Contrato, modelos, mapeamentos empiricos, warnings, limites e resultados: [S11_DARF_PARSER](docs/S11_DARF_PARSER.md). Ordem S11.1: A DAS, B DARF/SENDA, C estaduais, D ISS, E parcelamentos, para reutilizar layouts-base. E2E somente com banco distinto e credenciais sinteticas; nunca executar bootstrap sobre admin/base operacional.
+
+Fechamento validado em 2026-09-16: `159 passed` focados e `844 passed` no backend completo (um warning conhecido Starlette/httpx); Ruff/diff/typecheck/build aprovados; `14 passed` no E2E isolado. Corpus: seis DARFs positivos, tres DAS preservados e dois PGFN rejeitados pelos dois parsers; trimestre, duas guias independentes e um DARF com duas receitas comprovados. Hashes de 11 arquivos e contagens operacionais inalterados (runs=0, evidences=1718, events=1, obligation statuses=196). Nenhum PDF/XML/ZIP no status; nove temporarios QA removidos, originais intactos. `S11.1_B_DARF_CONCLUIDO = YES`; demais parsers, backfill e S12 nao iniciados.
+
 Data de referencia: 2026-08-26
 
 ## S10.5 - Consulta Fiscal de Referencia
@@ -1067,7 +1103,7 @@ S9.5 e o macro-stage S9 estão concluídos e validados. A suíte E2E cobre as le
 
 ## S10.0 Watcher fiscal: contrato offline
 
-S10.0 a S10.4 estao concluidos, incluindo piloto real manual e controlado. O S11.0 tambem esta concluido: o watcher fiscal agora trata cada `G:\EMPRESAS\<pasta empresarial>\Escrita Fiscal` como boundary e aceita estrutura interna livre. PDF, JSON, XML e ZIP podem ser candidatos documentais. O S11.1-A adicionou somente o parser PDF de DAS; OCR, extracao ZIP, outros parsers fiscais e conciliacao ainda nao existem. A autoridade permanece `CONTEUDO DOCUMENTAL > ESTRUTURA TECNICA > FILENAME > PATH`.
+S10.0 a S10.4 estao concluidos, incluindo piloto real manual e controlado. O S11.0 tambem esta concluido: o watcher fiscal agora trata cada `G:\EMPRESAS\<pasta empresarial>\Escrita Fiscal` como boundary e aceita estrutura interna livre. PDF, JSON, XML e ZIP podem ser candidatos documentais. S11.1-A/B adicionaram parsers PDF de DAS e DARF/SENDA; OCR, extracao ZIP, outros parsers fiscais e conciliacao ainda nao existem. A autoridade permanece `CONTEUDO DOCUMENTAL > ESTRUTURA TECNICA > FILENAME > PATH`.
 
 Operacionalmente, parser de conteudo definira a identificacao principal/canonica; nome do arquivo sera somente hint auxiliar/evidencia complementar; e pasta fornecera somente contexto de empresa e competencia. O fechamento S10.2 foi validado com `10 passed` no ingest, `653 passed` no backend, Ruff limpo, typecheck aprovado, `7 passed` no E2E e contagens read-only inalteradas: `0` watcher events, `1717` evidences e `196` statuses.
 
@@ -1084,7 +1120,7 @@ A fase 2 validou um unico PDF real por operacao manual: o dry-run nao alterou o 
 
 `python -m agent.watcher.main --ingest-file <arquivo.pdf|json|xml|zip>` valida assinatura e gera apenas dry-run por padrao. A transmissao exige `--confirm-send`. O payload v2 nao aceita IDs de tenant, empresa ou periodo; o tenant continua derivado da autenticacao M2M. O backend preserva o v1 e cria para v2 evento/evidence pendentes com empresa e periodo nulos, prontos para parser futuro.
 
-Nenhum backfill historico foi executado e nenhum processo automatico foi instalado. A identidade de ocorrencia permanece path+hash por compatibilidade; a identidade documental por `organization + SHA-256`, sem duplicacao de evidence quando o mesmo conteudo aparece em outro path, foi fechada no S11.0.1 antes do backfill. S11.1 foi iniciado somente pelo parser DAS do S11.1-A; S11.2, S11.3 e S12 nao foram iniciados. Como nao houve mudanca visual, nao foi necessario criar E2E novo; a regressao existente foi mantida.
+Nenhum backfill historico foi executado e nenhum processo automatico foi instalado. A identidade de ocorrencia permanece path+hash por compatibilidade; a identidade documental por `organization + SHA-256`, sem duplicacao de evidence quando o mesmo conteudo aparece em outro path, foi fechada no S11.0.1 antes do backfill. S11.1 possui parsers DAS e DARF/SENDA; S11.2, S11.3 e S12 nao foram iniciados. Como nao houve mudanca visual, nao foi necessario criar E2E novo; a regressao existente foi mantida.
 
 ### Fechamento validado do S11.0
 

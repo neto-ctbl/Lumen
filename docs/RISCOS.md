@@ -1,5 +1,41 @@
 # Riscos Tecnicos do Lumen
 
+## S11.1-C.1 — Framework de layouts
+
+- Detector permissivo demais pode confundir estruturas parecidas; mitigar com assinatura documental combinada e negativos cruzados. Detector reconhece forma, classifier decide semantica.
+- Criar extractor por tributo duplicaria layout e divergiria regras; reutilizar o extractor quando `layout_id` ja for conhecido e ampliar somente mapping/classifier.
+- `KNOWN_LAYOUT + UNKNOWN_CLASSIFICATION` nao pode perder a estrutura nem virar unknown layout. Manter `MATCHED`, dados extraidos e warning conservador.
+- Diagnostico de modelo desconhecido pode vazar dados se receber texto/path bruto. A API allowlisted aceita arquivo local, mas devolve apenas formato, paginas, disponibilidade de texto, layout/status e warnings.
+- Registry dinamico traria ordem/import imprevisiveis. O projeto proibe scanning/plugins/YAML/banco e usa registro explicito testado.
+- Migrar todos os parsers para uma classe-base poderia alterar payloads estaveis. O helper composto e opcional; adaptadores formalizam federal/DARE e DAS permanece especifico ate haver beneficio concreto.
+- Contrato e roteiro: [S11_PARSER_EXTENSION](S11_PARSER_EXTENSION.md). Sem mudanca de versao, migration, polling, backfill ou revalidacao real neste stage semanticamente neutro.
+
+## S11.1-C — Guias estaduais
+
+- Corpus cobre apenas DARE-GO 5.1. Nao generalizar para outras UFs/layouts; futuro suporte requer corpus/testes/versionamento.
+- Via bancaria e qualificadores podem simular multi-guia/multi-receita; identidade explicita, parent/subcodigo e components separados evitam duplicacao. Repeticao exata deduplica com locators; conteudo divergente nao e fundido.
+- Codigo NORMAL e CONTRIBUICAO genericos exigem contexto; codigo novo preservado com warning e UNKNOWN/fallback conclusivo. DIFAL nao ganha natureza por path/nome.
+- Parcelamento reutiliza shell e rotulo Parcela ja existe no normal. Excluir marcadores explicitos/celula preenchida, nao rotulo vazio. Negativo sintetico e controle SEFAZ real foram aprovados; o layout continua reconhecivel pelo framework, mas o parser estadual normal permanece UNSUPPORTED.
+- IE/nome nao confirmam CNPJ; periodos/validade/vencimento nao sao intercambiaveis. Preservar NULL e proveniencia, sem promocao canonica.
+- E2E nunca deve usar base/admin operacional; restauracao de overrides deve remover ausentes/vazios. Probes sao offline; validador opt-in usa apenas transacoes READ ONLY e snapshots sem imprimir digests/dados.
+- Suites paralelas de pytest/E2E compartilham e recriam o schema de lumen_test; uma execucao parcial sofreu essa interferencia e foi descartada. Executar sequencialmente ou em bancos realmente diferentes. Repeticao completa sequencial aprovada com 915 testes, sem aproveitar resultados parciais.
+- Contrato/limites/resultados: [S11_STATE_GUIDE_PARSER](S11_STATE_GUIDE_PARSER.md). Sem reconciliacao/backfill/S12.
+
+## S11.1-B — DARF/SENDA
+
+- Restauracao de env com valor nulo pode deixar override vazio nesta sessao PowerShell. DATABASE_URL vazio prevalece sobre `.env` e impede Settings/Alembic. Mitigacao nos comandos documentados: remover overrides antes ausentes/vazios no finally, restaurar valores nao vazios e conferir Alembic apos E2E; a usuaria recuperou o head ao limpar somente o override vazio, sem seed ou migration operacional.
+- Validador externo incompativel pode mascarar a causa com VALIDATION_SETUP_ERROR. Usar SHA-256 streaming em Python 3.10, nao hashlib.file_digest. A matriz ampliada corrigida teve duas divergencias de expectativa, nao aprovacao integral; conferir conteudo antes de alterar parser ou expectativas, sem usar filename/path como autoridade.
+
+- Confundir varias guias com varias receitas: mitigar com documents/revenues e identidade/cabecalho explicitos para continuacao; nao derivar identidade por filename/pagina.
+- Cabecalho e PA detalhada podem diferir: preservar ambos com origem/warning; trimestre nao vira mes arbitrario e path nao corrige conteudo.
+- Parcelamentos reutilizam shell federal: excluir antes do match, testar os dois parsers com registry invertido e controlar PGFN real. Programas sem marcador explicito podem exigir novos layouts/bump.
+- Novos codigos/colunas: preservar codigo/descricao e UNKNOWN/fallback documental com warning; tres valores sem colunas confiaveis nao sao deslocados silenciosamente. Mapping nao e catalogo fiscal completo.
+- Bundles mistos, paginas desconhecidas/vazias e continuacoes sem titulo/cabecalho repetido: UNSUPPORTED conservador, sem descartar pagina silenciosamente. Suporte futuro exige nova versao.
+- Bundles grandes: ate 64 blocos e 60.000 bytes no resultado, sem truncar; endpoint mantem limite final 64 KiB incluindo contexto.
+- Idempotencia pode ocultar alteracao material: DAS hardening usa versao `2`, sem sobrescrever runs `1`; DARF `1`.
+- Bootstrap E2E pode sobrescrever admin: DATABASE_URL de teste distinto, credenciais sinteticas e restauracao de env no finally; nunca rodar E2E padrao contra base operacional.
+- Privacidade: probe/log com allowlist, sem raw text/observacao/barcode/PIX/path; corpus externo read-only e fixtures sinteticas. Renders temporarios sao removidos. Contrato: [S11_DARF_PARSER](S11_DARF_PARSER.md).
+
 Data de referencia: 2026-07-20
 
 ## Sittax

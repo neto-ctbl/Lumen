@@ -1,6 +1,12 @@
 # Contrato do Watcher Fiscal
 
-Status: S10.0 a S10.4, S11.0 a S11.0.2 e S11.1-A concluidos. O agent operacional usa polling, emite candidatos documentais pelo contrato v2 e preserva o ingest v1 para regressao. O runtime comum possui somente o parser PDF de DAS, ainda desacoplado do polling; os demais parsers e S12 nao foram iniciados.
+Status: S10.0 a S10.4, S11.0 a S11.0.2 e S11.1-A/B/C/C.1 concluidos. O agent operacional usa polling, emite candidatos documentais pelo contrato v2 e preserva ingest v1. Registry explicito DAS 2, DARF 1 e STATE_GUIDE 1, desacoplado do polling; framework de layouts tambem explicito (`DAS_FORM`, `FEDERAL_REVENUE_FORM`, `DARE_GO_5_1`). ISS/parcelamentos e S12 nao iniciados.
+
+## S11.1-C — Resultado estadual sem promocao canonica
+
+DARE_GO_5_1 e layout confirmado pelo corpus; family STATE_GUIDE, categorias ICMS/DIFAL/DIFAL_CONSUMPTION_ASSET/PROTEGE/UNKNOWN. Extrator estrutural reutilizavel e classifier separados. documents[] preserva identidade/header/receitas/componentes/locators de cada guia, sem tratar vias ou qualificadores como guias independentes. Referencia conteudo com origem CONTENT_REFERENCE, hints filename/path independentes; campos ausentes NULL e valores Decimal. Parcela preenchida/parcelamento/acordo excluem normal; Parcela vazia do shell nao exclui. Codigos/descricao concluiriam categoria, nunca nome/pasta.
+
+Registro continua em fiscal_document_parser_runs, sem tabela/migration, promocao canonica, conciliacao ou backfill. Head 20260911_0019. Probe sanitizado offline e validador opt-in fail-fast com hashes/snapshots READ ONLY. Cinco estaduais, controles DAS/DARF e negativo SEFAZ real aprovados; `REAL_STATE_GUIDE_VALIDATION=PASS`. Contrato completo: [S11_STATE_GUIDE_PARSER](S11_STATE_GUIDE_PARSER.md). Framework/roteiro: [S11_PARSER_EXTENSION](S11_PARSER_EXTENSION.md). Ordem A DAS, B DARF/SENDA, C estadual, D ISS, E parcelamentos; SEFAZ futuro podera reutilizar shell.
 
 ## Identidade e autenticação futura
 
@@ -117,8 +123,18 @@ A run e idempotente por organizacao+evidence+parser+versao. Nova versao conserva
 
 ## S11.1-A - Parser PDF de DAS
 
+Nota de evolucao S11.1-B: o registry atual inclui DAS e DARF/SENDA. O DAS historico descrito abaixo era versao `1`; o hardening PARCSN/SIMEI/bundle misto passa a versao `2`, sem sobrescrever runs anteriores.
+
 `DasPdfParser` (`lumen.das-pdf`, versao `1`) e o unico parser fiscal registrado. Ele exige PDF textual, titulo de Documento de Arrecadacao do Simples Nacional e pelo menos dois marcadores estruturais; filename/path nunca bastam. Como parcelamentos podem reutilizar o mesmo titulo/layout, marcadores de PGFN/SISPAR/PARC/PERT/RELP/parcelamento na secao de observacoes ou denominacoes de divida ativa na composicao excluem o match de DAS. Observacao vazia e `IC` permanecem compativeis. PDF sem texto e inconclusivo, PDF corrompido e invalido e excecoes permanecem isoladas pelo runtime.
 
 O resultado `DasDocument` preserva cabecalho, todos os componentes observaveis e validacoes tecnicas. CNPJ, periodo, datas e moeda sao normalizados; dinheiro usa `Decimal`. Codigo desconhecido nao e descartado. Soma divergente e diferenca entre vencimento e data limite geram warnings, nao conclusao fiscal. Barcode/PIX, resolucao de estabelecimento, campos canonicos de evidence e obrigacoes ficam fora do contrato.
 
 O harness manual e read-only imprime apenas resumo sanitizado. O corpus externo confirmou tres DAS como `MATCHED` e dois PGFN como `UNSUPPORTED`; o identificador real da observacao e os documentos nao foram copiados ou persistidos. O polling e o backfill continuam desligados.
+
+## S11.1-B - DARF/SENDA
+
+`lumen.darf-pdf` versao `1` exige assinatura combinada de titulo federal, composicao, rotulos de tabela e cabecalho; filename/path nao definem familia ou tributo. Programas explicitos de parcelamento e divida ativa excluem match. Extrator federal neutro permanece reutilizavel por parser futuro de parcelamento.
+
+`structured_data.documents[]` contem cada guia independente com header, revenues, validation, paginas/blocos e warnings. Canhotos nao viram documentos; um DARF unificado permanece um documento com N receitas. Periodos do header/composicao sao preservados separadamente; consenso explicito de receitas pode selecionar trimestre, jamais por path. Sinais CONTENT indexam documentos e coexistem com hints recebidos.
+
+Usa o mesmo endpoint/run idempotente e limite 64 KiB do S11.0.2; nenhuma migration ou campo canonico alterado. Probe DARF-only nao envia HTTP nem registra evidence/run, imprimindo somente allowlist sanitizada. E2E usa base distinta e admin sintetico. Contrato/modelos/codigos/limites/resultados em [S11_DARF_PARSER](S11_DARF_PARSER.md). Ordem A DAS, B DARF, C estaduais, D ISS, E parcelamentos; polling, backfill e S12 continuam nao iniciados.

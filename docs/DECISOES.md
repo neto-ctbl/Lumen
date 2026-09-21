@@ -1,5 +1,35 @@
 # Decisoes Tecnicas do Lumen
 
+## S11.1-C.1 — Layout nao e classificacao fiscal
+
+- Todo documento novo passa conceitualmente por detectar layout, extrair estrutura, classificar e montar resultado. `CONTENT > FILE_STRUCTURE > FILENAME > PATH`; nome/path nunca fabricam layout ou tributo.
+- `DocumentLayoutDetector`, `DocumentLayoutExtractor`, `DocumentClassifier`, `ClassificationResult`, `ComposableDocumentParser` e `LayoutRegistry` formalizam as etapas sem substituir a interface publica `DocumentParser`.
+- Registry de layouts explicito e deterministico: DAS_FORM, FEDERAL_REVENUE_FORM e DARE_GO_5_1. Sem reflection, imports magicos, scanning, plugins, YAML, banco ou hot reload.
+- Layout conhecido e classificacao desconhecida e `MATCHED`: estrutura preservada, classificacao UNKNOWN e warning. Layout desconhecido e UNKNOWN/UNSUPPORTED com `UNKNOWN_GUIDE_LAYOUT`. O diagnostico so divulga agregados tecnicos allowlisted.
+- Federal e DARE usam adaptadores sobre extratores neutros existentes. DAS ganha detector de layout, mas mantem extracao especifica: uma separacao completa exigiria refatoracao agressiva sem consumidor imediato.
+- Novo parser e composto/registrado sem alterar runtime, watcher ingest, persistencia ou endpoint. Refatoracao semanticamente neutra preserva versoes DAS 2, DARF 1 e estadual 1; bump futuro somente no parser cujo output mudar.
+- Contrato de extensao: [S11_PARSER_EXTENSION](S11_PARSER_EXTENSION.md). Nenhum parser fiscal novo, ISS, parcelamento, migration, polling, backfill ou S12 neste stage.
+
+## S11.1-C — Shell estadual separado da categoria
+
+- Corpus visual comprova layout unico DARE_GO_5_1, nao quatro layouts pelo tributo. Family STATE_GUIDE; extrator neutro e classifier separados. Reutilizacao futura para SEFAZ, sem implementar parcelamentos agora.
+- Codigo principal/qualificador e alineas pertencem a uma receita; 4014/41 PROTEGE nao sao duas receitas. NORMAL 108 exige contexto ICMS. Mapping empirico/descricao conclusiva, conflito ou falta de sinais resulta UNKNOWN, nunca filename/path.
+- IE nao substitui CNPJ ausente; referencia/vencimento/validade e UF emissora/endereco sao observacoes independentes. Decimal, NULL para ausentes, sem promocao canonica ou migration.
+- Campo Parcela vazio faz parte do DARE normal; preenchimento/marcador de parcela/acordo/parcelamento exclui normal. Registry protege semanticamente em qualquer ordem.
+- Validador real fail-fast unico: hashes antes/depois e banco READ ONLY com counts/fingerprints/Alembic; ausencia de amostra e FAIL, nao PASS sintetico. Cinco estaduais, DAS/DARF e o negativo SEFAZ real foram aprovados; matriz final `REAL_STATE_GUIDE_VALIDATION=PASS`.
+- Contrato e resultados: [S11_STATE_GUIDE_PARSER](S11_STATE_GUIDE_PARSER.md). Ordem A DAS, B federal, C estadual, D ISS, E parcelamentos. Nenhum D/E, S11.2/S11.3 ou S12 iniciado.
+
+## S11.1-B — Extracao federal separada da classificacao
+
+- Comandos de E2E devem capturar overrides antes da execucao e, no finally, remover variaveis do processo quando o valor anterior era ausente/vazio, restaurando somente os valores nao vazios. Isso evita DATABASE_URL vazio bloqueando o `.env`; nao implica alterar `.env`, variaveis persistentes ou admin operacional. A mesma regra vale para overrides temporarios de validacao. Exemplo documentado foi corrigido, sem mudanca em script de runtime.
+
+- `FederalRevenueGuideExtractor` recebe texto e nao seleciona familia/tributo. Header, tabela, moeda, CNPJ/CPF, periodos e validacao poderao ser reutilizados por parcelamentos; DARF exclui programas antes do match e taxonomy usa mapping Python empirico separado.
+- PDF pode reunir N guias, cada qual com N receitas. `documents[]` e nivel documental; `revenues[]` pertence a cada guia. Paginas/blocos preservam origem; canhotos nao sao guias. Merge exige numero/cabecalho identicos e bloco repetido nao soma novamente receitas.
+- PA do cabecalho e composicao sao observacoes distintas, ambas preservadas. Consenso explicito das receitas pode normalizar trimestre sem inferencia por pasta/calendario; diferenca gera warning tecnico. Trimestre/data nunca e forcado para mes.
+- DARF inicia na versao `1`. Hardening PARCSN/SIMEI/bundle misto no DAS exige versao `2`, respeitando idempotencia e mantendo runs DAS `1` historicas. Nenhuma promocao canonica ou migration.
+- Ordem S11.1 A DAS, B DARF/SENDA, C estaduais, D ISS, E parcelamentos: estes reutilizarao layouts-base. Polling, backfill e S12 nao iniciados.
+- E2E exclusivamente em banco distinto e admin sintetico, sem bootstrap operacional. Contrato e resultados: [S11_DARF_PARSER](S11_DARF_PARSER.md).
+
 Data de referencia: 2026-07-20
 
 ## S7.0 - Sittax observado

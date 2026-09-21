@@ -1,0 +1,142 @@
+# S11.1-C.1 — Extensao de parsers documentais
+
+Status: framework concluido em 2026-09-21. Este contrato e local ao Agent,
+deterministico e desacoplado do polling. Nao cria plugin dinamico, tabela,
+migration, endpoint, backfill ou reconciliacao.
+
+## Pipeline obrigatorio
+
+```text
+arquivo
+  -> identificar layout fisico
+  -> extrair estrutura
+  -> classificar o documento/receita
+  -> produzir ParserExtraction/ParserRunResult
+```
+
+Layout e classificacao fiscal sao identidades distintas. A precedencia de
+sinais continua `CONTENT > FILE_STRUCTURE > FILENAME > PATH`; filename e path
+nunca transformam um layout desconhecido em tributo conhecido.
+
+Os contratos ficam em `agent/parsers/layout_framework.py`:
+
+- `DocumentLayoutDetector`: possui `layout_id` e responde somente se reconhece
+  a estrutura;
+- `DocumentLayoutExtractor[T]`: reconhece a estrutura e devolve dados fisicos
+  extraidos;
+- `DocumentClassifier[T, ClassificationResult]`: classifica os dados ja
+  extraidos e nao reabre o arquivo;
+- `ClassificationResult`: carrega apenas identidade/classificacao, familia,
+  subtipo, confianca, sinais e warnings; nao duplica o resultado do runtime;
+- `ComposableDocumentParser`: adapta as tres etapas para a interface publica
+  `DocumentParser`;
+- `LayoutRegistry`: registro ordenado e explicito, sem reflection, scanning,
+  YAML, banco, entry points ou hot reload.
+
+O registry padrao de layouts e deliberadamente escrito em codigo e registra,
+nesta ordem, `DAS_FORM`, `FEDERAL_REVENUE_FORM` e `DARE_GO_5_1`. O registry de
+parsers continua separado e explicito. Um parser novo e registrado no
+`ParserRegistry`; o `DocumentParserRuntime` nao precisa ser alterado.
+
+## Dois resultados que nao podem ser confundidos
+
+### Layout conhecido e classificacao desconhecida
+
+O extractor concluiu a leitura estrutural. O resultado permanece `MATCHED`, a
+estrutura extraida e preservada, `classification_known=false`, a classificacao
+e `UNKNOWN` e um warning especifico e emitido. No DARE atual, por exemplo, um
+codigo nao mapeado permanece no payload e gera `STATE_REVENUE_CODE_UNKNOWN` e,
+quando nao houver semantica conclusiva, `STATE_GUIDE_KIND_INCONCLUSIVE`.
+
+### Layout desconhecido
+
+Nenhum detector reconheceu a estrutura. O resultado de identificacao usa
+`layout_id=UNKNOWN`, `matched=false`; o parser composto devolve `UNSUPPORTED`,
+familia/classificacao `UNKNOWN` e `UNKNOWN_GUIDE_LAYOUT`. Um nome enganoso como
+`DARF ICMS.pdf` nao muda esse resultado.
+
+`sanitized_layout_diagnostic()` permite levantar esse caso sem expor o arquivo.
+Sua saida e allowlisted: formato tecnico, quantidade de paginas, disponibilidade
+de texto, layout conhecido, `layout_id`, classificacao tecnica/conhecida e warnings. Nao
+inclui path, texto, CNPJ/CPF, razao social, IE, valores, numero de guia, codigo
+de barras ou identificador fiscal.
+
+## Como estender um layout existente
+
+Quando a estrutura ja e reconhecida, nao se cria outro extractor.
+
+1. Confirmar por fixture sintetica que o detector/extractor atual aceita o
+   documento.
+2. Adicionar ou ampliar o mapping/classifier sem usar filename/path como
+   autoridade.
+3. Preservar codigo, descricao e demais campos observados quando a classificacao
+   continuar desconhecida.
+4. Adicionar casos positivo, conflitante e desconhecido aos testes da familia.
+5. Alterar a versao do parser somente se o resultado publico mudar.
+
+Exemplo: um novo codigo sintetico no `DARE_GO_5_1` requer mapping/testes do
+classifier estadual, nao um novo parser nem um novo extractor.
+
+## Como adicionar um layout novo
+
+1. Criar um detector ou um extractor que tambem implemente
+   `supports_layout(context)` e declarar um `layout_id` estavel.
+2. Extrair somente estrutura documental; manter decisao fiscal no classifier.
+3. Criar um classifier que consuma exclusivamente o objeto extraido.
+4. Compor um `DocumentParser`, diretamente ou com
+   `ComposableDocumentParser`.
+5. Registrar detector/extractor em `default_layout_registry()` e parser em
+   `default_parser_registry()`; ambos os registros sao explicitos.
+6. Cobrir layout conhecido, classificacao conhecida/desconhecida, layout
+   desconhecido, falhas sanitizadas, limites e regressao cruzada.
+
+Exemplo exclusivamente sintetico:
+
+```python
+extractor = SyntheticLayoutExtractor()  # layout_id = "SYNTHETIC_FORM"
+classifier = SyntheticClassifier()
+parser = ComposableDocumentParser(
+    name="synthetic.form",
+    version="1",
+    supported_formats=frozenset({TechnicalFormat.JSON}),
+    extractor=extractor,
+    classifier=classifier,
+    serialize_extracted=lambda value: {"document": value},
+)
+registry = ParserRegistry((parser,))
+result = DocumentParserRuntime(registry).run_file(synthetic_path)
+```
+
+O teste dedicado prova esse fluxo sem editar o runtime.
+
+## Quando nao criar extractor novo
+
+Nao criar outro extractor apenas porque mudou tributo, codigo de receita,
+programa, nome do arquivo, pasta ou competencia. Tambem nao criar por simetria
+se a separacao exigir reescrever um parser estavel sem consumidor real.
+
+Por essa razao, o DAS ganhou detector `DAS_FORM`, mas sua extracao permanece no
+`DasPdfParser`: separar agora duplicaria/refatoraria agressivamente regras de
+componentes sem beneficio imediato. O federal e o DARE possuem adaptadores
+formais sobre `FederalRevenueGuideExtractor` e `StateRevenueGuideExtractor`,
+pois esses extratores ja eram neutros e reutilizaveis. As exclusoes de DARF,
+DAS normal e guia estadual normal continuam nos respectivos parsers/classifiers,
+nao nos detectores fisicos.
+
+## Versao, testes e seguranca
+
+- Refatoracao interna com payload, classificacao e comportamento identicos nao
+  altera versao. S11.1-C.1 preserva DAS `2`, DARF `1` e estadual `1`.
+- Mudanca semantica futura incrementa somente o parser afetado.
+- Fixtures sao sinteticas; corpus real nao e versionado nem transcrito.
+- Exceptions viram warnings sanitizados; nenhum texto bruto entra no resultado.
+- O arquivo permanece local ao Agent e nenhum detector/extractor escreve nele.
+- O framework nao conecta os parsers ao polling e nao promove campos canonicos.
+
+Cobertura central: `backend/tests/test_document_layout_framework.py`, alem das
+regressoes DAS, DARF, estadual, runtime e parser runs. Fechamento sequencial:
+foco `190 passed`, backend `929 passed`, Ruff/diff/typecheck/build aprovados,
+Playwright isolado `14 passed` e Alembic `20260911_0019 (head)`; houve somente o
+warning conhecido Starlette/httpx. Como payloads, versoes e classificacoes
+existentes permaneceram identicos, a revalidacao do corpus real para esta
+refatoracao e `REAL_CORPUS_REVALIDATION_REQUIRED = NO`.
