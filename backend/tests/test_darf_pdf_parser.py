@@ -320,8 +320,14 @@ def test_installments_are_excluded_by_both_parsers_independent_of_registry_order
     for parser in (DarfPdfParser(), DasPdfParser()):
         assert parser.supports(_context(path)) is False
     assert DarfPdfParser().parse(_context(path)).extraction_status is ExtractionStatus.UNSUPPORTED
-    for registry in (default_parser_registry(), ParserRegistry((DarfPdfParser(), DasPdfParser()))):
-        assert DocumentParserRuntime(registry).run_file(path).extraction_status is ExtractionStatus.UNSUPPORTED
+    normal_only = DocumentParserRuntime(ParserRegistry((DarfPdfParser(), DasPdfParser()))).run_file(path)
+    assert normal_only.extraction_status is ExtractionStatus.UNSUPPORTED
+    production = DocumentParserRuntime(default_parser_registry()).run_file(path)
+    if observation in {"PARC-SN", "PARCELA 01"}:
+        assert production.extraction_status is ExtractionStatus.UNSUPPORTED
+    else:
+        assert production.extraction_status is ExtractionStatus.MATCHED
+        assert production.document_family == "INSTALLMENT"
 
 
 @pytest.mark.parametrize("observation", ("", "IC"))

@@ -20,15 +20,27 @@
   programas, layouts, campos, conflitos, unknowns, probe e falhas.
 - `docs/S11_INSTALLMENT_PARSER.md`: contrato, matriz real, limites e segurança.
 
-Oito amostras reais externas ao Git validaram duas variantes PGFN, PARCSN, SIMEI, RELP, PERT,
+Oito amostras reais externas ao Git validaram duas variantes PGFN, PARCSN, PARCMEI, RELP, PERT,
 Simplificado e SEFAZ. Os três layouts existentes foram reutilizados e somente o DARF
 clássico exigiu layout novo. Controles reais DAS/DARF/ICMS/DIFAL/PROTEGE/ISS próprio e
 retido permaneceram em suas famílias. Arquivos e banco ficaram inalterados:
 `REAL_INSTALLMENT_VALIDATION=PASS`. Nenhuma migration/tabela/endpoint/UI, polling,
-backfill, reconciliação ou S12. Foco `228 passed`, backend `970 passed`, Ruff,
-typecheck/build e E2E isolado `14 passed` aprovados. Alembic operacional
-`20260925_0020 (head)` pertence à migration Domínio preexistente; o stage não criou
-migration. Nenhum PDF/XML/ZIP/render no status e temporários QA removidos.
+backfill, reconciliação ou S12. A validação manual das sete guias retornou PASS para
+SEFAZ, PERT, PGFN, RELP, PARCSN, Simplificado e PARCMEI; a matriz oficial acrescentou a
+segunda variante PGFN e sete regressões, todas PASS. Hashes e banco permaneceram
+inalterados. Foco `228 passed`, backend `970 passed`, Ruff, typecheck/build e E2E isolado
+`14 passed` aprovados; Alembic `20260925_0020 (head)`, `0` parser runs e nenhum
+PDF/XML/ZIP/render no status. A revisão `0020` pertence ao ajuste Domínio preexistente;
+o stage não criou migration.
+
+Normalização final: `InstallmentProgram.PARCMEI` representa o programa, enquanto
+`InstallmentDebtScope.SIMEI` preserva o regime; conteúdo com marcador `PARCMEI` ou
+`SIMEI` converge para essa combinação. Revalidação: documento real
+`PARCMEI`/`DAS_FORM`/`SIMEI`, parser isolado `17 passed`, foco `229 passed, 1 warning`,
+Ruff e diff aprovados e harness real integral PASS. A varredura backend posterior teve
+970 casos aprovados e um único erro ambiental `WinError 10055` no socket do `TestClient`
+Econet; o caso passou isolado (`1 passed`). A regressão integral verde imediatamente
+anterior permanece `970 passed, 1 warning`.
 
 ## Atualizacao S11.1-D — Parser municipal de ISS
 
@@ -68,7 +80,7 @@ Fechamento operacional final executado pela usuaria: foco `190 passed, 1 warning
 - `backend/tests/test_state_guide_pdf_parser.py`: PDFs sinteticos, multi-guia/componentes/categorias, exclusoes, registry, limites/falhas/privacidade e persistencia idempotente sem promocao canonica.
 - `docs/S11_STATE_GUIDE_PARSER.md`: contrato, comandos e resultados, incluindo o negativo SEFAZ real aprovado. Runtime/__init__ registram/exportam estadual junto de DAS/DARF, ainda desacoplados do polling.
 
-Cinco positivos reais, controles DAS/DARF e negativo real SEFAZ aprovados; hashes e snapshot operacional inalterados. `SEFAZ_INSTALLMENT_NEGATIVE=PASS` e `REAL_STATE_GUIDE_VALIDATION=PASS`. Head 20260911_0019, sem migration/endpoint/UI/backfill/S12. Ordem A DAS, B DARF/SENDA, C estaduais, D ISS, E parcelamentos; extrator podera servir SEFAZ futuro. Alteracoes locais preexistentes preservadas.
+Cinco positivos reais, controles DAS/DARF e negativo real SEFAZ aprovados; hashes e snapshot operacional inalterados. `SEFAZ_INSTALLMENT_NEGATIVE=PASS` e `REAL_STATE_GUIDE_VALIDATION=PASS`. Head 20260911_0019, sem migration/endpoint/UI/backfill/S12. Ordem A DAS, B DARF/SENDA, C estaduais, D ISS, E parcelamentos; o extrator estadual foi efetivamente reutilizado pelo S11.1-E posterior. Alteracoes locais preexistentes preservadas.
 
 Validacao estadual: 71 testes sinteticos; foco final integrado com Watcher 229 passed em 50.53s; backend completo sequencial 915 passed em 189.72s, ambos com 1 warning conhecido; Ruff/typecheck/build aprovados (62 modulos, 2.76s). Execucao parcial com interferencia entre suites na base descartavel foi descartada, nunca registrada como PASS. Probes/QA read-only: cinco renders temporarios removidos, originais preservados.
 

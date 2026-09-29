@@ -191,9 +191,12 @@ def test_installment_using_das_shell_is_rejected_by_observation(
     assert parser.supports(_document(path)) is False
 
     result = DocumentParserRuntime(default_parser_registry()).run_file(path)
-    assert result.extraction_status is ExtractionStatus.UNSUPPORTED
-    assert result.document_family == "UNKNOWN"
-    assert result.warnings == ("NO_SUPPORTED_PARSER",)
+    if observation.startswith("PARC-SN"):
+        assert result.extraction_status is ExtractionStatus.UNSUPPORTED
+        assert result.document_family == "UNKNOWN"
+    else:
+        assert result.extraction_status is ExtractionStatus.MATCHED
+        assert result.document_family == "INSTALLMENT"
 
 
 def test_debt_active_components_are_a_secondary_installment_exclusion(tmp_path: Path) -> None:

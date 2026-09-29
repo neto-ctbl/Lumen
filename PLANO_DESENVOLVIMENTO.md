@@ -2614,7 +2614,7 @@ A tela `Consulta Fiscal` em `/lumen/consultas` e global: empresa e competencia s
 
 ## S11 - Parsers e normalizacao documental fiscal
 
-Status: em andamento; S11.0, S11.0.1, S11.0.2, S11.1-A, S11.1-B, S11.1-C e S11.1-C.1 concluidos; D/E futuros
+Status: em andamento; S11.0, S11.0.1, S11.0.2 e S11.1-A até S11.1-E concluídos; S11.2 futuro
 
 Objetivo:
 
@@ -2717,7 +2717,7 @@ Fechamento de escopo: `S11.0.2_CONCLUIDO = YES`, `S11.1_INICIADO = NO`, `S12_INI
 
 ### S11.1 - Guias: impostos e parcelamentos
 
-S11.1-A entrega DAS; S11.1-B entrega DARF/SENDA para PIS, COFINS, IRPJ e CSLL, como receitas da mesma familia documental. S11.1-C entrega DARE-GO/ICMS/DIFAL/PROTEGE e foi encerrado com controle negativo SEFAZ real. S11.1-C.1 formaliza a reutilizacao por layout antes da classificacao. Ordem futura: S11.1-D ISS e S11.1-E parcelamentos. Parcelamentos ficam depois das guias-base porque reutilizam layouts DAS, federal e estadual. ISS e parcelamentos estaduais/Simples/PERT/RELP/PGFN/SISPAR permanecem futuros. Nao assumir `folder_period == document_period == tax_assessment_period`.
+S11.1-A entrega DAS; S11.1-B entrega DARF/SENDA para PIS, COFINS, IRPJ e CSLL, como receitas da mesma familia documental. S11.1-C entrega DARE-GO/ICMS/DIFAL/PROTEGE e foi encerrado com controle negativo SEFAZ real. S11.1-C.1 formaliza a reutilizacao por layout antes da classificacao. S11.1-D entrega ISS municipal nos layouts reais Anápolis/Nerópolis. S11.1-E entrega a família unificada `INSTALLMENT` para PGFN, PARCSN, PARCMEI, RELP, PERT, Simplificado e SEFAZ, reutilizando DAS/federal/DARE e mantendo parcelamento municipal fora do escopo. Nao assumir `folder_period == document_period == tax_assessment_period`.
 
 #### S11.1-A - Parser documental de DAS
 
@@ -2812,6 +2812,179 @@ REAL_CORPUS_REVALIDATION_REQUIRED = NO
 NEW_MIGRATION_CREATED = NO
 S11.1_D_INICIADO = NO
 S11.1_E_INICIADO = NO
+S11.2_INICIADO = NO
+S11.3_INICIADO = NO
+S12_INICIADO = NO
+BACKFILL_REAL_EXECUTADO = NO
+```
+
+#### S11.1-D - Parser documental de guias de ISS municipal
+
+Concluído em 2026-09-22 como primeiro parser fiscal novo construído deliberadamente
+sobre `Detect Layout -> Extract -> Classify -> Parser Result`.
+
+* A auditoria read-only de candidatos reais confirmou dois layouts físicos DUAM:
+  `ANAPOLIS_DUAM` e `NEROPOLIS_DUAM`. Os layouts nacionais/federal/estadual anteriores
+  não servem para esses formulários e nenhum parser municipal universal foi criado.
+* Anápolis possui amostras reais próprias e retidas no mesmo formulário. A modalidade
+  é `ISS_OWN`, `ISS_WITHHELD` ou `UNKNOWN` conforme descrição explícita já extraída;
+  filename e path são apenas contexto. Nerópolis confirmou outra variante real própria.
+* `AnapolisDuamExtractor` e `NeropolisDuamExtractor` preservam header, identidade do
+  contribuinte, inscrição, município/UF, referência, emissão/vencimento/validade,
+  identificadores, receitas e componentes `Decimal`. `IssGuideClassifier` não relê o PDF.
+* `IssGuideFile.documents[]` suporta múltiplas guias por páginas independentes. Período
+  documental sai em `period_from_content`; `period_from_path` permanece separado e nunca
+  preenche lacuna. Campo ausente fica `NULL`.
+* Layout conhecido sem modalidade permanece `ISS_GUIDE`/`MATCHED` com classificação
+  `UNKNOWN` e estrutura preservada. Código municipal desconhecido também é preservado
+  com warning sanitizado. Novo formulário municipal fica `UNKNOWN_GUIDE_LAYOUT`/`UNSUPPORTED`.
+* NFS-e, relatórios de acompanhamento, carta de cobrança e marcador inequívoco de
+  parcelamento são negativos. O campo `PARCELA=ÚNICA` do layout Nerópolis não é, sozinho,
+  parcelamento. O S11.1-E permaneceu futuro naquele fechamento e foi concluído no stage
+  subsequente documentado abaixo.
+* `ComposableDocumentParser` recebeu somente o callback opcional retrocompatível
+  `serialize_result(extracted, classification)` para schemas classificados por documento.
+  `DocumentParserRuntime` não mudou. Registry explícito agora contém também os dois DUAM.
+* Parser `lumen.iss-guide-pdf@1`, probe allowlisted e harness real fail-fast criados.
+  O harness compara SHA-256 e snapshot/fingerprint de banco antes/depois; não cria parser
+  run/evidence nem imprime path, texto, CNPJ, inscrição, nome, guia, valor ou código de barras.
+* Validação real aprovada: Anápolis próprio/retido, Nerópolis próprio, negativo municipal,
+  regressões DAS/DARF/DARE e negativo de parcelamento SEFAZ. Resultado
+  `REAL_ISS_GUIDE_VALIDATION=PASS`; arquivos e banco permaneceram idênticos.
+* Suíte focada: `212 passed, 1 warning`; backend completo: `951 passed, 1 warning`.
+  O warning conhecido é Starlette/httpx. Contrato, limitações e validação:
+  [S11_ISS_GUIDE_PARSER](docs/S11_ISS_GUIDE_PARSER.md).
+* Ruff, typecheck, build (62 módulos), Playwright em base descartável distinta
+  `lumen_test` (`14 passed`) e `git diff --check` aprovados. A execução UNC inicial do
+  npm foi descartada e repetida pela unidade `G:`; o banco/admin operacional não foi
+  alterado. Alembic operacional: `20260911_0019 (head)`.
+* Revisão posterior das quatro amostras fornecidas confirmou somente os layouts
+  Anápolis/Nerópolis. Foi necessário tolerar espaçamento variável comprovado na camada
+  textual e recompor `Próprio` quando quebrado na linha seguinte. Uma guia atualizada
+  comprovou múltiplos lançamentos com períodos/vencimentos próprios; esses dados agora
+  pertencem a cada `IssRevenue`, enquanto o header multicompetência fica sem período
+  único e emite `ISS_MULTIPLE_REFERENCE_PERIODS`. Harness real repetido: PASS, hashes e
+  banco inalterados, regressões DAS/DARF/DARE e negativo SEFAZ aprovados.
+* Validação manual estrutural final aprovada nas quatro amostras: retido Anápolis
+  (`ANAPOLIS_DUAM`/`ISS_WITHHELD`, 1 receita), próprio Anápolis
+  (`ANAPOLIS_DUAM`/`ISS_OWN`, 1 receita), próprio Nerópolis
+  (`NEROPOLIS_DUAM`/`ISS_OWN`, 1 receita) e guia atualizada Anápolis
+  (`ANAPOLIS_DUAM`/`ISS_OWN`, 3 receitas). A asserção foi alinhada ao contrato real:
+  `due_date` é obrigatório em cada receita de Anápolis, mas pode ficar ausente nas
+  receitas de Nerópolis quando o formulário não fornece vencimento com a mesma
+  granularidade. Resultados `MANUAL_ISS_PARSER_VALIDATION=PASS` e
+  `VALIDACAO_MANUAL_CORRIGIDA_S11_1_D=PASS`.
+* Nenhuma migration/tabela/endpoint/UI, promoção canônica, polling ou backfill. Alembic
+  permanecia `20260911_0019`; o S11.1-E foi concluído posteriormente. S11.2, S11.3 e
+  S12 não foram iniciados.
+
+```text
+S11.1_D_ISS_CONCLUIDO = YES
+ISS_REAL_VALIDATED = YES
+ISS_OWN_REAL_VALIDATED = YES
+ISS_WITHHELD_REAL_VALIDATED = YES
+SAME_LAYOUT_OWN_AND_WITHHELD = YES
+UNKNOWN_ISS_CLASSIFICATION_SUPPORTED = YES
+UNKNOWN_MUNICIPAL_LAYOUT_SUPPORTED = YES
+NFS_E_FALSE_POSITIVE_BLOCKED = YES
+DAS_REGRESSION_OK = YES
+DARF_REGRESSION_OK = YES
+STATE_GUIDE_REGRESSION_OK = YES
+NEW_PARSER_REQUIRES_RUNTIME_CHANGE = NO
+NEW_MIGRATION_CREATED = NO
+S11.1_E_INICIADO = NO
+S11.2_INICIADO = NO
+S11.3_INICIADO = NO
+S12_INICIADO = NO
+BACKFILL_REAL_EXECUTADO = NO
+```
+
+#### S11.1-E - Parser documental unificado de parcelamentos
+
+Concluído em 2026-09-29 com parser `lumen.installment-pdf@1` e family única
+`INSTALLMENT`.
+
+* O pipeline permanece `Detect Layout -> Extract -> Classify -> Parser Result` e consulta
+  o `LayoutRegistry` antes de escolher o pipeline composto. `DocumentParserRuntime` não
+  foi alterado.
+* Programa, administrador, escopo da dívida e tributos são dimensões separadas. Programas:
+  PGFN, PARCSN, PARCMEI, RELP, PERT, SIMPLIFICADO, SEFAZ e UNKNOWN. Administradores:
+  PGFN, RFB, SIMPLES_NACIONAL, SEFAZ_GO e UNKNOWN. Escopos atuais: FEDERAL,
+  SIMPLES_NACIONAL, SIMEI, STATE e UNKNOWN.
+* `DAS_FORM`, `FEDERAL_REVENUE_FORM` e `DARE_GO_5_1` foram reutilizados sem copiar
+  extratores. O DAS recebeu apenas `extract_das_form()` estrutural compartilhado, mantendo
+  parser/versão/payload normal. Federal e DARE continuam nos extratores neutros existentes.
+* Uma amostra real comprovou novo layout físico `DARF_LEGACY_FORM` para o Parcelamento
+  Simplificado: DARF clássico com campos numerados e duas vias, diferente do SENDA atual.
+  Vias idênticas são deduplicadas; classificação usa conteúdo/código estrutural, nunca o
+  filename.
+* `InstallmentFile.documents[]` separa header, programa, administrador, installment,
+  debt, payment, components e validation. Parcela atual/total, acordo/registro, período,
+  vencimento, validade, documento e valores só aparecem quando documentais. Valores usam
+  `Decimal`; ausentes ficam NULL.
+* Tributos são preservados somente se explícitos nos componentes. PGFN e Simplificado
+  reais permanecem com lista vazia e warning, sem inferir todos os tributos federais.
+  Observação integral, barcode, linha digitável e texto bruto não são serializados.
+* Parsers DAS/DARF/estadual/ISS continuam recusando parcelamentos. Com marcador forte o
+  installment assume; sem marcador os mesmos layouts continuam guia normal. Rótulo vazio
+  `PARCELA`, filename ou path não ativam classificação. Layout desconhecido permanece
+  UNSUPPORTED. Parcelamento conclusivo com programa não identificado fica
+  INSTALLMENT/UNKNOWN.
+* Probe allowlisted e harness real fail-fast foram adicionados. O harness usa SHA-256
+  antes/depois e snapshot/fingerprint de banco em transação READ ONLY, sem criar evidence,
+  run ou alteração canônica.
+* Oito amostras reais externas ao Git validaram duas variantes PGFN, PARCSN,
+  PARCMEI, RELP, PERT, Simplificado e SEFAZ. O nome operacional “PARC SIMPLES” não prevaleceu: o conteúdo
+  identificou PERT. Não há amostra adicional por cada grupo possível de dívida; portanto
+  a cobertura tributária não é declarada exaustiva.
+* Controles negativos reais DAS, DARF, DARE ICMS, DIFAL, PROTEGE, ISS próprio e ISS retido
+  permaneceram em suas famílias. Matriz: todos os 15 casos PASS e
+  `REAL_INSTALLMENT_VALIDATION=PASS`; hashes e banco inalterados.
+* Contrato, matriz e limites: [S11_INSTALLMENT_PARSER](docs/S11_INSTALLMENT_PARSER.md).
+  Nenhuma migration/tabela/endpoint/UI, consulta externa, polling, backfill, reconciliação,
+  S11.2, S11.3 ou S12.
+* Validação operacional completa executada pela usuária: as sete guias reais passaram na
+  inspeção estrutural manual (`MANUAL_INSTALLMENT_PARSER_VALIDATION=PASS`); o harness
+  oficial acrescentou a segunda variante PGFN e os controles DAS, DARF, DARE ICMS,
+  DIFAL, PROTEGE, ISS próprio e ISS retido, encerrando com os 15 casos PASS e
+  `REAL_INSTALLMENT_VALIDATION=PASS`. SHA-256 de todos os documentos e fingerprint do
+  banco permaneceram inalterados.
+* Fechamento automatizado dessa execução: foco `228 passed, 1 warning` em 89.21s;
+  backend `970 passed, 1 warning` em 306.21s; Ruff, typecheck e build aprovados
+  (62 módulos, 6.42s); E2E em `lumen_test` com admin sintético `14 passed` em 2.1m;
+  `git diff --check` aprovado. Alembic operacional `20260925_0020 (head)` decorre da
+  migration Domínio preexistente, não deste stage; `fiscal_document_parser_runs = 0`.
+  Nenhum PDF/XML/ZIP/render entrou no status e os sete renders QA temporários foram
+  removidos.
+* Nomenclatura final corrigida antes do commit: o programa é `PARCMEI`; `SIMEI` continua
+  como marcador documental compatível e como `InstallmentDebtScope`, pois representa o
+  regime/escopo da dívida. Não houve migration nem dado persistido a converter. O PDF
+  real confirmou `program=PARCMEI`, `layout=DAS_FORM`, `scope=SIMEI`; parser isolado
+  `17 passed`, foco atualizado `229 passed, 1 warning`, Ruff/diff aprovados e harness
+  integral repetido com `PARCMEI=PASS` e `REAL_INSTALLMENT_VALIDATION=PASS`.
+* Uma varredura backend posterior à renomeação aprovou 970 casos e registrou somente um
+  erro ambiental `WinError 10055` ao criar o socket interno do `TestClient` Econet. O
+  teste exato passou isolado (`1 passed, 1 warning`), demonstrando ausência de regressão
+  funcional ligada ao parser. Essa execução não é registrada como suíte integral verde;
+  a regressão completa imediatamente anterior permanece `970 passed, 1 warning`.
+
+```text
+S11.1_E_INSTALLMENTS_CONCLUIDO = YES
+PGFN_REAL_VALIDATED = YES
+PARCSN_REAL_VALIDATED = YES
+PARCMEI_REAL_VALIDATED = YES
+RELP_REAL_VALIDATED = YES
+PERT_REAL_VALIDATED = YES
+SIMPLIFICADO_REAL_VALIDATED = YES
+SEFAZ_REAL_VALIDATED = YES
+DAS_REGRESSION_OK = YES
+DARF_REGRESSION_OK = YES
+STATE_GUIDE_REGRESSION_OK = YES
+ISS_GUIDE_REGRESSION_OK = YES
+LAYOUT_REUSE_CONFIRMED = YES
+NEW_LAYOUT_CREATED = YES
+NEW_PARSER_REQUIRES_RUNTIME_CHANGE = NO
+NEW_MIGRATION_CREATED = NO
 S11.2_INICIADO = NO
 S11.3_INICIADO = NO
 S12_INICIADO = NO
@@ -2925,7 +3098,7 @@ Aceite:
 * Guias comuns são classificadas com confiança adequada.
 * Valores, vencimentos, competência e documento são extraídos quando presentes.
 * Guias sem CNPJ podem ser vinculadas por pasta + IE + razão social.
-* Parcelamento no padrão `Parc. PGFN-SISPAR 013021061 - 05-2026 (13 de 18)` extrai tipo, protocolo, competência, parcela atual e total.
+* Parcelamento no padrão sintético `Parc. PGFN-SISPAR 000000000 - 05-2026 (13 de 18)` pode extrair tipo, protocolo, competência, parcela atual e total somente quando esses dados também forem documentais; o S11.1-E não usa o filename como autoridade.
 * OCR não é usado no caminho padrão.
 
 ---

@@ -2,9 +2,11 @@
 
 ## S11.1-E — Parcelamento é família; programa não é layout
 
-- A família normalizada é somente `INSTALLMENT`. PGFN, PARCSN, SIMEI, RELP, PERT,
+- A família normalizada é somente `INSTALLMENT`. PGFN, PARCSN, PARCMEI, RELP, PERT,
   SIMPLIFICADO e SEFAZ pertencem a `program`; administrador, escopo e tributos são campos
   separados.
+- O programa de parcelamento do MEI é normalizado como `PARCMEI`; `SIMEI` permanece
+  somente como marcador documental aceito e como escopo/regime da dívida.
 - O parser consulta o `LayoutRegistry` e reutiliza `DAS_FORM`,
   `FEDERAL_REVENUE_FORM` e `DARE_GO_5_1`. O `DARF_LEGACY_FORM` foi criado somente porque
   a amostra real do Simplificado comprovou estrutura física distinta.

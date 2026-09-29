@@ -83,7 +83,13 @@ _LABELS = (
     "VALIDADE DO", "TOTAL A RECOLHER", "INFORMACOES COMPLEMENTARES", "DATA E HORA DE",
 )
 _ROW = re.compile(r"^\s*(\d{1,8})\s*-\s*(\S.*)")
-_CHARGE = re.compile(r"\b(VALOR ORIGINAL|PRINCIPAL|MULTA(?: DE MORA)?|JUROS(?: DE MORA)?|ACRESCIMOS|OUTROS)\b")
+_CHARGE = re.compile(
+    r"\b(VALOR ORIGINAL|PRINCIPAL|MULTA(?: [A-Z]+){0,4}|JUROS?(?: [A-Z]+){0,4}|"
+    r"CORRECAO(?: [A-Z]+){0,3}|ATUALIZACAO(?: [A-Z]+){0,3}|ACRESCIMOS|OUTROS)\b"
+)
+_GENERIC_CODED_CHARGE = re.compile(
+    rf"(?P<label>[A-Z][A-Z0-9 ./'-]{{2,80}}?)\s*\((?P<code>\d+)\)\s*(?P<amount>{MONEY_RE.pattern})"
+)
 
 
 def has_go_dare_51_layout(text: str) -> bool:
@@ -259,6 +265,7 @@ class StateRevenueGuideExtractor:
             elif left.strip() and current_code:
                 descriptions.append(left.strip())
             charges = list(_CHARGE.finditer(norm))
+            observed_components = 0
             for index, observed in enumerate(charges):
                 stop = charges[index + 1].start() if index + 1 < len(charges) else len(area)
                 value = area[observed.end():stop]
@@ -267,13 +274,44 @@ class StateRevenueGuideExtractor:
                     code_match = re.search(r"\((\d+)\)", value)
                     label = area[observed.start():observed.end()]
                     kind = {"VALOR ORIGINAL": "PRINCIPAL", "PRINCIPAL": "PRINCIPAL"}.get(observed[1])
-                    kind = kind or ("PENALTY" if observed[1].startswith("MULTA") else
-                                    "INTEREST" if observed[1].startswith("JUROS") else "UNKNOWN")
+                    kind = kind or (
+                        "PENALTY" if observed[1].startswith("MULTA") else
+                        "INTEREST" if observed[1].startswith("JURO") else
+                        "CORRECTION" if observed[1].startswith(("CORRECAO", "ATUALIZACAO")) else
+                        "UNKNOWN"
+                    )
                     components.append(StateComponent(code=code_match[1] if code_match else None,
                                                      label=label, kind=kind, amount=parse_money(money[0][0])))
+                    observed_components += 1
                     if kind == "UNKNOWN":
                         warnings.append("COMPONENT_KIND_UNKNOWN")
                 else:
                     warnings.append("COMPONENT_AMOUNT_MISSING_OR_AMBIGUOUS")
+            if observed_components == 0:
+                # Installment DAREs can use program-specific labels.  Their
+                # parenthesized alinea code and amount remain structural, so we
+                # retain the row without pretending to know the fiscal meaning.
+                generic_matches = list(_GENERIC_CODED_CHARGE.finditer(norm))
+                if len(MONEY_RE.findall(area)) != len(generic_matches):
+                    if generic_matches:
+                        warnings.append("COMPONENT_AMOUNT_MISSING_OR_AMBIGUOUS")
+                    generic_matches = []
+                for generic in generic_matches:
+                    label = " ".join(generic["label"].split())
+                    kind = (
+                        "PENALTY" if re.search(r"\bMULTA\b", label) else
+                        "INTEREST" if re.search(r"\bJUROS?\b", label) else
+                        "CORRECTION" if re.search(r"\b(?:CORRECAO|ATUALIZACAO)\b", label) else
+                        "PRINCIPAL" if re.search(r"\b(?:VALOR ORIGINAL|PRINCIPAL)\b", label) else
+                        "UNKNOWN"
+                    )
+                    components.append(StateComponent(
+                        code=generic["code"],
+                        label=label,
+                        kind=kind,
+                        amount=parse_money(generic["amount"]),
+                    ))
+                    if kind == "UNKNOWN":
+                        warnings.append("COMPONENT_KIND_UNKNOWN")
         flush()
         return tuple(rows)

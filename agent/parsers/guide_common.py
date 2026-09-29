@@ -33,7 +33,15 @@ def read_pdf_pages(path: Path) -> PdfPages:
         reader = PdfReader(str(path))
         if reader.is_encrypted or not reader.pages:
             return PdfPages(ExtractionStatus.INVALID)
-        pages = tuple(page.extract_text(extraction_mode="layout") or "" for page in reader.pages)
+        extracted_pages: list[str] = []
+        for page in reader.pages:
+            try:
+                extracted_pages.append(page.extract_text(extraction_mode="layout") or "")
+            except Exception:
+                # The container is a valid readable PDF; an unavailable text
+                # layer is inconclusive rather than proof of an invalid file.
+                extracted_pages.append("")
+        pages = tuple(extracted_pages)
     except Exception:
         return PdfPages(ExtractionStatus.INVALID)
     return PdfPages(

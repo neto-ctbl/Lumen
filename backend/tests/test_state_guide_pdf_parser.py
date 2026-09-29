@@ -286,7 +286,12 @@ def test_explicit_installment_in_any_body_location_is_unsupported(tmp_path, mark
     parser = StateGuidePdfParser()
     assert parser.supports(_context(path)) is False
     assert parser.parse(_context(path)).extraction_status is ExtractionStatus.UNSUPPORTED
-    assert _run(path).extraction_status is ExtractionStatus.UNSUPPORTED
+    runtime_result = _run(path)
+    if marker in {"PARCELAMENTO SEFAZ", "PGFN", "PERT", "RELP"}:
+        assert runtime_result.extraction_status is ExtractionStatus.MATCHED
+        assert runtime_result.document_family == "INSTALLMENT"
+    else:
+        assert runtime_result.extraction_status is ExtractionStatus.UNSUPPORTED
     extracted = StateRevenueGuideExtractor().extract("\n".join(lines))
     assert extracted.header.document_number and extracted.revenues[0].tax == "UNKNOWN"
 

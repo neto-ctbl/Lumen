@@ -5,7 +5,7 @@
 O parser `lumen.installment-pdf@1` está implementado sobre o pipeline
 `LayoutRegistry -> Extract -> Classify -> Parser Result`. A família única é
 `INSTALLMENT`; programa, administrador, escopo da dívida e tributos permanecem dimensões
-separadas. Foram validados PGFN em duas variantes, PARCSN, SIMEI/PARCMEI, RELP, PERT,
+separadas. Foram validados PGFN em duas variantes, PARCSN, PARCMEI, RELP, PERT,
 Parcelamento Simplificado e SEFAZ com oito documentos reais externos ao Git.
 
 O parser reutiliza `DAS_FORM`, `FEDERAL_REVENUE_FORM` e `DARE_GO_5_1`. Somente a amostra
@@ -24,11 +24,24 @@ DIFAL, PROTEGE, ISS próprio e retido: `REAL_INSTALLMENT_VALIDATION=PASS`.
 
 Não houve migration, tabela, endpoint, frontend, mudança no runtime, polling, backfill ou
 reconciliação. Contrato completo: [S11_INSTALLMENT_PARSER](docs/S11_INSTALLMENT_PARSER.md).
-S11.2, S11.3 e S12 permanecem não iniciados. Fechamento: foco `228 passed`; backend
-`970 passed`; Ruff/typecheck/build aprovados; E2E isolado `14 passed`; somente o warning
-conhecido Starlette/httpx. Alembic operacional `20260925_0020 (head)` por migration
-Domínio preexistente no worktree; nenhuma migration pertence ao S11.1-E. Nenhum corpus ou
-render no Git.
+S11.2, S11.3 e S12 permanecem não iniciados. A validação operacional executada pela
+usuária aprovou as sete guias reais, a segunda variante PGFN e sete controles negativos:
+`MANUAL_INSTALLMENT_PARSER_VALIDATION=PASS`, `REAL_INSTALLMENT_VALIDATION=PASS` e hashes
+inalterados. A suíte focada encerrou com `228 passed, 1 warning` e o backend com
+`970 passed, 1 warning`; Ruff, typecheck, build e E2E isolado (`14 passed`) também foram
+aprovados. Alembic operacional `20260925_0020 (head)` pertence à migration Domínio
+preexistente, não ao S11.1-E; `fiscal_document_parser_runs` permaneceu vazio e nenhum
+corpus/render entrou no Git.
+
+A nomenclatura final distingue programa e regime: `PARCMEI` é o programa normalizado,
+enquanto `SIMEI` permanece somente como marcador documental aceito e como escopo da
+dívida. Após o ajuste, o PDF real retornou `program=PARCMEI`, `scope=SIMEI`; o parser
+isolado passou com `17 passed`, a suíte focada com `229 passed, 1 warning` e o harness
+real integral repetiu `PARCMEI=PASS`/`REAL_INSTALLMENT_VALIDATION=PASS`. Uma nova varredura
+do backend aprovou 970 casos e encontrou somente um `WinError 10055` ambiental ao criar
+um socket do `TestClient` Econet; o mesmo teste passou isolado (`1 passed`), sem relação
+com o parser. A execução completa anterior de `970 passed` permanece a regressão integral
+verde do fechamento.
 
 ## S11.1-D — Guias municipais de ISS
 

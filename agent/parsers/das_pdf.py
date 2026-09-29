@@ -125,6 +125,16 @@ class DasDocument(BaseModel):
     validation: DasValidation
 
 
+class DasFormExtraction(BaseModel):
+    """Physical DAS-form extraction, intentionally independent of fiscal family."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    document: DasDocument
+    confidence: float
+    warnings: tuple[str, ...] = ()
+
+
 @dataclass(frozen=True, slots=True)
 class _PdfContent:
     status: ExtractionStatus
@@ -157,6 +167,22 @@ def parse_das_text(text: str) -> ParserExtraction:
     """Parse already extracted text; intended for deterministic unit-level use."""
     if not _has_das_signature(text):
         return _empty_extraction(ExtractionStatus.UNSUPPORTED, "DAS_SIGNATURE_NOT_FOUND")
+
+    extracted = extract_das_form(text)
+    return ParserExtraction(
+        document_family="DAS",
+        extraction_status=ExtractionStatus.MATCHED,
+        confidence=extracted.confidence,
+        signals=_signals_from_header(extracted.document.header, extracted.confidence),
+        warnings=extracted.warnings,
+        structured_data={"document": extracted.document.model_dump(mode="json")},
+    )
+
+
+def extract_das_form(text: str) -> DasFormExtraction:
+    """Extract the shared physical form without deciding DAS vs installment."""
+    if not has_das_form_layout(text):
+        raise ValueError("DAS_FORM_LAYOUT_REQUIRED")
 
     lines = _clean_lines(text)
     searchable = "\n".join(_search_text(line) for line in lines)
@@ -238,13 +264,10 @@ def parse_das_text(text: str) -> ParserExtraction:
         ),
     )
     confidence = _confidence(header, components, sum_matches_total)
-    return ParserExtraction(
-        document_family="DAS",
-        extraction_status=ExtractionStatus.MATCHED,
+    return DasFormExtraction(
+        document=document,
         confidence=confidence,
-        signals=_signals_from_header(header, confidence),
         warnings=tuple(dict.fromkeys(warnings)),
-        structured_data={"document": document.model_dump(mode="json")},
     )
 
 
