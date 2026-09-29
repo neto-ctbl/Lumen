@@ -1,5 +1,45 @@
 # Riscos Tecnicos do Lumen
 
+## S11.1-E — Parcelamentos
+
+- O mesmo shell pode representar guia normal ou parcelamento. A mitigação é manter layout
+  estrutural separado da classificação e exigir marcador documental conclusivo; ordem do
+  registry não é autoridade semântica.
+- `SIMPLES NACIONAL` e `PARCELAMENTO SIMPLIFICADO` são conceitos diferentes. Não usar
+  substring `SIMPL`; o Simplificado atual exige `DARF_LEGACY_FORM` mais código estrutural
+  comprovado.
+- O rótulo `PARCELA` existe em formulários normais e pode estar vazio ou conter `ÚNICA`.
+  Ele sozinho não ativa o parser; marcadores fortes ou evidência estrutural específica são
+  necessários.
+- Programa não revela automaticamente os tributos. Inferir todos os débitos federais para
+  PGFN geraria falso dado; ausência explícita permanece `taxes=[]` com warning.
+- Filename pode conter número atual/total não presente no PDF. Extraí-lo criaria dado sem
+  proveniência documental; o campo permanece nulo.
+- DARF clássico pode repetir duas vias na mesma página. Deduplicar somente por identidade
+  estrutural completa; conteúdo divergente não deve ser fundido.
+- Alíneas estaduais específicas podem ter label ainda desconhecido. Código, label e valor
+  são preservados e participam da soma, mas o kind permanece `UNKNOWN` em vez de ser
+  deslocado para principal/multa/juros.
+- Corpus cobre um exemplo real por programa, não todos os grupos de dívida, UFs ou
+  variações históricas. Layout/programa novo exige nova amostra e teste; não ampliar regex
+  por filename.
+- Probe/harness não imprimem path, observação, identificadores, valores, barcode ou texto.
+  O corpus fica externo ao Git; hashes e fingerprints servem somente à comparação local.
+- O parser não consulta portais e não prova pagamento, vigência, saldo ou inadimplência.
+  Essas conclusões permanecem futuras.
+
+## S11.1-D — Guias municipais de ISS
+
+- ISS não tem formulário nacional único. Tratar todo documento municipal como um layout universal cria falso positivo; somente Anápolis e Nerópolis estão cadastrados.
+- Palavras `ISS`, retenção, alíquota e valor também aparecem em NFS-e e relatórios. A mitigação é exigir assinatura estrutural completa de documento de arrecadação e manter negativos sintéticos/reais.
+- Modalidade inferida por filename/path pode inverter próprio e retido. O classifier usa somente conteúdo extraído; ausência ou conflito resulta `UNKNOWN` com estrutura preservada.
+- O campo `PARCELA` faz parte do DUAM de Nerópolis e pode conter `ÚNICA`; não é sozinho evidência de parcelamento. Apenas marcadores inequívocos excluem o documento para o futuro S11.1-E.
+- Layout municipal pode mudar sem aviso. Novo formulário fica `UNKNOWN_LAYOUT` até auditoria/amostra; não flexibilizar detector para recuperar recall às custas de segurança.
+- Probe/harness não podem expor CNPJ, inscrição, nome, guia, valor, código de barras, path ou texto. SHA-256 e fingerprints ficam apenas para comparação local.
+- Camadas de texto podem inserir espaços em hífens/pontuação ou quebrar a modalidade
+  na linha seguinte. A tolerância deve permanecer ancorada nos rótulos/grade do layout;
+  normalização ampla de dígitos ou texto fora de células rotuladas reabriria falsos positivos.
+
 ## S11.1-C.1 — Framework de layouts
 
 - Detector permissivo demais pode confundir estruturas parecidas; mitigar com assinatura documental combinada e negativos cruzados. Detector reconhece forma, classifier decide semantica.

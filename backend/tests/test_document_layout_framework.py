@@ -18,6 +18,8 @@ from agent.parsers.known_layouts import (
     GoDare51LayoutExtractor,
     StateRevenueClassifier,
 )
+from agent.parsers.iss_guide import ANAPOLIS_DUAM_LAYOUT_ID, NEROPOLIS_DUAM_LAYOUT_ID
+from agent.parsers.legacy_darf import LEGACY_DARF_FORM_LAYOUT_ID
 from agent.parsers.layout_framework import (
     ClassificationResult,
     ComposableDocumentParser,
@@ -175,6 +177,26 @@ def test_composed_parser_matches_with_standard_result_and_runtime_unchanged(tmp_
     assert signals["synthetic_structure_present"].provenance is SignalProvenance.CONTENT
 
 
+def test_composed_parser_can_serialize_extraction_with_classification(tmp_path: Path) -> None:
+    parser = ComposableDocumentParser(
+        name="synthetic.combined",
+        version="1",
+        supported_formats=frozenset({TechnicalFormat.JSON}),
+        extractor=SyntheticLayoutExtractor(),
+        classifier=SyntheticClassifier(),
+        serialize_extracted=lambda extracted: {"unused": extracted},
+        serialize_result=lambda extracted, classification: {
+            "structural_code": str(extracted["structural_code"]),
+            "classification": classification.classification_id,
+        },
+    )
+    result = parser.parse(_context(_path(tmp_path, structural_code="KNOWN")))
+    assert result.structured_data == {
+        "structural_code": "KNOWN",
+        "classification": "SYNTHETIC_KIND",
+    }
+
+
 def test_known_layout_unknown_classification_preserves_extraction(tmp_path: Path) -> None:
     result = _parser().parse(_context(_path(tmp_path, structural_code="NEW_CODE")))
 
@@ -251,6 +273,9 @@ def test_default_layout_registry_is_explicit_and_deterministic() -> None:
         DAS_FORM_LAYOUT_ID,
         FEDERAL_REVENUE_FORM_LAYOUT_ID,
         GO_DARE_51_LAYOUT_ID,
+        LEGACY_DARF_FORM_LAYOUT_ID,
+        ANAPOLIS_DUAM_LAYOUT_ID,
+        NEROPOLIS_DUAM_LAYOUT_ID,
     )
 
 

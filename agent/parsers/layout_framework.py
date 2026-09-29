@@ -183,6 +183,10 @@ class ComposableDocumentParser(Generic[TExtracted]):
         extractor: DocumentLayoutExtractor[TExtracted],
         classifier: DocumentClassifier[TExtracted, ClassificationResult],
         serialize_extracted: Callable[[TExtracted], dict[str, JsonValue]],
+        serialize_result: Callable[
+            [TExtracted, ClassificationResult], dict[str, JsonValue]
+        ]
+        | None = None,
     ) -> None:
         self.name = name
         self.version = version
@@ -190,6 +194,7 @@ class ComposableDocumentParser(Generic[TExtracted]):
         self.extractor = extractor
         self.classifier = classifier
         self.serialize_extracted = serialize_extracted
+        self.serialize_result = serialize_result
 
     def supports(self, document: DocumentContext) -> bool:
         return (
@@ -230,7 +235,11 @@ class ComposableDocumentParser(Generic[TExtracted]):
                 layout_id=self.extractor.layout_id,
             )
         try:
-            structured_data = self.serialize_extracted(extracted)
+            structured_data = (
+                self.serialize_result(extracted, classification)
+                if self.serialize_result is not None
+                else self.serialize_extracted(extracted)
+            )
         except Exception:
             return _empty(
                 ExtractionStatus.ERROR,
@@ -334,12 +343,17 @@ def default_layout_registry() -> LayoutRegistry:
         FederalRevenueFormExtractor,
         GoDare51LayoutExtractor,
     )
+    from agent.parsers.iss_guide import AnapolisDuamExtractor, NeropolisDuamExtractor
+    from agent.parsers.legacy_darf import LegacyDarfFormExtractor
 
     return LayoutRegistry(
         (
             DasFormLayoutDetector(),
             FederalRevenueFormExtractor(),
             GoDare51LayoutExtractor(),
+            LegacyDarfFormExtractor(),
+            AnapolisDuamExtractor(),
+            NeropolisDuamExtractor(),
         )
     )
 

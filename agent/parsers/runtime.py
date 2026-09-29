@@ -181,5 +181,15 @@ def default_parser_registry() -> ParserRegistry:
     from agent.parsers.das_pdf import DasPdfParser
     from agent.parsers.darf_pdf import DarfPdfParser
     from agent.parsers.state_guide_pdf import StateGuidePdfParser
+    from agent.parsers.iss_guide import IssGuidePdfParser
+    from agent.parsers.installment_pdf import InstallmentPdfParser
 
-    return ParserRegistry((DasPdfParser(), DarfPdfParser(), StateGuidePdfParser()))
+    return ParserRegistry(
+        (
+            DasPdfParser(),
+            DarfPdfParser(),
+            StateGuidePdfParser(),
+            IssGuidePdfParser(),
+            InstallmentPdfParser(),
+        )
+    )

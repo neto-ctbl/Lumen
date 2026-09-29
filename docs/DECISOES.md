@@ -1,5 +1,41 @@
 # Decisoes Tecnicas do Lumen
 
+## S11.1-E — Parcelamento é família; programa não é layout
+
+- A família normalizada é somente `INSTALLMENT`. PGFN, PARCSN, SIMEI, RELP, PERT,
+  SIMPLIFICADO e SEFAZ pertencem a `program`; administrador, escopo e tributos são campos
+  separados.
+- O parser consulta o `LayoutRegistry` e reutiliza `DAS_FORM`,
+  `FEDERAL_REVENUE_FORM` e `DARE_GO_5_1`. O `DARF_LEGACY_FORM` foi criado somente porque
+  a amostra real do Simplificado comprovou estrutura física distinta.
+- A extração DAS ganhou helper estrutural compartilhado, sem alterar payload, versão ou
+  semântica do `DasPdfParser`. Os extratores federal e estadual não foram duplicados.
+- Código, descrição, período ou componente desconhecido permanece no resultado com
+  warning. Programa conhecido não autoriza inferir tributos: PGFN e Simplificado reais
+  usam `taxes=[]`.
+- Observação é insumo transitório de classificação. O resultado preserva apenas marcadores
+  convertidos em enums/flags e descrição mínima; texto bruto não é persistido.
+- Filename e path nunca preenchem programa, parcela ou período. Parcela atual/total ausente
+  no conteúdo permanece nula, mesmo que apareça no nome do arquivo.
+- Parser normal e installment são mutuamente exclusivos por `supports()` sem depender da
+  ordem do registry. Programa desconhecido em parcelamento inequívoco permanece
+  `INSTALLMENT/UNKNOWN`; layout desconhecido permanece `UNSUPPORTED`.
+- Nenhum estado de pagamento, vigência, saldo ou inadimplência é concluído. Não houve
+  migration, tabela de installments, polling, backfill, promoção canônica ou S12.
+- Contrato e matriz real: [S11_INSTALLMENT_PARSER](S11_INSTALLMENT_PARSER.md).
+
+## S11.1-D — Layout municipal separado da modalidade ISS
+
+- O corpus comprovou dois formulários: `ANAPOLIS_DUAM` e `NEROPOLIS_DUAM`; nenhum layout nacional/universal foi criado.
+- `ISS_OWN` e `ISS_WITHHELD` são classificações de conteúdo. Anápolis comprova ambas no mesmo layout; filename e path não participam da conclusão.
+- Layout conhecido sem modalidade conclusiva preserva `IssGuideFile` como `ISS_GUIDE`/`MATCHED` e usa `UNKNOWN`. Formulário municipal não cadastrado usa `UNKNOWN_GUIDE_LAYOUT`/`UNSUPPORTED`.
+- O `ComposableDocumentParser` recebeu `serialize_result` opcional para unir extração e classificação por documento, sem alterar o runtime ou os parsers existentes.
+- NFS-e/relatório, cobrança e parcelamento inequívoco são negativos. Parcelamentos continuam no S11.1-E.
+- Decisões, evidências e limites: [S11_ISS_GUIDE_PARSER](S11_ISS_GUIDE_PARSER.md).
+- Guia atualizada com lançamentos de competências distintas não recebe período único
+  artificial no header; período e vencimento pertencem a cada receita, com warning
+  `ISS_MULTIPLE_REFERENCE_PERIODS` no agregado.
+
 ## S11.1-C.1 — Layout nao e classificacao fiscal
 
 - Todo documento novo passa conceitualmente por detectar layout, extrair estrutura, classificar e montar resultado. `CONTENT > FILE_STRUCTURE > FILENAME > PATH`; nome/path nunca fabricam layout ou tributo.

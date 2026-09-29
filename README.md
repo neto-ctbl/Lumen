@@ -1,5 +1,47 @@
 # Lumen - Fiscal Cockpit
 
+## S11.1-E — Parser unificado de parcelamentos
+
+O parser `lumen.installment-pdf@1` está implementado sobre o pipeline
+`LayoutRegistry -> Extract -> Classify -> Parser Result`. A família única é
+`INSTALLMENT`; programa, administrador, escopo da dívida e tributos permanecem dimensões
+separadas. Foram validados PGFN em duas variantes, PARCSN, SIMEI/PARCMEI, RELP, PERT,
+Parcelamento Simplificado e SEFAZ com oito documentos reais externos ao Git.
+
+O parser reutiliza `DAS_FORM`, `FEDERAL_REVENUE_FORM` e `DARE_GO_5_1`. Somente a amostra
+de Parcelamento Simplificado exigiu o novo layout físico `DARF_LEGACY_FORM`, pois usa o
+DARF clássico numerado e não o SENDA atual. `InstallmentFile.documents[]` preserva
+identidade, parcela, períodos, pagamento, componentes `Decimal` e validações. Tributos
+só são preenchidos quando explícitos; PGFN e Simplificado permanecem sem tributo
+inventado.
+
+Os parsers DAS/DARF/estadual/ISS continuam recusando parcelamentos; o parser novo assume
+somente conteúdo conclusivo. Filename/path não determinam programa ou parcela, o rótulo
+estrutural vazio `PARCELA` não basta, e layout desconhecido permanece `UNSUPPORTED`.
+Probe e harness real são sanitizados/read-only, com SHA-256 e fingerprint do banco
+antes/depois. A matriz real aprovou oito positivos cobrindo os sete programas e negativos DAS, DARF, ICMS,
+DIFAL, PROTEGE, ISS próprio e retido: `REAL_INSTALLMENT_VALIDATION=PASS`.
+
+Não houve migration, tabela, endpoint, frontend, mudança no runtime, polling, backfill ou
+reconciliação. Contrato completo: [S11_INSTALLMENT_PARSER](docs/S11_INSTALLMENT_PARSER.md).
+S11.2, S11.3 e S12 permanecem não iniciados. Fechamento: foco `228 passed`; backend
+`970 passed`; Ruff/typecheck/build aprovados; E2E isolado `14 passed`; somente o warning
+conhecido Starlette/httpx. Alembic operacional `20260925_0020 (head)` por migration
+Domínio preexistente no worktree; nenhuma migration pertence ao S11.1-E. Nenhum corpus ou
+render no Git.
+
+## S11.1-D — Guias municipais de ISS
+
+O primeiro parser fiscal novo sobre o pipeline formal `Detect Layout -> Extract -> Classify -> Parser Result` está concluído: `lumen.iss-guide-pdf@1`. A auditoria read-only comprovou dois formulários DUAM distintos, `ANAPOLIS_DUAM` e `NEROPOLIS_DUAM`, registrados explicitamente. Anápolis contém ISS próprio e retido no mesmo layout; a modalidade vem exclusivamente da descrição documental, nunca do filename/path. Layout conhecido sem modalidade conclusiva permanece `ISS_GUIDE`/`MATCHED` com classificação `UNKNOWN`; formulário municipal novo permanece `UNKNOWN_GUIDE_LAYOUT`/`UNSUPPORTED`.
+
+`IssGuideFile.documents[]` preserva header, classificação, receitas/componentes `Decimal`, validação e localizadores. Códigos desconhecidos são preservados e avisados. NFS-e/relatórios, carta de cobrança e parcelamento municipal não viram guia ISS normal. O probe e o harness real são sanitizados/read-only, com SHA-256 e fingerprint de banco antes/depois. Foram validados Anápolis próprio/retido, Nerópolis próprio, negativos municipais, DAS, DARF, DARE e parcelamento SEFAZ; `REAL_ISS_GUIDE_VALIDATION=PASS`, banco/arquivos inalterados. Suítes: foco `212 passed`; backend `951 passed`, ambas com o único warning conhecido Starlette/httpx. Contrato completo: [S11_ISS_GUIDE_PARSER](docs/S11_ISS_GUIDE_PARSER.md).
+
+Não houve migration, tabela, endpoint, UI, mudança no `DocumentParserRuntime`, polling, backfill ou promoção para evidência/canônico. Ruff, typecheck, build, E2E isolado (`14 passed`) e diff foram aprovados; Alembic operacional naquele fechamento era `20260911_0019 (head)`. O S11.1-E foi concluído posteriormente; S11.2, S11.3 e S12 não foram iniciados.
+
+Revisão posterior das quatro amostras ISS fornecidas confirmou os mesmos dois layouts e corrigiu variações de extração textual no DUAM Anápolis (hífen/espaço no cabeçalho e `Próprio` quebrado em outra linha). Uma guia atualizada com três lançamentos comprovou múltiplas competências e vencimentos no mesmo documento: cada `IssRevenue` agora preserva seu próprio período/vencimento; o header permanece sem período único e recebe `ISS_MULTIPLE_REFERENCE_PERIODS`. O harness real voltou a passar com arquivos e banco inalterados.
+
+A validação manual estrutural final das quatro amostras também foi aprovada: ISS retido de Anápolis (`ISS_WITHHELD`, 1 receita), ISS próprio de Anápolis (`ISS_OWN`, 1 receita), ISS próprio de Nerópolis (`ISS_OWN`, 1 receita) e guia atualizada de Anápolis (`ISS_OWN`, 3 receitas). O contrato de vencimento é específico do layout: todas as receitas de `ANAPOLIS_DUAM` devem trazer `due_date`; a ausência desse campo por receita em `NEROPOLIS_DUAM` é aceita quando o documento não o oferece com a mesma granularidade. Resultados: `MANUAL_ISS_PARSER_VALIDATION=PASS` e `VALIDACAO_MANUAL_CORRIGIDA_S11_1_D=PASS`.
+
 ## S11.1-C.1 — Framework de layouts documentais
 
 O pipeline permanente do S11 agora separa `Detect Layout -> Extract -> Classify -> Parser Result`. Os contratos `DocumentLayoutDetector`, `DocumentLayoutExtractor` e `DocumentClassifier`, o resultado intermediario `ClassificationResult`, o `ComposableDocumentParser` e o `LayoutRegistry` ficam em `agent/parsers/layout_framework.py`. O registro e explicito e deterministico: `DAS_FORM`, `FEDERAL_REVENUE_FORM` e `DARE_GO_5_1`; nao ha plugins dinamicos, scanning, YAML ou banco de layouts.
@@ -1103,7 +1145,7 @@ S9.5 e o macro-stage S9 estão concluídos e validados. A suíte E2E cobre as le
 
 ## S10.0 Watcher fiscal: contrato offline
 
-S10.0 a S10.4 estao concluidos, incluindo piloto real manual e controlado. O S11.0 tambem esta concluido: o watcher fiscal agora trata cada `G:\EMPRESAS\<pasta empresarial>\Escrita Fiscal` como boundary e aceita estrutura interna livre. PDF, JSON, XML e ZIP podem ser candidatos documentais. S11.1-A/B adicionaram parsers PDF de DAS e DARF/SENDA; OCR, extracao ZIP, outros parsers fiscais e conciliacao ainda nao existem. A autoridade permanece `CONTEUDO DOCUMENTAL > ESTRUTURA TECNICA > FILENAME > PATH`.
+S10.0 a S10.4 estao concluidos, incluindo piloto real manual e controlado. O S11.0 tambem esta concluido: o watcher fiscal agora trata cada `G:\EMPRESAS\<pasta empresarial>\Escrita Fiscal` como boundary e aceita estrutura interna livre. PDF, JSON, XML e ZIP podem ser candidatos documentais. S11.1-A até E adicionaram parsers PDF de DAS, DARF/SENDA, guias estaduais, ISS municipal e parcelamentos; OCR, extracao ZIP, declarações e documentos fiscais eletrônicos ainda nao existem. A autoridade permanece `CONTEUDO DOCUMENTAL > ESTRUTURA TECNICA > FILENAME > PATH`.
 
 Operacionalmente, parser de conteudo definira a identificacao principal/canonica; nome do arquivo sera somente hint auxiliar/evidencia complementar; e pasta fornecera somente contexto de empresa e competencia. O fechamento S10.2 foi validado com `10 passed` no ingest, `653 passed` no backend, Ruff limpo, typecheck aprovado, `7 passed` no E2E e contagens read-only inalteradas: `0` watcher events, `1717` evidences e `196` statuses.
 
@@ -1120,7 +1162,7 @@ A fase 2 validou um unico PDF real por operacao manual: o dry-run nao alterou o 
 
 `python -m agent.watcher.main --ingest-file <arquivo.pdf|json|xml|zip>` valida assinatura e gera apenas dry-run por padrao. A transmissao exige `--confirm-send`. O payload v2 nao aceita IDs de tenant, empresa ou periodo; o tenant continua derivado da autenticacao M2M. O backend preserva o v1 e cria para v2 evento/evidence pendentes com empresa e periodo nulos, prontos para parser futuro.
 
-Nenhum backfill historico foi executado e nenhum processo automatico foi instalado. A identidade de ocorrencia permanece path+hash por compatibilidade; a identidade documental por `organization + SHA-256`, sem duplicacao de evidence quando o mesmo conteudo aparece em outro path, foi fechada no S11.0.1 antes do backfill. S11.1 possui parsers DAS e DARF/SENDA; S11.2, S11.3 e S12 nao foram iniciados. Como nao houve mudanca visual, nao foi necessario criar E2E novo; a regressao existente foi mantida.
+Nenhum backfill historico foi executado e nenhum processo automatico foi instalado. A identidade de ocorrencia permanece path+hash por compatibilidade; a identidade documental por `organization + SHA-256`, sem duplicacao de evidence quando o mesmo conteudo aparece em outro path, foi fechada no S11.0.1 antes do backfill. S11.1 possui parsers DAS, DARF/SENDA, guias estaduais, ISS municipal e parcelamentos; S11.2, S11.3 e S12 nao foram iniciados. Como nao houve mudanca visual, nao foi necessario criar E2E novo; a regressao existente foi mantida.
 
 ### Fechamento validado do S11.0
 

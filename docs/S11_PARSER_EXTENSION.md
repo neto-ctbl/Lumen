@@ -1,5 +1,31 @@
 # S11.1-C.1 — Extensao de parsers documentais
 
+## Regra confirmada pelo S11.1-E
+
+Parcelamento demonstrou o caso central de reutilização: classificações documentais novas
+consomem `DAS_FORM`, `FEDERAL_REVENUE_FORM` e `DARE_GO_5_1` sem criar extratores por
+programa. O DAS expõe agora `extract_das_form()` como extração física compartilhada;
+`DasPdfParser` mantém sua assinatura semântica, payload e versão. Somente o formulário
+clássico numerado observado no Parcelamento Simplificado justificou
+`DARF_LEGACY_FORM`.
+
+O registry atual, em ordem, é `DAS_FORM`, `FEDERAL_REVENUE_FORM`, `DARE_GO_5_1`,
+`DARF_LEGACY_FORM`, `ANAPOLIS_DUAM` e `NEROPOLIS_DUAM`. O parser installment consulta o
+registry antes de selecionar o pipeline composto. A family é `INSTALLMENT`; programa,
+administrador, dívida e tributos não alteram a identidade do layout.
+
+## Regra confirmada pelo S11.1-D
+
+O ISS inaugurou um parser novo integralmente composto sobre este contrato. Quando um
+arquivo contém N documentos e a classificação pertence a cada documento, use o callback
+opcional `serialize_result(extracted, classification)` do `ComposableDocumentParser`.
+Ele permite montar o schema final sem reler o arquivo e sem misturar decisão fiscal no
+extractor. `serialize_extracted` continua sendo o padrão retrocompatível.
+
+Dois municípios só compartilham extractor quando a estrutura física foi comprovadamente
+igual. O S11.1-D cadastrou `ANAPOLIS_DUAM` e `NEROPOLIS_DUAM` separadamente e normalizou
+ambos para `IssGuideFile`; `ISS_OWN`/`ISS_WITHHELD` permanecem classificações, não layouts.
+
 Status: framework concluido em 2026-09-21. Este contrato e local ao Agent,
 deterministico e desacoplado do polling. Nao cria plugin dinamico, tabela,
 migration, endpoint, backfill ou reconciliacao.
@@ -34,8 +60,9 @@ Os contratos ficam em `agent/parsers/layout_framework.py`:
   YAML, banco, entry points ou hot reload.
 
 O registry padrao de layouts e deliberadamente escrito em codigo e registra,
-nesta ordem, `DAS_FORM`, `FEDERAL_REVENUE_FORM` e `DARE_GO_5_1`. O registry de
-parsers continua separado e explicito. Um parser novo e registrado no
+nesta ordem, `DAS_FORM`, `FEDERAL_REVENUE_FORM`, `DARE_GO_5_1`,
+`DARF_LEGACY_FORM`, `ANAPOLIS_DUAM` e `NEROPOLIS_DUAM`. O registry de parsers
+continua separado e explicito. Um parser novo e registrado no
 `ParserRegistry`; o `DocumentParserRuntime` nao precisa ser alterado.
 
 ## Dois resultados que nao podem ser confundidos
@@ -115,12 +142,12 @@ Nao criar outro extractor apenas porque mudou tributo, codigo de receita,
 programa, nome do arquivo, pasta ou competencia. Tambem nao criar por simetria
 se a separacao exigir reescrever um parser estavel sem consumidor real.
 
-Por essa razao, o DAS ganhou detector `DAS_FORM`, mas sua extracao permanece no
-`DasPdfParser`: separar agora duplicaria/refatoraria agressivamente regras de
-componentes sem beneficio imediato. O federal e o DARE possuem adaptadores
-formais sobre `FederalRevenueGuideExtractor` e `StateRevenueGuideExtractor`,
-pois esses extratores ja eram neutros e reutilizaveis. As exclusoes de DARF,
-DAS normal e guia estadual normal continuam nos respectivos parsers/classifiers,
+O DAS ganhou detector `DAS_FORM` no S11.1-C.1 e passou a expor a menor parte
+estrutural necessária como `extract_das_form()` no S11.1-E. O `DasPdfParser`
+continua proprietário de sua assinatura semântica e do payload DAS, sem bump ou
+refatoração agressiva. O federal e o DARE possuem adaptadores formais sobre
+`FederalRevenueGuideExtractor` e `StateRevenueGuideExtractor`. As exclusoes de
+DARF, DAS normal e guia estadual normal continuam nos respectivos parsers,
 nao nos detectores fisicos.
 
 ## Versao, testes e seguranca

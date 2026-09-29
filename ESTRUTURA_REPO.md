@@ -1,5 +1,51 @@
 # Estrutura inicial esperada do repositório Lumen
 
+## Atualização S11.1-E — Parser unificado de parcelamentos
+
+- `agent/parsers/installment_pdf.py`: modelos tipados `InstallmentFile`, taxonomia,
+  adapters por layout, `InstallmentClassifier` e parser `lumen.installment-pdf@1`.
+- `agent/parsers/legacy_darf.py`: detector/extractor estrutural do novo
+  `DARF_LEGACY_FORM`, comprovado pelo Parcelamento Simplificado real.
+- `agent/parsers/installment_probe.py`: probe read-only allowlisted.
+- `agent/parsers/installment_validation.py`: harness real fail-fast com SHA-256 e
+  snapshot/fingerprint read-only do banco.
+- `agent/parsers/das_pdf.py`: `extract_das_form()` compartilhado; comportamento e versão
+  do parser DAS normal preservados.
+- `agent/parsers/state_revenue_guide.py`: preservação estrutural de componentes codificados
+  específicos de parcelamento, inclusive kinds desconhecidos, sem classificação por chute.
+- `agent/parsers/layout_framework.py`: registry explícito inclui `DARF_LEGACY_FORM`;
+  `DocumentParserRuntime` permanece inalterado.
+- `agent/parsers/runtime.py`: somente registro explícito do parser novo.
+- `backend/tests/test_installment_pdf_parser.py`: corpus inteiramente sintético para os
+  programas, layouts, campos, conflitos, unknowns, probe e falhas.
+- `docs/S11_INSTALLMENT_PARSER.md`: contrato, matriz real, limites e segurança.
+
+Oito amostras reais externas ao Git validaram duas variantes PGFN, PARCSN, SIMEI, RELP, PERT,
+Simplificado e SEFAZ. Os três layouts existentes foram reutilizados e somente o DARF
+clássico exigiu layout novo. Controles reais DAS/DARF/ICMS/DIFAL/PROTEGE/ISS próprio e
+retido permaneceram em suas famílias. Arquivos e banco ficaram inalterados:
+`REAL_INSTALLMENT_VALIDATION=PASS`. Nenhuma migration/tabela/endpoint/UI, polling,
+backfill, reconciliação ou S12. Foco `228 passed`, backend `970 passed`, Ruff,
+typecheck/build e E2E isolado `14 passed` aprovados. Alembic operacional
+`20260925_0020 (head)` pertence à migration Domínio preexistente; o stage não criou
+migration. Nenhum PDF/XML/ZIP/render no status e temporários QA removidos.
+
+## Atualizacao S11.1-D — Parser municipal de ISS
+
+- `agent/parsers/iss_guide.py`: modelos `IssGuideFile`, detectores/extractors `ANAPOLIS_DUAM` e `NEROPOLIS_DUAM`, classifier próprio/retido/desconhecido e parser composto `lumen.iss-guide-pdf@1`.
+- `agent/parsers/iss_guide_probe.py`: diagnóstico read-only estritamente allowlisted, sem path, texto ou dados fiscais.
+- `agent/parsers/iss_guide_validation.py`: validação real fail-fast com SHA-256, snapshot/fingerprint do banco e regressões DAS/DARF/DARE.
+- `backend/tests/test_iss_guide_pdf_parser.py`: fixtures exclusivamente sintéticas para layouts, modalidades, componentes, múltiplas páginas, unknowns, negativos e falhas sanitizadas.
+- `agent/parsers/layout_framework.py`: callback opcional e retrocompatível `serialize_result`, necessário para combinar extração e classificação por documento; registry agora inclui os dois layouts municipais.
+- `agent/parsers/runtime.py`: apenas registro explícito do novo parser; `DocumentParserRuntime` permanece inalterado.
+- `docs/S11_ISS_GUIDE_PARSER.md`: auditoria, contrato, sinais, campos, limites e validações do stage.
+
+Auditoria real: dois layouts DUAM, municípios Anápolis/GO e Nerópolis/GO; Anápolis comprova próprio e retido no mesmo formulário. Relatórios/NFS-e-like, carta de cobrança e parcelamentos ficam excluídos. Validação real aprovou positivos dos dois municípios/modalidades, negativo municipal, regressões DAS/DARF/DARE e negativo SEFAZ, com banco e hashes inalterados (`REAL_ISS_GUIDE_VALIDATION=PASS`). Foco `212 passed`; backend `951 passed`, com um warning conhecido em cada. Ruff, typecheck, build de 62 módulos, E2E isolado `14 passed` e diff aprovados. Nenhuma migration/tabela/endpoint/UI, polling, backfill ou S12; Alembic permanece `20260911_0019 (head)`.
+
+Revisão das quatro amostras ISS entregues após o fechamento: nenhuma terceira identidade de layout; detector Anápolis tolera espaçamento variável comprovado na camada textual, extractor incorpora modalidade quebrada na linha seguinte e CNPJ rotulado com espaçamento de pontuação. `IssRevenue` ganhou período/proveniência/vencimento por lançamento para a guia atualizada multicompetência; header não inventa período único e sinaliza `ISS_MULTIPLE_REFERENCE_PERIODS`. Validação real repetida com as quatro amostras e regressões: PASS, hashes/banco inalterados.
+
+Validação manual estrutural final: retido Anápolis (`ISS_WITHHELD`, 1 receita), próprio Anápolis (`ISS_OWN`, 1 receita), próprio Nerópolis (`ISS_OWN`, 1 receita) e atualizado Anápolis (`ISS_OWN`, 3 receitas), todos com o layout esperado. A regra de `due_date` é deliberadamente dependente do layout: obrigatória por receita em `ANAPOLIS_DUAM` e opcional em `NEROPOLIS_DUAM` quando o formulário não expõe esse dado com a mesma granularidade. Saídas finais: `MANUAL_ISS_PARSER_VALIDATION=PASS` e `VALIDACAO_MANUAL_CORRIGIDA_S11_1_D=PASS`.
+
 ## Atualizacao S11.1-C.1 — Framework de layouts
 
 - `agent/parsers/layout_framework.py`: Protocols de detector/extractor/classifier, resultados intermediarios, pipeline composto, registry explicito e diagnostico allowlisted de layout desconhecido.
@@ -41,7 +87,7 @@ E2E final revalidado com 14 passed em 1.8m, banco separado/admin sintetico. Snap
 - `docs/S11_DARF_PARSER.md`: contrato, decisoes, privacidade, limites e resultados das validacoes.
 - Observacao documental posterior: exemplo E2E corrigido para remover overrides ausentes/vazios no finally, evitando DATABASE_URL vazio com precedencia sobre `.env`; hash do validador real deve usar SHA-256 streaming compativel com Python 3.10. Revalidacao adicional: quatro PASS, duas divergencias pendentes, hashes/banco inalterados e Alembic recuperado no head. Nenhum script, parser ou migration alterado nesta observacao.
 
-Nenhuma tabela, migration, endpoint ou UI nova. Head `20260911_0019`. Ordem A DAS, B DARF/SENDA, C estaduais, D ISS, E parcelamentos, para reutilizar layouts-base. Demais parsers, backfill e S12 permanecem futuros.
+Nenhuma tabela, migration, endpoint ou UI nova naquele fechamento. Head `20260911_0019`. A ordem A DAS, B DARF/SENDA, C estaduais, D ISS, E parcelamentos permitiu a reutilização posterior registrada no S11.1-E. Backfill e S12 permanecem futuros.
 
 Fechamento de 2026-09-16: 70 casos sinteticos DARF, foco integrado `159 passed` em `49.14s` e backend `844 passed` em `183.75s`, ambos com warning conhecido Starlette/httpx. Ruff/diff/typecheck/build aprovados (62 modulos, `2.96s`); Playwright `14 passed` em `1.5m`, banco distinto/admin sintetico. Seis DARFs reais MATCHED, tres DAS preservados e dois PGFN sem suporte nos dois parsers; SHA-256 dos 11 arquivos e contagens operacionais inalterados (0 runs, 1718 evidences, 1 evento, 196 status de obrigacao). Nenhum PDF/XML/ZIP no status; nove temporarios QA removidos, originais intactos. Alteracoes locais preexistentes preservadas e nenhum commit executado. `S11.1_B_DARF_CONCLUIDO = YES`.
 
