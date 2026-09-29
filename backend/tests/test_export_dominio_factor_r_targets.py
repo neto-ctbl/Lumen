@@ -336,6 +336,28 @@ def test_imported_dominio_code_has_precedence_over_manual_fallback(db_session) -
     assert row.filter_action == FILTER_ACTION_INCLUDE
 
 
+def test_econtrole_dominio_code_has_precedence_over_imported_and_manual_codes(db_session) -> None:
+    organization = _create_org(db_session, "neto-contabilidade")
+    company = _create_company(
+        db_session,
+        organization,
+        cnpj="24.415.962/0001-70",
+        name="Preferir eControle Ltda",
+    )
+    company.dominio_company_code = "1234"
+    _add_snapshot(db_session, organization, company, "SIMPLES_NACIONAL", "Simples Nacional")
+    _add_cnae(db_session, company, cnae="7020400")
+    _add_econet_cache(db_session, cnae="7020400", factor_r_applicable=True)
+    _add_dominio_code(db_session, organization, company, code="9998")
+    db_session.flush()
+
+    export = build_dominio_factor_r_targets(db_session, organization=organization)
+    row = next(row for row in export.rows if row.company_cnpj == "24.415.962/0001-70")
+
+    assert row.dominio_company_code == "1234"
+    assert row.filter_action == FILTER_ACTION_INCLUDE
+
+
 def test_manual_dominio_code_fallback_isolated_by_organization(db_session) -> None:
     organization = _create_org(db_session, "org-without-manual-fallback")
     company = _create_company(db_session, organization, cnpj="24.415.962/0001-70", name="Sem Fallback Ltda")

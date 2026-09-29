@@ -15,6 +15,11 @@ class ExternalCompany(Base):
     __table_args__ = (
         UniqueConstraint("organization_id", "cnpj", name="uq_external_companies_org_cnpj"),
         Index("ix_external_companies_org_active", "organization_id", "active"),
+        Index(
+            "ix_external_companies_org_dominio_company_code",
+            "organization_id",
+            "dominio_company_code",
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -25,6 +30,7 @@ class ExternalCompany(Base):
     razao_social: Mapped[str] = mapped_column(String(255), nullable=False)
     nome_fantasia: Mapped[str | None] = mapped_column(String(255), nullable=True)
     apelido_pasta: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    dominio_company_code: Mapped[str | None] = mapped_column(String(50), nullable=True)
     situacao: Mapped[str | None] = mapped_column(String(100), nullable=True)
     inscricao_estadual: Mapped[str | None] = mapped_column(String(50), nullable=True)
     inscricao_municipal: Mapped[str | None] = mapped_column(String(50), nullable=True)

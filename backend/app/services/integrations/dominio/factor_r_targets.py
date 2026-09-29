@@ -107,7 +107,9 @@ def build_dominio_factor_r_targets(session: Session, *, organization: Organizati
         is_mei = None if regime is None else (regime.canonical == FiscalRegime.MEI.value if regime.canonical else None)
         factor_r_result = get_company_factor_r_potential(session, company_id=company.id)
         factor_r_effective = effective_use_by_company_id.get(company.id)
-        dominio_company_code = dominio_code_by_cnpj.get(_normalize_cnpj(company.cnpj))
+        dominio_company_code = company.dominio_company_code or dominio_code_by_cnpj.get(
+            _normalize_cnpj(company.cnpj)
+        )
         filter_action, reason = _resolve_filter_action(
             company=company,
             is_simples=is_simples,

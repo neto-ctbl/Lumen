@@ -26,6 +26,7 @@ def _payload(**overrides):
         "razao_social": "AC SOARES LTDA",
         "nome_fantasia": "AC Soares",
         "apelido_pasta": "AC Soares",
+        "dominio_company_code": "293",
         "situacao": "ATIVA",
         "inscricao_estadual": "",
         "inscricao_municipal": "12345",
@@ -50,6 +51,7 @@ def test_upsert_creates_company(db_session) -> None:
     assert company is not None
     assert company.organization_id == organization.id
     assert company.cnpj == "19163109000178"
+    assert company.dominio_company_code == "293"
     assert company.sync_status == "SYNCED"
     assert company.active is True
     assert result.catalog_result.created == 2

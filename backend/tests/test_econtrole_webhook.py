@@ -56,6 +56,7 @@ def _upsert_payload(org_slug: str = "org-webhook") -> dict[str, object]:
         "cnpj": "19.163.109/0001-78",
         "razao_social": "AC SOARES LTDA",
         "nome_fantasia": "AC Soares",
+        "dominio_company_code": "293",
         "updated_at": "2026-07-07T10:00:00-03:00",
     }
 
@@ -95,6 +96,7 @@ def test_upsert_webhook_with_valid_token_creates_company(client: TestClient, db_
     company = db_session.scalar(select(ExternalCompany).where(ExternalCompany.id == payload["company_id"]))
     assert company is not None
     assert company.cnpj == "19163109000178"
+    assert company.dominio_company_code == "293"
     assert db_session.scalars(select(CompanyCnae).where(CompanyCnae.company_id == company.id)).all()
     audit = db_session.scalar(select(AuditLog).where(AuditLog.resource_id == str(company.id)))
     assert audit is not None

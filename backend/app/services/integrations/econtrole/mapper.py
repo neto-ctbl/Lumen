@@ -15,6 +15,12 @@ FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     "razao_social": ("razao_social", "razaoSocial"),
     "nome_fantasia": ("nome_fantasia", "nomeFantasia"),
     "apelido_pasta": ("apelido_pasta", "apelidoPasta"),
+    "dominio_company_code": (
+        "dominio_company_code",
+        "dominioCompanyCode",
+        "codigo_dominio",
+        "codigoDominio",
+    ),
     "situacao": ("situacao",),
     "inscricao_estadual": ("inscricao_estadual", "inscricaoEstadual"),
     "inscricao_municipal": ("inscricao_municipal", "inscricaoMunicipal"),
@@ -48,6 +54,7 @@ def map_econtrole_company_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "razao_social": razao_social,
         "nome_fantasia": _normalize_text(_pick(payload, "nome_fantasia")),
         "apelido_pasta": _normalize_text(_pick(payload, "apelido_pasta")),
+        "dominio_company_code": _normalize_dominio_company_code(_pick(payload, "dominio_company_code")),
         "situacao": _normalize_text(_pick(payload, "situacao")),
         "inscricao_estadual": _normalize_ie(_pick(payload, "inscricao_estadual")),
         "inscricao_municipal": _normalize_text(_pick(payload, "inscricao_municipal")),
@@ -83,6 +90,17 @@ def _normalize_ie(value: Any) -> str | None:
         return None
     if text.upper() == "ISENTO":
         return text
+    return text
+
+
+def _normalize_dominio_company_code(value: Any) -> str | None:
+    text = _normalize_text(value)
+    if text is None:
+        return None
+    if len(text) > 50:
+        raise EControleMappingError("Field 'dominio_company_code' must have at most 50 digits.")
+    if not text.isdigit():
+        raise EControleMappingError("Field 'dominio_company_code' must contain only digits.")
     return text
 
 
