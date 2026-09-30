@@ -187,6 +187,7 @@ class ComposableDocumentParser(Generic[TExtracted]):
             [TExtracted, ClassificationResult], dict[str, JsonValue]
         ]
         | None = None,
+        unknown_layout_warning: str = "UNKNOWN_GUIDE_LAYOUT",
     ) -> None:
         self.name = name
         self.version = version
@@ -195,6 +196,7 @@ class ComposableDocumentParser(Generic[TExtracted]):
         self.classifier = classifier
         self.serialize_extracted = serialize_extracted
         self.serialize_result = serialize_result
+        self.unknown_layout_warning = unknown_layout_warning
 
     def supports(self, document: DocumentContext) -> bool:
         return (
@@ -214,7 +216,7 @@ class ComposableDocumentParser(Generic[TExtracted]):
                 document_family="UNKNOWN",
                 extraction_status=ExtractionStatus.UNSUPPORTED,
                 signals=(_layout_signal(UNKNOWN_LAYOUT_ID, None),),
-                warnings=("UNKNOWN_GUIDE_LAYOUT",),
+                warnings=(self.unknown_layout_warning,),
             )
         try:
             extracted = self.extractor.extract(document)
@@ -345,6 +347,7 @@ def default_layout_registry() -> LayoutRegistry:
     )
     from agent.parsers.iss_guide import AnapolisDuamExtractor, NeropolisDuamExtractor
     from agent.parsers.legacy_darf import LegacyDarfFormExtractor
+    from agent.parsers.mit_json import MitJsonLayoutExtractor
 
     return LayoutRegistry(
         (
@@ -354,6 +357,7 @@ def default_layout_registry() -> LayoutRegistry:
             LegacyDarfFormExtractor(),
             AnapolisDuamExtractor(),
             NeropolisDuamExtractor(),
+            MitJsonLayoutExtractor(),
         )
     )
 

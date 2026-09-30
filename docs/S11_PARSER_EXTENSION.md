@@ -1,5 +1,21 @@
 # S11.1-C.1 — Extensao de parsers documentais
 
+## Reuso por JSON no S11.2-A
+
+`DOMINIO_MIT_JSON` comprovou que os contratos são documentais, não PDF-específicos.
+`MitJsonLayoutExtractor` usa o mesmo `DocumentLayoutDetector`/
+`DocumentLayoutExtractor`; `MitDocumentClassifier` usa `DocumentClassifier`; e
+`MitJsonParser` delega a `ComposableDocumentParser`. `technical_format=JSON` percorre
+layout, extração, classificação e resultado sem mudança em `DocumentParserRuntime`.
+
+Para conteúdo estruturado, `FILE_STRUCTURE` representa schema/envelope e tem autoridade
+acima de filename/path. Erro sintático é `INVALID`; JSON válido com schema desconhecido é
+`UNKNOWN`/`UNSUPPORTED`. Campos extras irrelevantes são tratados pelo modelo da família,
+não por `extra="allow"` no framework. O único ajuste mínimo tornou o warning de layout
+desconhecido configurável no `ComposableDocumentParser`: o padrão retrocompatível
+continua `UNKNOWN_GUIDE_LAYOUT`, enquanto o MIT usa `UNKNOWN_JSON_LAYOUT`. Protocolos e
+runtime não mudaram.
+
 ## Regra confirmada pelo S11.1-E
 
 Parcelamento demonstrou o caso central de reutilização: classificações documentais novas
@@ -10,9 +26,10 @@ clássico numerado observado no Parcelamento Simplificado justificou
 `DARF_LEGACY_FORM`.
 
 O registry atual, em ordem, é `DAS_FORM`, `FEDERAL_REVENUE_FORM`, `DARE_GO_5_1`,
-`DARF_LEGACY_FORM`, `ANAPOLIS_DUAM` e `NEROPOLIS_DUAM`. O parser installment consulta o
-registry antes de selecionar o pipeline composto. A family é `INSTALLMENT`; programa,
-administrador, dívida e tributos não alteram a identidade do layout.
+`DARF_LEGACY_FORM`, `ANAPOLIS_DUAM`, `NEROPOLIS_DUAM` e `DOMINIO_MIT_JSON`. O parser
+installment consulta o registry antes de selecionar o pipeline composto. A family é
+`INSTALLMENT`; programa, administrador, dívida e tributos não alteram a identidade do
+layout.
 
 ## Regra confirmada pelo S11.1-D
 
@@ -61,8 +78,8 @@ Os contratos ficam em `agent/parsers/layout_framework.py`:
 
 O registry padrao de layouts e deliberadamente escrito em codigo e registra,
 nesta ordem, `DAS_FORM`, `FEDERAL_REVENUE_FORM`, `DARE_GO_5_1`,
-`DARF_LEGACY_FORM`, `ANAPOLIS_DUAM` e `NEROPOLIS_DUAM`. O registry de parsers
-continua separado e explicito. Um parser novo e registrado no
+`DARF_LEGACY_FORM`, `ANAPOLIS_DUAM`, `NEROPOLIS_DUAM` e `DOMINIO_MIT_JSON`. O registry
+de parsers continua separado e explicito. Um parser novo e registrado no
 `ParserRegistry`; o `DocumentParserRuntime` nao precisa ser alterado.
 
 ## Dois resultados que nao podem ser confundidos

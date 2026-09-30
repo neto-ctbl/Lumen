@@ -1,5 +1,36 @@
 # Riscos Tecnicos do Lumen
 
+## S11.2-A — MIT JSON
+
+- Filename/pasta MIT pode rotular JSON de outro sistema. A assinatura exige a combinação
+  estrutural comprovada; nome e path não produzem match.
+- Números JSON lidos como `float` podem perder centavos/casas relevantes. O decoder usa
+  `Decimal` diretamente e há regressão com precisão superior à binária.
+- Grupo ou chave nova não deve derrubar documento válido nem ser aceito sem controle.
+  Grupos novos ficam `UNKNOWN` com warning; extras preservam somente nomes; quebra do
+  envelope/lista é `INCONCLUSIVE` ou `UNSUPPORTED`.
+- A variante real sem movimento omite `Debitos`. Essa ausência só é aceita quando
+  `SemMovimento=true` e o restante da assinatura MIT é forte; documento ativo sem a
+  chave permanece `UNSUPPORTED`, evitando generalizar qualquer JSON parcial.
+- Uma seção vazia desconhecida pode coexistir com grupos de débito reais. Ela é
+  preservada por nome e avisada sem criar débito; seção não vazia sem `ListaDebitos`
+  permanece `INCONCLUSIVE` para não interpretar estrutura desconhecida.
+- `BalancoLucroReal` não é grupo: é o indicador oficial de balanço/balancete de redução
+  ou suspensão do IRPJ/CSLL e é preservado como booleano. Tipo incompatível torna a
+  extração `INCONCLUSIVE`.
+- O catálogo de 240 códigos pode ser retificado pela RFB. Ele enriquece grupo e
+  periodicidade, mas código novo não rejeita o documento: é preservado com warning.
+- CPF do responsável pela apuração não é CNPJ/identidade do contribuinte. Não inferir a
+  empresa pelo responsável ou pelo filename.
+- Período mensal do arquivo não transforma IRPJ/CSLL em mensal nem trimestre em mês.
+  Períodos explícitos do arquivo e débito permanecem separados.
+- Ausência histórica de JSON é falta legítima de fonte, não prova de ausência de
+  declaração, apuração ou obrigação. O parser não possui data de adoção nem lógica de
+  documento esperado.
+- Probe e harness expõem apenas agregados allowlisted, preservam hash/banco e não criam
+  evidence/run. JSON real permanece fora do Git. Contrato:
+  [S11_MIT_JSON_PARSER](S11_MIT_JSON_PARSER.md).
+
 ## S11.1-E — Parcelamentos
 
 - O mesmo shell pode representar guia normal ou parcelamento. A mitigação é manter layout

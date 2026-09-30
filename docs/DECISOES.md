@@ -321,7 +321,13 @@ Data de referencia: 2026-07-20
 - S10.1 usa exclusivamente `MM-AAAA -> AAAA-MM` da pasta. DARF e familia documental; classificacao de tributo e a distincao entre periodo da pasta, referencia documental e periodo tributario pertencem a S11.
 - XML NFS-e e fonte fiscal distinta de guias/recibos PDF. Sua finalidade futura e identificar, por empresa e competencia, atividades que efetivamente geraram receita; nao deve ser tratada simplesmente como `fiscal_evidence` de guia.
 - A Econet prova somente potencial cadastral de Fator R por CNAE. A validacao efetiva futura cruza `CNAEs/eControle + Econet`, atividades/receitas NFS-e, `FS12/Folha Dominio`, `RBT12/apuracao Sittax` e anexo efetivamente aplicado no Sittax.
-- Nao existe documento MIT proprio salvo pelo escritorio; quando aplicavel, a evidencia documental do fluxo MIT e o recibo da DCTFWeb.
+- Decisão histórica superada pelo S11.2-A: a rotina recente preserva JSON próprio do MIT.
+  Ele é fonte documental distinta do recibo DCTFWeb; a ausência em competências antigas
+  continua sendo ausência de fonte, não evidência de não entrega/apuração.
+- O S11.2-A usa o esquema oficial MIT 1.0 para tipar os dez grupos, eventos, suspensões,
+  listas pós-evento e `BalancoLucroReal`. O catálogo local dos 240 códigos oficiais
+  enriquece grupo/periodicidade, mas não é enum fechado: código futuro é preservado com
+  warning, nunca usado para rejeitar o documento ou concluir situação fiscal.
 - A modelagem de NFS-e, incluindo tabelas e migrations, sera decidida somente no micro-stage especifico apos inspecao do schema existente e deve preservar os layouts ja conhecidos pelo projeto.
 - S10.2 autentica somente com token M2M dedicado e org slug configurados no servidor; JWT humano, payload e agent nao escolhem tenant.
 - A identidade server-side e `sha256(organization_id + "\\n" + normalized_relative_path + "\\n" + file_sha256)`, sem `event_type`; a unicidade de banco protege replay/race.

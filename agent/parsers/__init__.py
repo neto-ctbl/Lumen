@@ -24,6 +24,24 @@ from agent.parsers.layout_framework import (
     default_layout_registry,
     sanitized_layout_diagnostic,
 )
+from agent.parsers.mit_json import (
+    MitAssessmentPeriod,
+    MitDebit,
+    MitDebitListKind,
+    MitDocument,
+    MitInitialData,
+    MitJsonParser,
+    MitSpecialEvent,
+    MitSuspension,
+    MitValidation,
+    sanitized_mit_json_probe,
+)
+from agent.parsers.mit_revenue_codes import (
+    MIT_REVENUE_CATALOG_VERSION,
+    MIT_REVENUE_CODES,
+    MitRevenueCode,
+    lookup_mit_revenue_code,
+)
 from agent.parsers.runtime import DocumentParserRuntime, ParserRegistry, default_parser_registry
 from agent.parsers.state_guide_pdf import StateGuideDocument, StateGuideFile, StateGuidePdfParser
 from agent.parsers.state_revenue_guide import StateComponent, StateGuideHeader, StateGuideValidation, StateRevenue, StateRevenueGuideExtractor
@@ -55,6 +73,18 @@ __all__ = [
     "ParserRunResult",
     "LayoutIdentification",
     "LayoutRegistry",
+    "MitAssessmentPeriod",
+    "MitDebit",
+    "MitDebitListKind",
+    "MitDocument",
+    "MitInitialData",
+    "MitJsonParser",
+    "MitRevenueCode",
+    "MitSpecialEvent",
+    "MitSuspension",
+    "MitValidation",
+    "MIT_REVENUE_CATALOG_VERSION",
+    "MIT_REVENUE_CODES",
     "SanitizedLayoutDiagnostic",
     "SignalProvenance",
     "TechnicalFormat",
@@ -69,4 +99,6 @@ __all__ = [
     "default_parser_registry",
     "default_layout_registry",
     "sanitized_layout_diagnostic",
+    "sanitized_mit_json_probe",
+    "lookup_mit_revenue_code",
 ]

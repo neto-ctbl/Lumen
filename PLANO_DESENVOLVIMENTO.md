@@ -2995,9 +2995,94 @@ DARF e evidencia do valor gerado para recolhimento, nao sinonimo de apuracao, pa
 
 ### S11.2 - Declaracoes
 
-Reservado para recibo/comprovante DCTFWeb, recibo/fechamento EFD-Reinf, JSON MIT gerado pela Dominio e outras declaracoes somente quando existirem na rotina.
+#### S11.2-A - Parser documental do MIT JSON
 
-O parser estruturado do JSON MIT deve, conforme o leiaute real, extrair identificacao e periodo, codigos de debito, valores, grupos tributarios, IRPJ, CSLL, PIS/Pasep, COFINS e demais informacoes relevantes. Deve preservar `raw_payload`, versao do parser, arquivo fonte, hash e competencia. O MIT JSON e uma fonte distinta de DCTFWeb e DARF; os tres nao devem ser reduzidos a uma entidade indistinta nem deve ser criado parser ficticio para um recibo MIT inexistente.
+Concluído e validado em 2026-09-30. `lumen.mit-json` v1 identifica por conteúdo o layout
+`DOMINIO_MIT_JSON`, extrai `PeriodoApuracao`, campos compreendidos de `DadosIniciais`,
+eventos, suspensões, `BalancoLucroReal` e N débitos dos dez grupos do esquema oficial.
+O catálogo versionado cobre os 240 códigos do Manual MIT 1.0 por grupo/periodicidade.
+Grupo ou código novo permanece preservado com warning técnico; valores usam Decimal
+desde o decode e períodos do arquivo/débito ficam separados.
+Uma variante real `SemMovimento=true` pode omitir `Debitos`; ela permanece MIT/MATCHED,
+com zero débitos e warning técnico, sem conclusão fiscal adicional.
+
+JSON válido incompatível é `UNKNOWN`/`UNSUPPORTED`; JSON inválido é `INVALID`.
+Filename/path não classificam. O framework detector -> extractor -> classifier -> result
+foi reutilizado para JSON e o parser foi registrado sem alteração do runtime. Probe real
+read-only em três empresas, fixtures sintéticas, nenhum raw payload, migration, tabela, promoção,
+polling/backfill ou reconciliação DARF/DCTFWeb.
+
+Estrutura oficial suportada:
+
+* envelope: `PeriodoApuracao`, `DadosIniciais`, `ListaEventosEspeciais`, `Debitos` e
+  `ListaSuspensoes`;
+* grupos: `Irpj`, `Csll`, `Irrf`, `Ipi`, `Iof`, `PisPasep`, `Cofins`,
+  `ContribuicoesDiversas`, `Cpss` e `RetPagamentoUnificado`;
+* multiplicidade: cada grupo pode conter `ListaDebitos` e `ListaDebitosAposEvento`, e um
+  MIT pode produzir N débitos de N tributos;
+* campos específicos preservados quando presentes: evento do débito, ano/trimestre
+  postergado, ano do débito, `PaDebito`, CNPJ de SCP/estabelecimento/incorporação e código
+  de município do ouro;
+* suspensões: processo, motivo, depósito, decisão, vara, município e débitos/valores
+  suspensos, sem interpretar juridicamente a suspensão neste stage;
+* `BalancoLucroReal`: booleano de balanço/balancete de redução ou suspensão de IRPJ/CSLL,
+  não grupo e não débito.
+
+Decisões de evolução e segurança:
+
+* os 240 códigos do Manual MIT 1.0 formam catálogo versionado com grupo e periodicidade,
+  usado apenas para enriquecimento; código futuro válido é preservado com warning e não
+  impede o match do documento;
+* descrições do catálogo não foram importadas do PDF porque o texto embutido degrada
+  acentos; o contrato possui campo opcional para futura fonte oficial limpa;
+* chaves extras não críticas preservam somente seus nomes; alteração estrutural crítica
+  em lista/campo conhecido produz `INCONCLUSIVE` em vez de ser engolida;
+* `json.loads(parse_float=Decimal)` elimina conversão monetária intermediária para
+  `float`; zero e casas decimais adicionais possuem regressão específica;
+* período do arquivo, período postergado/anual do débito e hints de filename/path são
+  independentes; conflito é técnico e não divergência fiscal;
+* o parser não transmite MIT, acessa e-CAC/DCTFWeb, compara DARF, cria alerta fiscal,
+  altera obrigação ou promove campos canônicos de `FiscalEvidence`.
+
+> A preservação regular de MIT JSON iniciou apenas no período operacional recente. A ausência de arquivo em competências históricas é ausência de fonte, não evidência de ausência de declaração/apuração.
+
+O parser não contém data de adoção nem mecanismo de ausência. S11.2-B, S11.3 e S12 não
+foram iniciados. Contrato: [S11_MIT_JSON_PARSER](docs/S11_MIT_JSON_PARSER.md).
+
+Validação real read-only, sempre externa ao Git:
+
+* perfil IRPJ/CSLL: `MIT`/`MATCHED`, quatro débitos e taxes IRPJ, CSLL, PIS e COFINS,
+  sem warnings;
+* perfil zerado: `MIT`/`MATCHED`, `SemMovimento=true`, zero débitos e somente
+  `MIT_NO_DEBITS`;
+* perfil PIS/COFINS: `MIT`/`MATCHED`, dois débitos, `BalancoLucroReal=false`, nenhum grupo
+  desconhecido e nenhum warning;
+* os três períodos vieram do conteúdo; hashes SHA-256 e snapshot/fingerprint do banco
+  foram iguais antes/depois; nenhum evidence ou parser run foi criado.
+
+Fechamento técnico: parser MIT `28 passed`; suíte focada com framework/runtime/runs e
+parcelamentos `78 passed, 1 warning`; backend completo `999 passed, 1 warning`; Ruff
+limpo; typecheck e build aprovados (`62` módulos); Playwright `14 passed`; `git diff
+--check` aprovado. O warning é a depreciação conhecida Starlette/httpx. Alembic permaneceu
+em `20260925_0020 (head)`, migration Domínio preexistente; nenhuma migration foi criada
+ou modificada. Nenhum JSON real foi versionado.
+
+Estado do fechamento: `S11.2_A_MIT_JSON_CONCLUIDO=YES`, `MIT_REAL_VALIDATED=YES`,
+`MIT_LAYOUT_REGISTERED=YES`, `MIT_MULTI_DEBIT_SUPPORTED=YES`,
+`MIT_UNKNOWN_DEBIT_GROUP_SUPPORTED=YES`, `MIT_DECIMAL_SAFE=YES`,
+`MIT_HISTORICAL_ABSENCE_RULE_DOCUMENTED=YES`, `JSON_FRAMEWORK_REUSE_CONFIRMED=YES`,
+`NEW_PARSER_REQUIRES_RUNTIME_CHANGE=NO`, `NEW_MIGRATION_CREATED=NO`,
+`S11.2_B_INICIADO=NO`, `S11.3_INICIADO=NO`, `S12_INICIADO=NO` e
+`BACKFILL_REAL_EXECUTADO=NO`.
+
+O restante de S11.2 permanece reservado para recibo/comprovante DCTFWeb,
+recibo/fechamento EFD-Reinf e outras declarações somente quando existirem na rotina.
+
+O parser estruturado do JSON MIT extrai conforme o layout oficial período, códigos de
+débito, valores e os dez grupos suportados, incluindo IRPJ, CSLL, PIS/Pasep e COFINS. A versão fica no parser run e a
+identidade documental existente preserva hash/arquivo; o JSON fiscal integral não é
+duplicado em `raw_payload`. MIT JSON é fonte distinta de DCTFWeb e DARF; os três não são
+reduzidos a uma entidade indistinta e não existe parser fictício para recibo MIT.
 
 DCTFWeb representa principalmente estado declarado/transmitido e consolidacao das informacoes que a alimentam. Quando disponivel, o S11 deve registrar competencia, situacao, recibo/comprovante e demais campos observaveis, para confronto posterior. Ela nao substitui automaticamente o MIT quando a composicao estruturada da apuracao nao estiver explicitamente presente na evidencia lida.
 

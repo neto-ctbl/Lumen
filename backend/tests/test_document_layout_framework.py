@@ -20,6 +20,7 @@ from agent.parsers.known_layouts import (
 )
 from agent.parsers.iss_guide import ANAPOLIS_DUAM_LAYOUT_ID, NEROPOLIS_DUAM_LAYOUT_ID
 from agent.parsers.legacy_darf import LEGACY_DARF_FORM_LAYOUT_ID
+from agent.parsers.mit_json import MIT_JSON_LAYOUT_ID
 from agent.parsers.layout_framework import (
     ClassificationResult,
     ComposableDocumentParser,
@@ -276,6 +277,7 @@ def test_default_layout_registry_is_explicit_and_deterministic() -> None:
         LEGACY_DARF_FORM_LAYOUT_ID,
         ANAPOLIS_DUAM_LAYOUT_ID,
         NEROPOLIS_DUAM_LAYOUT_ID,
+        MIT_JSON_LAYOUT_ID,
     )
 
 

@@ -183,6 +183,7 @@ def default_parser_registry() -> ParserRegistry:
     from agent.parsers.state_guide_pdf import StateGuidePdfParser
     from agent.parsers.iss_guide import IssGuidePdfParser
     from agent.parsers.installment_pdf import InstallmentPdfParser
+    from agent.parsers.mit_json import MitJsonParser
 
     return ParserRegistry(
         (
@@ -191,5 +192,6 @@ def default_parser_registry() -> ParserRegistry:
             StateGuidePdfParser(),
             IssGuidePdfParser(),
             InstallmentPdfParser(),
+            MitJsonParser(),
         )
     )

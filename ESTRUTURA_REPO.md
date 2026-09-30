@@ -1879,3 +1879,57 @@ O polling e o mecanismo primario para compatibilidade com unidade de rede. O pil
 - Revalidacao da usuaria em `2026-09-15`: matriz real aprovada; backend `772 passed, 1 warning` em `153.90s`; Ruff limpo; typecheck/build aprovados (`62` modulos, `3.97s`); Playwright `14 passed` em `1.1m`; Alembic no head, diff aprovado e nenhum PDF no Git. O E2E usou o banco de teste.
 - Validacao final apos PERT/RELP explicitos: DAS `17 passed` em `18.28s`; foco integrado `89 passed, 1 warning` em `39.42s`; backend `774 passed, 1 warning` em `197.68s`; Ruff limpo; frontend sem alteracao adicional.
 - Escopo final: `S11.1_A_DAS_CONCLUIDO = YES`, `S11.1_INICIADO = YES`, `OUTROS_PARSERS_GUIAS_IMPLEMENTADOS = NO`, `S11.2_INICIADO = NO`, `S11.3_INICIADO = NO`, `S12_INICIADO = NO`, `BACKFILL_REAL_EXECUTADO = NO`, `REAL_CORPUS_VALIDATED = YES`.
+## S11.2-A — MIT JSON
+
+- `agent/parsers/mit_json.py`: parser `lumen.mit-json` v1, layout
+  `DOMINIO_MIT_JSON`, models tipados do esquema oficial 1.0, extração `Decimal`, débitos
+  múltiplos, dez grupos, eventos/suspensões, `BalancoLucroReal`, grupos desconhecidos
+  conservadores e probe allowlisted.
+- `agent/parsers/mit_revenue_codes.py`: catálogo versionado dos 240 códigos oficiais,
+  com grupo e periodicidade, usado somente para enriquecimento tolerante.
+- `agent/parsers/mit_json_validation.py`: validação real read-only com hashes e snapshot
+  de banco antes/depois; aceita expectativas de quantidade, taxes e warnings e não cria
+  run/evidence.
+- `agent/parsers/layout_framework.py`: pequena generalização retrocompatível para warning
+  de layout desconhecido configurável; o padrão PDF continua `UNKNOWN_GUIDE_LAYOUT` e o
+  MIT usa `UNKNOWN_JSON_LAYOUT`.
+- `agent/parsers/runtime.py`: somente o registry padrão passou a incluir
+  `MitJsonParser`; a classe `DocumentParserRuntime` e seu fluxo central não mudaram.
+- `agent/parsers/__init__.py`: exporta parser, models tipados e catálogo MIT.
+- `backend/tests/test_mit_json_parser.py`: positivos/negativos JSON, precisão, períodos,
+  dez grupos, listas pós-evento, eventos, suspensões, balanço, catálogo, evolução de
+  campos e regressão do pipeline completo.
+- `backend/tests/test_document_layout_framework.py`: confirma o layout MIT no registry
+  documental explícito.
+- `docs/S11_MIT_JSON_PARSER.md`: assinatura, contrato, warnings, segurança e regra de
+  ausência histórica.
+- `docs/S11_PARSER_EXTENSION.md`, `docs/DECISOES.md` e `docs/RISCOS.md`: registram o reuso
+  do framework por JSON, decisões de catálogo/evolução e riscos mitigados.
+
+Fluxo implementado:
+
+```text
+technical_format=JSON
+  -> assinatura estrutural MIT 1.0
+  -> DOMINIO_MIT_JSON
+  -> extração tipada com Decimal
+  -> classificação MIT
+  -> ParserExtraction / ParserRunResult
+```
+
+O modelo cobre dados iniciais, competência, eventos, `BalancoLucroReal`, N débitos dos
+dez grupos, duas listas por grupo, atributos específicos e suspensões. O catálogo local
+possui os 240 códigos oficiais com grupo/periodicidade e permanece tolerante a códigos
+futuros. Grupo novo é preservado como `UNKNOWN`; quebra de estrutura essencial é
+`INCONCLUSIVE`; JSON válido não MIT é `UNSUPPORTED`; JSON inválido é `INVALID`.
+
+Validação de fechamento: três arquivos reais externos ao Git cobriram quatro tributos,
+competência sem movimento e PIS/COFINS com balanço falso. Todos os hashes e o banco
+permaneceram inalterados. Passaram `28` testes MIT, `78` focados, `999` backend, Ruff,
+typecheck, build e `14` E2E; Alembic ficou em `20260925_0020 (head)` e `git diff --check`
+passou. O único warning de testes é a depreciação conhecida Starlette/httpx.
+
+O watcher, state, baseline, polling, banco e migrations não mudaram. Não há tabela MIT,
+promoção canônica, reconciliação com DARF/DCTFWeb, transmissão, acesso ao e-CAC ou
+backfill. A ausência histórica de JSON continua sendo ausência de fonte, sem conclusão
+fiscal. S11.2-B, S11.3 e S12 não foram iniciados.

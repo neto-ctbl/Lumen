@@ -1,5 +1,56 @@
 # Lumen - Fiscal Cockpit
 
+## S11.2-A — Parser documental do MIT JSON
+
+Concluído e validado em 2026-09-30. `lumen.mit-json@1` reconhece pelo conteúdo o layout
+`DOMINIO_MIT_JSON` e executa `JSON structure -> extract -> classify -> parser result`.
+Filename e path são somente hints: JSON chamado MIT com estrutura incompatível continua
+`UNKNOWN`/`UNSUPPORTED`, enquanto estrutura MIT conclusiva é `MIT`/`MATCHED` mesmo com
+nome neutro. JSON malformado é `INVALID`.
+
+O contrato tipado cobre `PeriodoApuracao`, `DadosIniciais`, eventos especiais,
+suspensões, `BalancoLucroReal`, `ListaDebitos` e `ListaDebitosAposEvento`. Os dez grupos
+oficiais são IRPJ, CSLL, IRRF, IPI, IOF, PIS/PASEP, COFINS, Contribuições Diversas,
+CPSS e RET/Pagamento Unificado. Grupo futuro permanece `UNKNOWN` com o nome original e
+warning técnico, sem invalidar os demais débitos.
+
+`BalancoLucroReal` é indicador booleano de balanço/balancete de redução ou suspensão de
+IRPJ/CSLL, não débito nem grupo tributário. O período mensal do MIT e os atributos de
+débito `AnoPostergado`, `TrimPostergado`, `AnoDebito` e `PaDebito` são preservados
+separadamente. Nenhum trimestre é convertido arbitrariamente em mês. Valores monetários
+são decodificados diretamente como `Decimal`, sem passagem por `float`.
+
+O catálogo `RFB_MIT_MANUAL_1_0_2025_01` contém os 240 códigos oficiais, grupo e
+periodicidade `AN`, `TR`, `ME`, `DC` ou `DI`. Ele enriquece a extração, mas não é enum
+fechado: código futuro permanece no resultado com warning sanitizado. Descrições não
+foram copiadas do PDF porque seu texto embutido corrompe acentos; o modelo já aceita
+descrição futura obtida de fonte oficial estruturada.
+
+O parser reutiliza detector/extractor/classifier/composição. A única generalização do
+framework tornou configurável o warning de layout desconhecido; `DocumentParserRuntime`
+não mudou. O parser e o layout foram apenas registrados nos registries explícitos.
+Nenhuma tabela ou migration MIT foi criada, e nenhum dado é promovido automaticamente
+para empresa, período, tributo, obrigação, valor, vencimento ou `FiscalEvidence`.
+
+A validação read-only usou três JSONs reais externos ao Git: um arquivo com quatro
+débitos IRPJ/CSLL/PIS/COFINS; uma competência `SemMovimento=true`, sem `Debitos`; e um
+arquivo PIS/COFINS com `BalancoLucroReal=false`. Todos foram `MIT`/`MATCHED`, com período
+presente, grupos esperados, hashes antes/depois idênticos e snapshot do banco inalterado.
+O probe não criou evidence nem parser run e não exibiu path, identidade, códigos ou
+valores.
+
+Fechamento: suíte MIT `28 passed`; suíte focada integrada `78 passed, 1 warning`;
+backend `999 passed, 1 warning`; Ruff, typecheck e build aprovados; Playwright
+`14 passed`; `git diff --check` aprovado; Alembic `20260925_0020 (head)`. O warning é a
+depreciação conhecida Starlette/httpx. Nenhum JSON real ou migration entrou no Git,
+nenhum watcher/state/baseline foi alterado e nenhum backfill foi executado.
+
+A preservação regular do MIT JSON começou apenas no período operacional recente. Sua
+ausência histórica é ausência de fonte, nunca evidência de declaração não entregue,
+apuração ausente ou obrigação descumprida. Não há data de adoção hardcoded no parser.
+Contrato detalhado: [S11_MIT_JSON_PARSER](docs/S11_MIT_JSON_PARSER.md). S11.2-B, S11.3
+e S12 permanecem não iniciados.
+
 ## S11.1-E — Parser unificado de parcelamentos
 
 O parser `lumen.installment-pdf@1` está implementado sobre o pipeline
